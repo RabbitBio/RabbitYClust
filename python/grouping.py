@@ -1,3 +1,7 @@
+#This testing scripts for KMV-based method.
+#This is only used for proof-of-concept.
+#Disjoint-set data structure is the key to reduce the compute complexity.
+
 import random
 import sys
 
