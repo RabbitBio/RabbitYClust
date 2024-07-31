@@ -49,6 +49,7 @@ int main(int argc, char** argv)
 
 	int count = 0;	
 
+	cerr << "buffer_size: " << buffer_size << endl;
 	while(1)
 	{
 		int length = kseq_read(ks1);
@@ -78,6 +79,7 @@ int main(int argc, char** argv)
 
 			if(buffer_pos == buffer_size)
 			{
+				cerr << "write to file" << endl;
 				ofile.write(buffer.data(), buffer_size);
 				buffer_pos = 0;
 			}

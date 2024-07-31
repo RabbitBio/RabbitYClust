@@ -50,9 +50,21 @@ void KHFMinHash::sketch()
 	sk.hashes.resize(sk.l * sk.m);
 	xxhash hash;
 	std::string seqStr(seq);
-	
+
 	for(int i = 0; i < sk.l * sk.m; i++) sk.hashes[i] = ULONG_MAX;
 	uint64_t *ptr = sk.hashes.data();
+
+	if(seqStr.size() < m_k)
+	{
+		for(int j = 0; j < m_m; j++)
+		{
+			hash.reset(j);//TODO: make it more random seed!
+			hash.update(seqStr.data(), seqStr.size());
+			uint64_t hash_value = hash.digest();
+			ptr[j] = std::min(ptr[j], hash_value);
+		}
+		return;
+	}		
 
 	for(int j = 0; j < m_m; j++)
 	{
@@ -66,7 +78,7 @@ void KHFMinHash::sketch()
 		}
 	}
 
-
+	return;
 }
 
 
