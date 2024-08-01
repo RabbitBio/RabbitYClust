@@ -6,12 +6,15 @@ import sys
 def read_uint64_from_file(filename):
     try:
         with open(filename, 'rb') as f:
-            while chunk := f.read(8):  # Read 8 bytes at a time (64 bits)
+            #while chunk := f.read(8):  # Read 8 bytes at a time (64 bits)
+            chunk = f.read(8)
+            while chunk:
                 if len(chunk) < 8:
                     print(f"Incomplete data: {chunk}")
                     continue
                 value = struct.unpack('<Q', chunk)[0]  # Little-endian unsigned 64-bit integer
                 print(value)
+                chunk = f.read(8)
     except FileNotFoundError:
         print(f"Error: File '{filename}' not found.")
     except Exception as e:
