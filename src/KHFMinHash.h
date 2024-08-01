@@ -79,8 +79,5 @@ namespace Sketch{
 
 			void sketch();
 
-			inline void compute_sketch(char * ptr, const char * seq);
-
-
 	};
 }
