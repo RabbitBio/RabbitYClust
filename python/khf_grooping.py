@@ -51,26 +51,43 @@ def group_sequences(sequences):
     
     return groups
 
-# Example usage
-sequences = [
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-    [1, 3, 2, 4, 6, 5, 7, 9, 8, 10],
-    [2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-    # Add more sequences as needed
-    # Total of 100 sequences each with 10 values
-]
+def read_sequences_from_binary(file_path, m):
+    sequences = []
+
+    with open(file_path, 'rb') as file:
+        data = file.read(m * 8)
+        while data:
+            # read m uint64 value（each uint64 is 8bytes）
+            if len(data) < 8:
+                print(f"incomplete data:{data}")
+                continue
+            # struct.unpack: tranfrom binary data to uint64 tuple
+            sequence = struct.unpack(f'{m}Q', data)  # 'Q' 表示 unsigned long long (uint64)
+            sequences.append(sequence)
+            data = file.read(m * 8)
+
+    return sequences
 
 # Ensure there are exactly 100 sequences each with 10 values
 import random
+import struct
+import sys
 
-sequences = [[random.randint(1, 2**31-1) for _ in range(15)] for _ in range(100000000)]
+if len(sys.argv) < 2:
+    print("usage: python3 test.py binary_input_file")
+    sys.exit(1)
+# sequences = [[random.randint(1, 2**31-1) for _ in range(15)] for _ in range(100000000)]
 
 # for row in sequences:
 #       print(" ".join(map(str, row)))
 
+file_path = sys.argv[1]
+m = 15
+sequences = read_sequences_from_binary(file_path, m)
+print(f"length of sequences read from file:{len(sequences)}")
 groups = group_sequences(sequences)
 
 # Print the resulting groups
-#for root, group in groups.items():
-#    print(f"Group {root}: {group}")
+for root, group in groups.items():
+    print(f"Group {root}: {group}")
 print(f"groupnumber: {len(groups)}")
