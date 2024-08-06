@@ -69,66 +69,70 @@ def read_sequences_from_binary(file_path, m):
     return sequences
 
 def read_sequence_info(file_path):
-    seq_list = []
+    seq_dict = {}
     with open(file_path, 'r') as file:
+        seq_counter = 0
         while True:
             identifier_line = file.readline().strip()
             sequence_line = file.readline().strip()
             if not identifier_line or not sequence_line:
                 break
             name, size = identifier_line.split()
-            seq_list.append((name, size, sequence_line))
-    return seq_list
+            seq_list = [name, size, sequence_line]
+            seq_dict.update({seq_counter : seq_list})
+            seq_counter += 1
+    return seq_dict
 
-def select_center_sequences(seq_list, groups):
+def select_center_sequences(seq_dict, groups):
     center_sequences_list = []
     for root, group in groups.items():
+        if len(group) < 1:
+            center_sequences_list.append(seq_dict[group[0]][0])
+            break
+        max_size = -1
+        max_seq_id = None
         for seq_id in group:
-            max_size = 0
-            max_seq_id = 0
-#max_size = max_size if seq_list[seq_id][1] > max_size else seq_list[seq_id][1]
-            if max_size < (int)(seq_list[seq_id][1]):
-                max_size = (int)(seq_list[seq_id][1])
+            if max_size == int(seq_dict[seq_id][1]):
+                max_seq_id = int(seq_id) if int(seq_id) < max_seq_id else max_seq_id
+            elif max_size < (int)(seq_dict[seq_id][1]):
+                max_size = (int)(seq_dict[seq_id][1])
                 max_seq_id = seq_id
 # wirte element with the max size of the group result to the FASTQ file
 # method1: use if statement to compare to choose the max one in each iteration
 # method2: put all elements'size and id in a list and use max(list, key=lambda x : x[1]) to get the max one
-# we use methon1 at here
-        seq_name = seq_list[max_seq_id][0]
-        #seq = seq_list[max_seq_id][2]
+#        group_list = [seq_dict[key] for key in group if key in seq_dict]
+#        max_size = max(group_list, key = lambda x : x[1])
+#        max_size_counter = sum(1 for element in group_list if element[1] == max_size)
+#        if max_size_counter > 1:
+#            
+        seq_name = seq_dict[max_seq_id][0]
         center_sequences_list.append((seq_name))
+
         #for i in range(0, len(seq), 80):
         #    file.write(seq[i:i+80] + '\n')
     return center_sequences_list
 
-import itertools
+#import itertools
 def read_fasta_from_clust(file_path):
-    seq_dict = {}
+#    seq_dict = {}
     with open(file_path, 'r') as file:
         content = file.read()
     entries = content.strip().split('>')
     # reserve sequences names
     entries = [entry[:entry.find('\n')] for entry in entries if entry]
-    for entry in entries:
-        keys = entry.split('\x01')
-        if len(keys) > 1: # put clusts with multiple sequences into seq_dict
-            keys = [f'>{key.split()[0]}' for key in keys]
-            value = keys[0]
-            seq_dict.update({key : value for key in keys})
 #    t_items = itertools.islice(seq_dict.items(), 3)
 #    for key, value in seq_dict.items():
 #        print(f"{key}:{value}")
     entries = [entry.split()[0] for entry in entries if entry]
     seq_list = [f'>{entry}' for entry in entries]
-    return seq_list, seq_dict
+    return seq_list
 
-def find_unique_sequence(group_list, clust_list, clust_dict):
+def find_unique_sequence(group_list, clust_list):
     group_set = set(group_list)
     clust_set = set(clust_list)
-    #unique_elements = group_set - clust_set
-    unique_elements = clust_set - group_set
-    print(len(unique_elements))
-    #print(f"{len(unique_elements)} sequences should be in a cluster but in different group")
+    unique_elements = group_set - clust_set
+    #unique_elements = clust_set - group_set
+    print(f"{len(unique_elements)} sequences should be in a cluster but in different group")
    # for seq in unique_elements:
    #     if seq in clust_dict:
    #         print(f"{seq} : {clust_dict[seq]}")
@@ -160,11 +164,10 @@ center_sequences_list = select_center_sequences(sequences, groups)
 print(f"select center sequences of grooping results")
 
 clust_file_path = sys.argv[3]
-clust_list, clust_dict = read_fasta_from_clust(clust_file_path)
+clust_list = read_fasta_from_clust(clust_file_path)
 print(f"read {len(clust_list)} center sequence name from cd-hit clust results")
 
-print(len(clust_dict))
-find_unique_sequence(center_sequences_list, clust_list, clust_dict)
+find_unique_sequence(center_sequences_list, clust_list)
 # Print the resulting groups
 #for root, group in groups.items():
 #    print(f"Group {root}: {group}")
