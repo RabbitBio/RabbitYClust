@@ -57,8 +57,10 @@ int main(int argc, char** argv)
 		if(length < 0) break;
 
 		char * seq1 = ks1->seq.s;
-		cout << ks1->name.s << " ";
-		cout << ks1->comment.s << endl;
+		cout << ">" << ks1->name.s << " ";
+		//cout << ks1->comment.s << " " << ks1->seq.l << endl;
+		cout << ks1->seq.l << endl;
+		cout << ks1->seq.s << endl;
 		KHFMinHash mh = KHFMinHash(seq1);			
 	
 		auto & sketch = mh.getSektch();	
