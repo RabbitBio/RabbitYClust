@@ -6,6 +6,11 @@
 #include <stdint.h>
 #include <vector>
 
+
+// Function to encode a string of amino acids to a 64-bit integer
+uint64_t encodeAminoAcidsTo64Bit(const std::string& sequence);
+
+
 namespace Sketch{
 	//OMinHash
 	struct KHFSketch {
@@ -23,7 +28,7 @@ namespace Sketch{
 
 		public:
 			/// KHFMinHash constructor
-			KHFMinHash() : seq(nullptr), m_k(13), m_l(1), m_m(15), mtSeed(32)  {};
+			KHFMinHash() : seq(nullptr), m_k(12), m_l(1), m_m(15), mtSeed(32)  {};
 			/// KHFMinHash constructor for sketching sequences using default parameters
 			KHFMinHash(char * seqNew);
 			~KHFMinHash() {};
@@ -67,11 +72,13 @@ namespace Sketch{
 		private:
 
 			char * seq = NULL;
-			//kmer: 13 for protein in default
+			//kmer: 12 for protein in default, if using int hash, kmer max size is 12
 			//m: 15 
-			int m_k = 13, m_m = 15;
+			int m_k = 12, m_m = 15;
 			//For the classical KHF implementation l should be 1
 			int m_l = 1; 
+            //choose whether using int hash
+            bool inthash = true;
 
 			KHFSketch sk;
 
