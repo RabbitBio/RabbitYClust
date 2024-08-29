@@ -78,20 +78,20 @@ def read_sequence_info(file_path):
             if not identifier_line or not sequence_line:
                 break
             name, size = identifier_line.split()
-            seq_list = [name, size, sequence_line]
+            seq_list = [name[1:], size, sequence_line]
             seq_dict.update({seq_counter : seq_list})
             seq_counter += 1
     return seq_dict
 
 def select_center_sequences(seq_dict, groups):
     center_sequences_list = []
+    group_dict = {}
     for root, group in groups.items():
-        if len(group) < 1:
-            center_sequences_list.append(seq_dict[group[0]][0])
-            break
         max_size = -1
         max_seq_id = None
+        entries = []
         for seq_id in group:
+            entries.append(seq_dict[seq_id][0])
             if max_size == int(seq_dict[seq_id][1]):
                 max_seq_id = int(seq_id) if int(seq_id) < max_seq_id else max_seq_id
             elif max_size < (int)(seq_dict[seq_id][1]):
@@ -107,10 +107,11 @@ def select_center_sequences(seq_dict, groups):
 #            
         seq_name = seq_dict[max_seq_id][0]
         center_sequences_list.append((seq_name))
+        group_dict[seq_name] = entries
 
         #for i in range(0, len(seq), 80):
         #    file.write(seq[i:i+80] + '\n')
-    return center_sequences_list
+    return center_sequences_list, group_dict
 
 #import itertools
 def read_fasta_from_clust(file_path):
@@ -127,23 +128,73 @@ def read_fasta_from_clust(file_path):
     seq_list = [f'>{entry}' for entry in entries]
     return seq_list
 
-def find_unique_sequence(group_list, clust_list):
+import re
+def read_clust_clstr(file_path):
+    clusters_dict={}
+    current_cluster = []
+    key = None
+    # 正则表达式用于匹配以 > 开头并以 .1 结尾的条目
+    pattern = re.compile(r'>(\S+)\.\.\.')
+    with open(file_path,'r') as file:
+        for line in file.readlines()[1:]:
+            line = line.strip()
+            if line.startswith('>Cluster'):
+                # 保存当前 cluster 的数据
+                if current_cluster is not None:
+                    clusters_dict[key] = current_cluster
+                #print(f"cluster{key} : {current_cluster}")
+                # 开始新的 cluster
+                current_cluster = []
+                key = None
+            else:
+                match = pattern.search(line)
+                if match:
+                    current_cluster.append(match.group(1))
+                    if line.endswith('*'):
+                        key = match.group(1)
+    if current_cluster is not None:
+        clusters_dict[key] = current_cluster
+    return clusters_dict
+
+
+def find_unique_sequence(group_list, clusters_dict):
+    clust_list = list(clusters_dict.keys())
+    print(f"read {len(clust_list)} center sequence name from cd-hit clust results")
     group_set = set(group_list)
     clust_set = set(clust_list)
     unique_elements = group_set - clust_set
     #unique_elements = clust_set - group_set
     print(f"{len(unique_elements)} sequences should be in a cluster but in different group")
-   # for seq in unique_elements:
-   #     if seq in clust_dict:
-   #         print(f"{seq} : {clust_dict[seq]}")
-   #     else:
-   #         print(f"{seq} : NULL")
+    for seq in unique_elements:
+        if seq in clust_list:
+            print(f"{seq} : {clust_list[seq]}")
+        else:
+            print(f"{seq} : NULL")
+
+def check_group_result(group_dict, clusters_dict):
+    group_rev_dict = {}
+    clust_rev_dict = {}
+    for key, items in group_dict.items():
+        for item in items:
+            group_rev_dict[item] = key
+    for key, items in clusters_dict.items():
+        for item in items:
+            clust_rev_dict[item] = key
+    error_group_list = []
+    for seq, center_seq in group_rev_dict.items():
+        if center_seq != clust_rev_dict[seq]:
+            error_group_list.append(key)
+            print(f'right center seq of {seq} is {clust_rev_dict[seq]} not {center_seq}')
+    print(len(error_group_list))
+    for item in error_group_list:
+        print(f'{item}')
+    
 import random
 import struct
 import sys
 
 if len(sys.argv) < 4:
-    print("usage: python3 test.py binary_input_file FASTA_input clust_input")
+    print("usage: python3 test.py binary_input_file seq_FASTA_input cd-hit_clust_input")
     sys.exit(1)
 # sequences = [[random.randint(1, 2**31-1) for _ in range(15)] for _ in range(100000000)]
 
@@ -153,6 +204,8 @@ if len(sys.argv) < 4:
 input_file_path = sys.argv[1]
 m = 15
 seq_input = read_sequences_from_binary(input_file_path, m)
+#for seq in seq_input:
+#    print(f"{seq}")
 print(f"length of sequences read from {input_file_path}:{len(seq_input)}")
 groups = group_sequences(seq_input)
 print(f"grouping results: {len(groups)}")
@@ -160,14 +213,13 @@ print(f"grouping results: {len(groups)}")
 FASTA_file_path = sys.argv[2]
 sequences = read_sequence_info(FASTA_file_path)
 print(f"read sequences' name, size and content from {FASTA_file_path}")
-center_sequences_list = select_center_sequences(sequences, groups)
+center_sequences_list, group_dict = select_center_sequences(sequences, groups)
 print(f"select center sequences of grooping results")
 
 clust_file_path = sys.argv[3]
-clust_list = read_fasta_from_clust(clust_file_path)
-print(f"read {len(clust_list)} center sequence name from cd-hit clust results")
-
-find_unique_sequence(center_sequences_list, clust_list)
+clusters_dict = read_clust_clstr(clust_file_path)
+#check_group_result(group_dict, clusters_dict)
+find_unique_sequence(center_sequences_list, clusters_dict)
 # Print the resulting groups
 #for root, group in groups.items():
 #    print(f"Group {root}: {group}")
