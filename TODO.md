@@ -12,4 +12,6 @@ The errors can be calculated by $(1-s^r)^b$, where $s$ is the targeting similari
 - [ ] FIXIT: The single-threaded hash generation is still slow (82MB fasta file consumes about 35 secs).
 - [ ] FIXIT: Return the reversible encoded int value instead of hash value
 - [ ] FIXIT: Add option to ignore small peptide sequences
-
+- [ ] Full pipelines from generating hashes to clusting. (using python scripts)
+- [ ] Validate full pipeline clust results. (e.g. comparing nmi-score to cd-hit's)
+- [ ] Performance optimization (parallization, vectorization, memory optimzation(reduce memory footprint))
