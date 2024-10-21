@@ -251,7 +251,7 @@ def run_cdhit_for_clustering(input_dir, output_dir, thread_num, run_cdhit, cdhit
             printf(f"cluster error {e}")
 
 
-def parse_cdhit_clstr(clstr_file, start_idx):
+def parse_cdhit_clstr(clstr_file):
     """
     解析 CD-HIT 生成的 .clstr 文件，提取聚类信息。
     
@@ -262,7 +262,7 @@ def parse_cdhit_clstr(clstr_file, start_idx):
     - cluster_labels: 生成的每个序列对应的聚类标签
     """
     cluster_labels = {}
-    current_cluster_id = start_idx
+    current_cluster_id = 0
     with open(clstr_file, 'r') as f:
         for line in f:
             line = line.strip()
@@ -274,7 +274,7 @@ def parse_cdhit_clstr(clstr_file, start_idx):
                 # 给该序列分配当前的聚类ID
                 cluster_labels[seq_id] = current_cluster_id
 
-    return cluster_labels, current_cluster_id
+    return cluster_labels
 
 
 from sklearn.metrics import normalized_mutual_info_score
@@ -291,12 +291,9 @@ def calculate_nmi(clstr_file, original_cdhit_file):
     """
     print(f"compute nmi")
     # 解析 CD-HIT 生成的聚类结果
-    count = -1
-    true_labels, count = parse_cdhit_clstr(original_cdhit_file, -1)
-    count = -1
-    for filename in os.listdir(clstr_dir):
-        tmp_labels, count = parse_cdhit_clstr(filename, count)
-        groups_cdhit_labels.update(tmp_labels)
+    true_labels = parse_cdhit_clstr(original_cdhit_file)
+    groups_cdhit_labels = parse_cdhit_clstr(clstr_file)
+    
     
     # 提取真实标签和聚类结果的标签列表，保证序列顺序一致
     common_ids = set(true_labels.keys()).intersection(groups_cdhit_labels.keys())
@@ -326,9 +323,10 @@ parser.add_argument("grouping_results_path", type=str, help="grouping results ou
 parser.add_argument("-c", "--cluster", action="store_true", help="clustering sequences after group")
 parser.add_argument("-t", "--thread", type=str, help="clustering threads num")
 parser.add_argument("-n", "--nmi", action="store_true", help="caculate nmi score between yclust and cd-hit")
-parser.add_argument("-p", "--control_group", type=str, help="original cdhit results path")
 parser.add_argument("run_cdhit", nargs="?", type=str, help="Path of the run_cdhit.sh")
 parser.add_argument("cdhit", nargs="?", type=str, help="Path of the cdhit")
+parser.add_argument("control_group", nargs="?", type=str, help="original cdhit results path")
+parser.add_argument("cluster_input", nargs="?", type=str, help="cluster files input path")
 args = parser.parse_args()
 
 if args.cluster:
@@ -337,9 +335,10 @@ if args.cluster:
         sys.exit(1)
 
 if args.nmi:
-    if not args.control_group:
-        print("Enter the path of Control-Group with -p")
+    if (not args.cluster) and (not args.control_group or not args.cluster_input):
+        print("Caculate nmi score need [control-group-path] and [cluster-input-path]")
         sys.exit(1)
+ 
 
 # grouping
 print("Grouping...")
@@ -376,8 +375,12 @@ if args.cluster:
 
 # caculate nmi score
 if args.nmi:
+    if args.cluster:
+        cluster_input = final_output_file
+    else:
+        cluster_input = args.cluster_input
     original_cdhit_file = args.control_group
-    calculate_nmi(final_output_file, original_cdhit_file)
+    calculate_nmi(cluster_input, original_cdhit_file)
 
 
 ## verify correctness using cd-hit clust results
