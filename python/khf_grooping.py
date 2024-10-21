@@ -70,7 +70,7 @@ def read_sequences_from_binary(file_path, m):
 
 def read_sequence_info(file_path):
     seq_dict = {}
-    len_dict = {}
+#    len_dict = {}
     with open(file_path, 'r') as file:
         seq_counter = 0
         while True:
@@ -81,9 +81,9 @@ def read_sequence_info(file_path):
             name, size = identifier_line.split()
             seq_list = [name[1:], size, sequence_line]
             seq_dict.update({seq_counter : seq_list})
-            len_dict.update({name[1:] : size})
+#            len_dict.update({name[1:] : size})
             seq_counter += 1
-    return seq_dict, len_dict
+    return seq_dict#, len_dict
 
 def select_center_sequences(seq_dict, groups):
     center_sequences_list = []
@@ -214,39 +214,43 @@ def write_to_fa(groups, sequences, output_dir):
 
 import subprocess
 import os
-def run_cdhit_for_clustering(input_dir, output_dir, final_output_file, identity_threshold=0.9):
+def run_cdhit_for_clustering(input_dir, output_dir, thread_num, run_cdhit, cdhit, final_output_file, identity_threshold=0.9):
     os.makedirs(input_dir, exist_ok=True)
     os.makedirs(output_dir, exist_ok=True)
-    with open(final_output_file, 'w') as final_output:
-        for filename in os.listdir(input_dir):
-            if filename.endswith(".fa"):
-                input_file = os.path.join(input_dir, filename)
-                output_file = os.path.join(output_dir, f"{os.path.splitext(filename)[0]}_clustered")
-                cdhit_command = [
-                    "../../khf/cdhit/cd-hit",  
-                    "-i", input_file,        # 输入的 .fa 文件
-                    "-o", output_file,       # 聚类后的输出文件
-                    "-c", str(identity_threshold),  # 相似性阈值（例如 0.9 表示 90% 相似性）
-                    #"-n", "5",               # 选择 word size (适用于蛋白质序列，一般使用5)
-                ]
-                
-                print(f"Running CD-HIT on {input_file}")
-                
-                # 执行 CD-HIT 命令
-                try:
-                    subprocess.run(cdhit_command, check=True)
-                    print(f"Clustering completed for {filename}, results saved in {output_file}")
-                except subprocess.CalledProcessError as e:
-                    print(f"Error running CD-HIT on {filename}: {e}")
-                    continue
-                
-                # 将当前聚类结果附加到总结果文件中
-#                read_file = f"{output_file}.clstr"
-#                with open(read_file, 'r') as cluster_output:
-#                    final_output.write(cluster_output.read())
-    print(f"All clutering results combined into {final_output_file}")
 
-def parse_cdhit_clstr(clstr_file):
+    """
+    python直接执行cdhit聚类
+    for filename in os.listdir(input_dir):
+        if filename.endswith(".fa"):
+            input_file = os.path.join(input_dir, filename)
+            output_file = os.path.join(output_dir, f"{os.path.splitext(filename)[0]}_clustered")
+            cdhit_command = [
+                "../../khf/cdhit/cd-hit",  
+                "-i", input_file,        # 输入的 .fa 文件
+                "-o", output_file,       # 聚类后的输出文件
+                "-c", str(identity_threshold),  # 相似性阈值（例如 0.9 表示 90% 相似性）
+                #"-n", "5",               # 选择 word size (适用于蛋白质序列，一般使用5)
+            ]
+           
+           # 执行 CD-HIT 命令
+            try:
+                subprocess.run(cdhit_command, check=True)
+                print(f"Clustering completed for {filename}, results saved in {output_file}")
+            except subprocess.CalledProcessError as e:
+                print(f"Error running CD-HIT on {filename}: {e}")
+                continue
+    """
+    with open('cluster.log', 'w') as logfile:
+        try:
+            print(f"{thread_num} threads will doing cluster now")
+            subprocess.run(["bash", run_cdhit, input_dir, output_dir, cdhit, thread_num, final_output_file], shell=True, stdout=logfile, stderr=subprocess.STDOUT) 
+# capture_output=True, text=True)
+            # print("run cdhit for clustering error:", result.stderr)
+        except subprocess.CalledProcessError as e:
+            printf(f"cluster error {e}")
+
+
+def parse_cdhit_clstr(clstr_file, start_idx):
     """
     解析 CD-HIT 生成的 .clstr 文件，提取聚类信息。
     
@@ -257,7 +261,7 @@ def parse_cdhit_clstr(clstr_file):
     - cluster_labels: 生成的每个序列对应的聚类标签
     """
     cluster_labels = {}
-    current_cluster_id = -1
+    current_cluster_id = start_idx
     with open(clstr_file, 'r') as f:
         for line in f:
             line = line.strip()
@@ -269,7 +273,8 @@ def parse_cdhit_clstr(clstr_file):
                 # 给该序列分配当前的聚类ID
                 cluster_labels[seq_id] = current_cluster_id
 
-    return cluster_labels         
+    return cluster_labels, current_cluster_id
+
 
 from sklearn.metrics import normalized_mutual_info_score
 def calculate_nmi(clstr_file, original_cdhit_file):    
@@ -283,15 +288,20 @@ def calculate_nmi(clstr_file, original_cdhit_file):
     返回:
     - nmi: NMI 得分
     """
-    true_labels = parse_cdhit_clstr(original_cdhit_file)
+    print(f"compute nmi")
     # 解析 CD-HIT 生成的聚类结果
-    cd_hit_labels = parse_cdhit_clstr(clstr_file)
+    count = -1
+    true_labels, count = parse_cdhit_clstr(original_cdhit_file, -1)
+    count = -1
+    for filename in os.listdir(clstr_dir):
+        tmp_labels, count = parse_cdhit_clstr(filename, count)
+        groups_cdhit_labels.update(tmp_labels)
     
     # 提取真实标签和聚类结果的标签列表，保证序列顺序一致
-    common_ids = set(true_labels.keys()).intersection(cd_hit_labels.keys())
+    common_ids = set(true_labels.keys()).intersection(groups_cdhit_labels.keys())
     
     true_label_list = [true_labels[seq_id] for seq_id in common_ids]
-    cluster_label_list = [cd_hit_labels[seq_id] for seq_id in common_ids]
+    cluster_label_list = [groups_cdhit_labels[seq_id] for seq_id in common_ids]
     
     # 计算 NMI 得分
     nmi = normalized_mutual_info_score(true_label_list, cluster_label_list)
@@ -302,42 +312,69 @@ def calculate_nmi(clstr_file, original_cdhit_file):
 import random
 import struct
 import sys
+import argparse
 
-if len(sys.argv) < 4:
-    print("usage: python3 test.py binary_input_file seq_FASTA_input cd-hit_clust_input")
-    sys.exit(1)
-# sequences = [[random.randint(1, 2**31-1) for _ in range(15)] for _ in range(100000000)]
+#if len(sys.argv) < 4:
+#    print("usage: python3 test.py binary_input_file sequences_info_input grouping_results_output")
+#    sys.exit(1)
 
-# for row in sequences:
-#       print(" ".join(map(str, row)))
+parser = argparse.ArgumentParser(description="")
+parser.add_argument("binary_hash_input_path", type=str, help="Hash file input")
+parser.add_argument("sequences_info_path", type=str, help="sequences information input")
+parser.add_argument("grouping_results_path", type=str, help="grouping results output")
+parser.add_argument("-c", "--cluster", action="store_true", help="clustering sequences after group")
+parser.add_argument("-t", "--thread", type=str, help="clustering threads num")
+parser.add_argument("-n", "--nmi", action="store_true", help="caculate nmi score between yclust and cd-hit")
+parser.add_argument("-p", "--control_group", type=str, help="original cdhit results path")
+parser.add_argument("run_cdhit", nargs="?", type=str, help="Path of the run_cdhit.sh")
+parser.add_argument("cdhit", nargs="?", type=str, help="Path of the cdhit")
+args = parser.parse_args()
 
-if len(sys.argv) < 5:
-    print("usage: python3 test.py binary_input_file seq_FASTA_input group_results_output cd-hit_clust_input")
-    sys.exit(1)
+if args.cluster:
+    if not args.run_cdhit:
+        print("Error: cd-hit path is needed when -c option is enabled")
+        sys.exit(1)
 
-input_file_path = sys.argv[1]
+if args.nmi:
+    if not args.control_group:
+        print("Enter the path of Control-Group with -p")
+        sys.exit(1)
+
+# grouping
+print("Grouping...")
+input_file_path = args.binary_hash_input_path # hash file
 m = 15
 seq_input = read_sequences_from_binary(input_file_path, m)
-#for seq in seq_input:
-#    print(f"{seq}")
 print(f"{len(seq_input)} sequences read from {input_file_path}")
 groups = group_sequences(seq_input)
 print(f"grouping results: {len(groups)}")
-#
-FASTA_file_path = sys.argv[2]
-sequences, len_dict = read_sequence_info(FASTA_file_path)
+FASTA_file_path = args.sequences_info_path # sequences information includes sequences' name, length and content
+sequences = read_sequence_info(FASTA_file_path)
 print(f"read sequences' name, size and content from {FASTA_file_path}")
-
-output_dir = sys.argv[3]
+output_dir = f"{args.grouping_results_path}groups" # groups results output
+print(f"Grouping results output is at {output_dir}")
 write_to_fa(groups, sequences, output_dir)
 
-input_dir = output_dir
-output_dir = "k8m15/cluster"
-final_output_file = "k8m15_clustered_results"
-run_cdhit_for_clustering(input_dir, output_dir, final_output_file, identity_threshold=0.9)
 
-original_cdhit_file = sys.argv[4]
-calculate_nmi(final_output_file, original_cdhit_file)
+# cluster
+if args.cluster:
+    print("Clustering after grouping")
+    input_dir = output_dir # grouping results input
+    output_dir = f"{args.grouping_results_path}cluster" # cluster results output
+    print(f"Clustering results output is at {output_dir}")
+    final_output_file = f"{args.grouping_results_path}final.clstr" # final cluster output
+    print(f"Final file is {final_output_file}")
+    thread_num = 1
+    if args.thread:
+        thread_num = args.thread
+    run_cdhit = args.run_cdhit
+    cdhit = args.cdhit
+    run_cdhit_for_clustering(input_dir, output_dir, thread_num, run_cdhit, cdhit, final_output_file, identity_threshold=0.9)
+
+# caculate nmi score
+if args.nmi:
+    original_cdhit_file = args.control_group
+    calculate_nmi(final_output_file, original_cdhit_file)
 
 
 ## verify correctness using cd-hit clust results
