@@ -123,7 +123,8 @@ void KHFMinHash::sketch()
 		{
 			for(int j = 0; j < m_m; j++)
 			{
-				hash.reset(j);//TODO: make it more random seed!
+				random_seed = rng();
+				hash.reset(random_seed);//TODO: make it more random seed!
 				hash.update(seqStr.data(), seqStr.size());
 				uint64_t hash_value = hash.digest();
 				ptr[j] = std::min(ptr[j], hash_value);
@@ -134,9 +135,10 @@ void KHFMinHash::sketch()
 		for(int j = 0; j < m_m; j++)
 		{
 	
+			random_seed = rng();
 			for(int i = 0; i < seqStr.size() - m_k + 1; i++)
 			{
-				hash.reset(j);//TODO: make it more random seed!
+				hash.reset(random_seed);//TODO: make it more random seed!
 				hash.update(&seqStr.data()[i], m_k);
 				uint64_t hash_value = hash.digest();
 				ptr[j] = std::min(ptr[j], hash_value);
