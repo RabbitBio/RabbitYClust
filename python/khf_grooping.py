@@ -240,11 +240,12 @@ def run_cdhit_for_clustering(input_dir, output_dir, thread_num, run_cdhit, cdhit
                 print(f"Error running CD-HIT on {filename}: {e}")
                 continue
     """
+    command = ["bash", run_cdhit, input_dir, output_dir, cdhit, thread_num, final_output_file]
     with open('cluster.log', 'w') as logfile:
         try:
             print(f"{thread_num} threads will doing cluster now")
-            subprocess.run(["bash", run_cdhit, input_dir, output_dir, cdhit, thread_num, final_output_file], shell=True, stdout=logfile, stderr=subprocess.STDOUT) 
-# capture_output=True, text=True)
+            subprocess.run(command, stdout=logfile, stderr=logfile)
+            #subprocess.run(["bash", run_cdhit, input_dir, output_dir, cdhit, thread_num, final_output_file], shell=True, stdout=logfile, stderr=subprocess.STDOUT) 
             # print("run cdhit for clustering error:", result.stderr)
         except subprocess.CalledProcessError as e:
             printf(f"cluster error {e}")
@@ -362,13 +363,15 @@ if args.cluster:
     input_dir = output_dir # grouping results input
     output_dir = f"{args.grouping_results_path}cluster" # cluster results output
     print(f"Clustering results output is at {output_dir}")
+
     final_output_file = f"{args.grouping_results_path}final.clstr" # final cluster output
-    print(f"Final file is {final_output_file}")
+    print(f"Final cluster result file is {final_output_file}")
     thread_num = 1
     if args.thread:
         thread_num = args.thread
     run_cdhit = args.run_cdhit
     cdhit = args.cdhit
+    print(f"Cluster tool used is {cdhit}")
     run_cdhit_for_clustering(input_dir, output_dir, thread_num, run_cdhit, cdhit, final_output_file, identity_threshold=0.9)
 
 # caculate nmi score
