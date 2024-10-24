@@ -1,5 +1,6 @@
 #include "KHFMinHash.h"
 #include "kseq.h"
+#include "CLI11.hpp"
 #include <zlib.h>
 
 #include <iostream>
@@ -7,14 +8,55 @@
 #include <cstring>
 #include <fstream>
 
+#define CLI11
+
 using namespace std;
 using namespace Sketch;
 
 KSEQ_INIT(gzFile, gzread)
 
-int main(int argc, char** argv)
+int main(int argc, char* argv[])
 {
+	gzFile fp1;
+	kseq_t *ks1;
 
+#ifdef CLI11
+	CLI::App app{"yclust v.0.0.1, extremely fast and scalable protein clustering"};
+	int threads = 1;
+	int min_len = 50;
+	int k = 8;
+	int m = 15;
+	float similarity = 0.9;
+	string filename = "";
+	string res_file = "";
+
+	auto option_threads = app.add_option("-t, --threads", threads,  "set the thread number, default 1 thread");
+	auto option_min_len = app.add_option("--min-length", min_len, "set the filter minimum length (minLen), protein length less than minLen will be ignore, default 50");
+	auto option_min_similarity = app.add_option("-s, --min-similarity", similarity, "set the minimum similarity for clustering, default 0.9");
+	auto option_kmer_size = app.add_option("-k, --kmer-size", k, "set the kmer size, default 8");
+	auto option_m_size = app.add_option("-m, --m-size", m, "set the number of hash functions will be used, default 15");
+	auto option_input = app.add_option("-i, --input", filename, "input file name, fasta or gziped fasta formats");
+	auto option_output = app.add_option("-o, --output", res_file, "output file, 64bit binary hashes");
+
+	option_input->required();
+	option_output->required();
+
+	CLI11_PARSE(app, argc, argv);
+
+	if(threads < 1)
+	{
+		cerr << "Invalid thread number: " << threads << endl;
+		return 1;
+	}
+	cerr << "==========Paramters==========" << endl;
+	cerr << "Threads: " << threads << endl;
+	cerr << "K: " << k << endl;
+	cerr << "M: " << m << endl;
+	cerr << "Similarity Threshold:" << similarity << endl;
+	cerr << "Input: " << filename << endl;
+	cerr << "Ouput: " << res_file << endl;
+	cerr << "==========End Paramters==========" << endl;
+#else
 	if(argc != 3)
 	{
 		cerr << "Usage: ./yclust input.fa output.hash" << endl;
@@ -22,24 +64,41 @@ int main(int argc, char** argv)
 		cerr << "Note: the names of sequences are printed to stdout!" << endl;
 		return 1;
 	}
-	gzFile fp1;
-	kseq_t *ks1;
+#endif
 
+
+#ifdef CLI11
+	fp1 = gzopen(filename.c_str(),"r");
+
+	if(NULL == fp1){
+		cerr << "Fail to open file: " << filename << endl;
+		return 0;
+	}
+#else
 	fp1 = gzopen(argv[1],"r");
 
 	if(NULL == fp1){
-		fprintf(stderr,"Fail to open file: %s\n", argv[1]);
+		cerr << "Fail to open file: " << argv[1] << endl;
 		return 0;
 	}
+#endif
 
-
-	ofstream ofile(string(argv[2]), ios::binary);
-
+#ifdef CLI11
+	ofstream ofile(res_file, ios::binary);
 	if( !ofile.is_open())
 	{
-		cerr << "Failed to open " << argv[2] << endl;
+		cerr << "Failed to open file: " << res_file << endl;
 		return 1;
 	}
+#else
+	ofstream ofile(argv[2], ios::binary);
+	if( !ofile.is_open())
+	{
+		cerr << "Failed to open file: " << argv[2] << endl;
+		return 1;
+	}
+
+#endif
 
 	ks1 = kseq_init(fp1);
 
@@ -61,7 +120,12 @@ int main(int argc, char** argv)
 		//cout << ks1->comment.s << " " << ks1->seq.l << endl;
 		cout << ks1->seq.l << endl;
 		cout << ks1->seq.s << endl;
-		KHFMinHash mh = KHFMinHash(seq1);			
+		KHFMinHash mh = KHFMinHash();			
+#ifdef CLI11
+		mh.setK(k);
+		mh.setM(m);
+#endif
+		mh.buildSketch(seq1);
 	
 		auto & sketch = mh.getSektch();	
 
