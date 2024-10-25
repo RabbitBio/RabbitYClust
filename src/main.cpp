@@ -114,6 +114,7 @@ int main(int argc, char* argv[])
 		int length = kseq_read(ks1);
 
 		if(length < 0) break;
+		if (ks1->seq.l <= min_len) continue;
 
 		char * seq1 = ks1->seq.s;
 		cout << ">" << ks1->name.s << " ";
