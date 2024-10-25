@@ -52,6 +52,7 @@ int main(int argc, char* argv[])
 	cerr << "Threads: " << threads << endl;
 	cerr << "K: " << k << endl;
 	cerr << "M: " << m << endl;
+	cerr << "Min_len: " << min_len << endl;
 	cerr << "Similarity Threshold:" << similarity << endl;
 	cerr << "Input: " << filename << endl;
 	cerr << "Ouput: " << res_file << endl;
