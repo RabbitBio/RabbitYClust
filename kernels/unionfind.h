@@ -1,0 +1,76 @@
+#include <vector>
+#include <unordered_map>
+#include <chrono>
+#include <iostream>
+#include <numeric> //iota
+#include <algorithm>
+
+using namespace std;
+
+struct Data {
+	int hash_value;
+	int id;
+
+	// 打印结构体数据，方便调试
+	void print() const {
+			cout << "Hash: " << hash_value << ", ID: " << id << endl;
+	}
+	Data(int hash, int idx) : hash_value(hash), id(idx) {}
+};
+
+class UnionFind {
+private:
+	vector<int> parent;
+	vector<int> rank;
+
+public:
+	
+    UnionFind(int n) {
+        parent.resize(n);
+		rank.resize(n);
+        iota(parent.begin(), parent.end(), 0); // 初始化为自身
+        iota(rank.begin(), rank.end(), 0); 
+    }
+
+    int find(int x) {
+        if (parent[x] != x) {
+            parent[x] = find(parent[x]); // 路径压缩
+        }
+        return parent[x];
+    }
+
+
+    void unite(int x, int y) {
+	    int rootX = find(x);
+	    int rootY = find(y);
+	    if (rootX != rootY) {
+	        if (rank[rootX] > rank[rootY]) {
+	            parent[rootY] = rootX;
+	        } else if (rank[rootX] < rank[rootY]) {
+	            parent[rootX] = rootY;
+	        } else {
+	            parent[rootY] = rootX;
+	            rank[rootX]++;
+	        }
+	    }
+	}
+
+	int countSetsSize() {
+		int count = 0;
+		for (int i = 0; i < parent.size(); i++) {
+			if (parent[i] == i) count++;
+		}
+		return count;
+	}
+
+	void findRoot (vector<pair<int, int>>& root) {
+		for(int i=0; i < parent.size(); i++) {
+			int root_id = find(parent[i]);
+			root.emplace_back(i, root_id);
+		}
+	}
+
+	void sortSetsByRoot(vector<pair<int, int>>& Id_Root_set);
+	unordered_map<int, vector<int>> getGroupMap();
+
+};
