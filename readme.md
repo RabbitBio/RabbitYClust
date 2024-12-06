@@ -47,7 +47,6 @@ ps. 详细可以去看main.cpp 中的调用，并且给出了在如下格式中�
 
 ```
 /project
-	main.cpp
     /include
     	cdhit-common.h
     	cdhit-lib.h
@@ -56,6 +55,7 @@ ps. 详细可以去看main.cpp 中的调用，并且给出了在如下格式中�
     /libs
     	libcdhitlib.a
     Makefile
+	main.cpp
 
 ```
 
