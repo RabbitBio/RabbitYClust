@@ -38,12 +38,9 @@ int main(int argc, char* argv[]) {
     // std::cout << "<<<<<<<<<<" << seq.size() << std::endl;
     std::cout << std::endl;
     std::string input = "/home/user_home/maguiliang/codes/c_cpp/cdhit_test/test/input/test.fa";
-    std::string output_file = "/home/user_home/maguiliang/codes/c_cpp/cdhit_test/test/output/test.fa";
-    std::string output_vector = "/home/user_home/maguiliang/codes/c_cpp/cdhit_test/test/output/test.fa";
+    std::string output_file = "/home/user_home/maguiliang/codes/c_cpp/cdhit_test/test/output/test_file.fa";
+    std::string output_vector = "/home/user_home/maguiliang/codes/c_cpp/cdhit_test/test/output/test_vector.fa";
     cdhit_file(input, output_file, "-t 0.9 -M 160000 -T 1");
     std::cout << "<<<<<<<" << std::endl;
-    // cdhit_vector(seq, output_vector, "-t 0.8 -M 16000 -T 4");
+    cdhit_vector(seq, output_vector, "-t 0.8 -M 16000 -T 4");
 }
-
-// g++ -I./include -L./libs /home/user_home/maguiliang/codes/c_cpp/cdhit_test/libs -fopenmp -lz -o main main.cpp
-//  ./cd-hit -i /home/user_home/maguiliang/codes/c_cpp/cdhit_test/test/input/test.fa -o /home/user_home/maguiliang/cdhit/result/test_file.fa -t 0.9 -M 1600000 -T 1
