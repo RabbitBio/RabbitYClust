@@ -8,14 +8,15 @@
 using namespace std;
 
 struct Data {
-	int hash_value;
+	uint64_t value;
 	int id;
 
 	// 打印结构体数据，方便调试
 	void print() const {
-			cout << "Hash: " << hash_value << ", ID: " << id << endl;
+		cout << "Hash: " << value << ", ID: " << id << endl;
 	}
-	Data(int hash, int idx) : hash_value(hash), id(idx) {}
+	Data() {}
+	Data(int hash, int idx) : value(hash), id(idx) {}
 };
 
 class UnionFind {
@@ -30,6 +31,7 @@ public:
 		rank.resize(n);
         iota(parent.begin(), parent.end(), 0); // 初始化为自身
         iota(rank.begin(), rank.end(), 0); 
+		cout << "unionfind generation ends." << endl;
     }
 
     int find(int x) {
@@ -63,14 +65,12 @@ public:
 		return count;
 	}
 
-	void findRoot (vector<pair<int, int>>& root) {
+	void findRoot (vector<Data>& root) {
 		for(int i=0; i < parent.size(); i++) {
 			int root_id = find(parent[i]);
-			root.emplace_back(i, root_id);
+			root[i].id = i;
+			root[i].value = root_id;
 		}
 	}
-
-	void sortSetsByRoot(vector<pair<int, int>>& Id_Root_set);
-	unordered_map<int, vector<int>> getGroupMap();
 
 };
