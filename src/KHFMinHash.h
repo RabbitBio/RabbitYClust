@@ -44,6 +44,7 @@ namespace Sketch{
 			 \endrst
 			*/
 			void buildSketch(char * seqNew);
+			void buildSketch(char * seqNew, std::vector<std::string>& seed_strings, unsigned hash_num_per_seed);
 
 			/// Set parameter `kmerSize`: default 21.
 			void setK(int k){ m_k = k; }
@@ -86,5 +87,6 @@ namespace Sketch{
 
 			void sketch();
 
+			void sketchByAAHash(std::vector<std::string>& seed_strings, unsigned hash_num_per_seed);
 	};
 }
