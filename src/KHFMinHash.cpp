@@ -77,7 +77,7 @@ void KHFMinHash::buildSketch(char * seqNew = NULL)
 
 	}
 }
-void KHFMinHash::buildSketch(char * seqNew, std::vector<std::string>& seed_strings, unsigned hash_num_per_seed)
+void KHFMinHash::buildSketch(char * seqNew, std::vector<std::string>& seed_strings, unsigned h, unsigned hash_num_per_seed)
 {
 	if(seqNew == NULL)
 	{
@@ -87,16 +87,32 @@ void KHFMinHash::buildSketch(char * seqNew, std::vector<std::string>& seed_strin
 			return;
 		}
 
-		sketchByAAHash(seed_strings, hash_num_per_seed);
+		sketchByAAHash(seed_strings, h, hash_num_per_seed);
 	} else {
 		seq = seqNew;
 
-		sketchByAAHash(seed_strings, hash_num_per_seed);
+		sketchByAAHash(seed_strings, h, hash_num_per_seed);
 
 	}
 }
-void KHFMinHash::sketchByAAHash(std::vector<std::string>& seed_strings, unsigned hash_num_per_seed)
+void KHFMinHash::buildSketchByNoSeedAAHash(char * seqNew)
+{
+	if(seqNew == NULL)
+	{
+		if(seq == NULL)
+		{
+			std::cerr << "WARNING: no data found" << std::endl;
+			return;
+		}
+		sketchByNoSeedAAHash();
+	} else {
+		seq = seqNew;
 
+		sketchByNoSeedAAHash();
+
+	}
+}
+void KHFMinHash::sketchByAAHash(std::vector<std::string>& seed_strings, unsigned h, unsigned hash_num_per_seed)
 {
 	sk.k = m_k;		
 	sk.l = m_l;		
@@ -120,13 +136,41 @@ void KHFMinHash::sketchByAAHash(std::vector<std::string>& seed_strings, unsigned
             // 获取当前的哈希值
             const uint64_t* hashes = seedaahash.hashes();
             // Hashes for position : seedaahash.get_pos()
-            for(unsigned i = 0; i < hash_num_per_seed; i++){
+            for(unsigned i = 0; i < h * hash_num_per_seed; i++){
 				ptr[i] = std::min(ptr[i], hashes[i]);
 			}
         }
     }
-	std::cout << ptr[0] << std::endl;
     	
+}
+void KHFMinHash::sketchByNoSeedAAHash() 
+{
+
+	sk.k = m_k;		
+	sk.l = m_l;		
+	sk.m = m_m;		
+
+
+	sk.hashes.resize(sk.l * sk.m);
+	std::string seqStr(seq);
+
+	for(int i = 0; i < sk.l * sk.m; i++) sk.hashes[i] = ULONG_MAX;
+	uint64_t *ptr = sk.hashes.data();
+    btllib::AAHash aahash(seqStr.data(), m_m, m_k, 3, 0);
+	size_t pos = aahash.get_pos();
+
+    bool success = true;
+    while (success) {
+        success = aahash.roll();  // 计算下一个 k-mer 的哈希值
+        if (success) {
+            // 获取当前的哈希值
+            const uint64_t* hashes = aahash.hashes();
+            // Hashes for position : aahash.get_pos()
+            for(unsigned i = 0; i < m_m; i++){
+				ptr[i] = std::min(ptr[i], hashes[i]);
+			}
+        }
+    }
 }
 void KHFMinHash::sketch()
 {
