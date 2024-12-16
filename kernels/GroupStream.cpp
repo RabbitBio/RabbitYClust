@@ -35,16 +35,25 @@ void GroupStream::Sort(vector<Data>& dataList){
 }
 
 void GroupStream::Unite(vector<Data> dataList, UnionFind& uf) {
+#ifdef countInGrouping
+	int count = 1;
+#endif
 	uint64_t cur_value = dataList[0].value;
 	int cur_head = dataList[0].id;
 	for (const auto& data : dataList) {
 		if(data.value == cur_value){
 			uf.unite(data.id, cur_head);
 		}else{
+#ifdef countInGrouping
+			count++;
+#endif
 			cur_value = data.value;
 			cur_head = data.id;
 		}
 	}
+#ifdef countInGrouping
+	cerr << "groups number in this col is: " << count << endl;
+#endif
 }
 
 void GroupStream::GroupByCol(vector<Data>& hash_vec, UnionFind& uf) {
@@ -65,6 +74,10 @@ void GroupStream::GroupByCol(vector<Data>& hash_vec, UnionFind& uf) {
 #else
 	Sort(hash_vec);
 	Unite(hash_vec, uf);
+#endif
+#ifdef countInGrouping
+	int groups_size = uf.countSetsSize();
+	cerr << "Group Size is " << groups_size << endl;
 #endif
 }
 
@@ -123,7 +136,7 @@ void GroupStream::getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& gr
 
 void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map) {
 	for(int m=0; m < M; m++){
-		cerr << m << " sort and unite" << endl;
+		cerr << "round "<<  m << endl;
 		fillHashVec(hashes, hash_vec, m);
 		GroupByCol(hash_vec, uf);
 	}

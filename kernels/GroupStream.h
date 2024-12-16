@@ -13,8 +13,8 @@ public:
 
 	GroupStream(int n, int m) : uf(n), items(n), M(m) {
 		hash_vec.resize(items);
-		cerr << "hash_vec size is: " << hash_vec.size() << endl;
-		cerr << "groupstream gerneration ends." << endl;
+//		cerr << "hash_vec size is: " << hash_vec.size() << endl;
+//		cerr << "groupstream gerneration ends." << endl;
 	}
 
 	void Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map);
