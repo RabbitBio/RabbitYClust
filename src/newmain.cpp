@@ -33,6 +33,8 @@ int main(int argc, char* argv[])
 	float similarity = 0.9;
 	string filename = "";
 	string res_file = "";
+	string fa_file_name = "";
+	bool comment_ignore = false;
 
 	auto option_threads = app.add_option("-t, --threads", threads,  "set the thread number, default 1 thread");
 	auto option_min_len = app.add_option("--min-length", min_len, "set the filter minimum length (minLen), protein length less than minLen will be ignore, default 50");
@@ -44,6 +46,11 @@ int main(int argc, char* argv[])
 	auto option_output = app.add_option("-o, --output", res_file, "output file, 64bit binary hashes");
 	option_output->required();
 #endif
+#ifdef FAI
+	auto option_output_fa = app.add_option("-f, --new-fa", fa_file_name, "output new formated fasta file");
+	auto option_comment = app.add_flag("-c, --comment", comment_ignore, "If this flat is enabled, ignore the comment.");
+	option_output_fa->required();
+#endif
 	option_input->required();
 
 	CLI11_PARSE(app, argc, argv);
@@ -53,7 +60,8 @@ int main(int argc, char* argv[])
 		cerr << "Invalid thread number: " << threads << endl;
 		return 1;
 	}
-    const unsigned h = 15 ;  // 哈希数量（每个种子）
+#ifdef SeedAAHash
+    const unsigned h = 1 ;  // 哈希数量（每个种子）
     const unsigned hash_num_per_seed = m / h;  // 每个种子生成的哈希数
     
     // 随机生成种子
@@ -70,7 +78,7 @@ int main(int argc, char* argv[])
         }
         seed_strings.push_back(seed);
     }
-
+#endif
 
 	cerr << "==========Paramters==========" << endl;
 	cerr << "Threads: " << threads << endl;
@@ -79,16 +87,34 @@ int main(int argc, char* argv[])
 	cerr << "Min_len: " << min_len << endl;
 	cerr << "Similarity Threshold:" << similarity << endl;
 	cerr << "Input: " << filename << endl;
+	#ifdef OUTPUT
 	cerr << "Ouput: " << res_file << endl;
+	#endif
+	#ifdef FAI
+	cerr << "New Fasta File: " << fa_file_name << endl;
+	#endif
+	#ifdef SeedAAHash
 	cerr << "seed: " << h << endl;
 	cerr << "hashNum per seed: " << hash_num_per_seed << endl;
+	#endif
 	cerr << "==========End Paramters==========" << endl;
+#elif defined(OUTPUT) && defined(FAI)
+	if(argc != 4)
+	{
+		cerr << "Usage: ./yclust input.fa output.hash new-fasta-name" << endl;
+	}
 #elif defined(OUTPUT)
 	if(argc != 3)
 	{
 		cerr << "Usage: ./yclust input.fa output.hash" << endl;
 		cerr << "Note: output.hash is in binary format for uint64_t hash values!" << endl;
 		cerr << "Note: the names of sequences are printed to stdout!" << endl;
+		return 1;
+	}
+#elif defined(FAI)
+	if(argc != 3)
+	{
+		cerr << "Usage: ./yclust input.fa new-fasta-name" << endl;
 		return 1;
 	}
 #else
@@ -138,6 +164,25 @@ int main(int argc, char* argv[])
 
 	cerr << "buffer_size: " << buffer_size << endl;
 #endif
+
+#ifdef FAI
+#ifdef CLI11
+	ofstream fa_output(fa_file_name, ios::binary);
+#else
+	ofstream fa_output(argv[3], ios::binary);
+#endif
+	if( !fa_output.is_open())
+	{
+		cerr << "Failed to open file: " << fa_file_name << endl;
+		return 1;
+	}
+
+	int64_t pos = 0;
+	int64_t number_seqs = 0;
+	vector<uint64_t> fai;
+
+    char *record = (char *)malloc(1<<20 * sizeof(char));  //FIXME: 1MB buffer only works for protein sequences
+#endif
     
 	ks1 = kseq_init(fp1);
 
@@ -162,8 +207,13 @@ int main(int argc, char* argv[])
 		mh.setK(k);
 		mh.setM(m);
 #endif
+#ifdef SeedAAHash
 		mh.buildSketch(seq1, seed_strings, h, hash_num_per_seed);
-//		mh.buildSketch(seq1);
+#elif defined(NoSeedAAHash)
+		mh.buildSketchByNoSeedAAHash(seq1);
+#else
+		mh.buildSketch(seq1);
+#endif
 	
 		auto & sketch = mh.getSektch();	
 		// 构建vector<vector> hashes
@@ -171,6 +221,41 @@ int main(int argc, char* argv[])
 
 		//for(int i = 0; i < sketch.hashes.size(); i++)
 		//	cerr << sketch.hashes[i] << endl;	
+
+
+#ifdef FAI
+		fai.emplace_back(pos);
+
+		int record_len = 0;
+		int str_pos = 0;
+		record[str_pos] = '>';
+		str_pos++;
+		for(int i = 0; i < ks1->name.l; i++) record[i+str_pos] = ks1->name.s[i];
+		str_pos += ks1->name.l;
+		if(!comment_ignore)
+		{
+			record[str_pos] = ' ';
+			str_pos++;
+			for(int i = 0; i < ks1->comment.l; i++) record[i+str_pos] = ks1->comment.s[i];
+			str_pos += ks1->comment.l;
+		}
+
+		record[str_pos] = '\n';
+		str_pos++;
+		for(int i = 0; i < ks1->seq.l; i++) record[i+str_pos] = ks1->seq.s[i];
+		str_pos += ks1->seq.l;
+		record[str_pos] = '\n';
+		str_pos++;
+
+		//cerr << str_pos << endl;
+		//cerr << string(record, ks1->name.l + ks1->comment.l + ks1->seq.l + 4);
+   		if(!comment_ignore) record_len =  ks1->name.l + ks1->comment.l + ks1->seq.l + 4;
+		else record_len = ks1->name.l + ks1->seq.l + 3;
+
+		fa_output.write(record, record_len);
+
+		pos += record_len; //note that with extra '>' ' ' and two '\n'
+#endif
 
 #ifdef OUTPUT
 		const char* vec_data = reinterpret_cast<const char*>(sketch.hashes.data());
@@ -204,6 +289,12 @@ int main(int argc, char* argv[])
 	ofile.close();
 #endif
 
+#ifdef FAI
+//	把fai写到一个文件里
+//	o_file.write(reinterpret_cast<const char*>(fai.data()), fai.size() * sizeof(uint64_t));
+	fai.emplace_back(pos);
+	fa_output.close();
+#endif
 	cerr << "number of seqs: " << count << endl;
 
     gzclose(fp1);
@@ -212,13 +303,31 @@ int main(int argc, char* argv[])
 	GroupStream gs(count, m);
 	unordered_map<int, vector<int>> group_map;
 	gs.Group(hashes, group_map);
-
-	unordered_map<int, int> seq_group;
-	seq_group.reserve(count);
+#ifdef FAI
+	int group_id = 0;
+	ifstream fa_input(fa_file_name, ios::binary);
 	for(const auto& pair : group_map) {
-		for(const auto& node : pair.second)
-			cout << node << " " << pair.first << endl;
+		cout << group_id << endl;
+		for(const auto& seq : pair.second) {
+			uint64_t start_pos = fai[seq];
+			uint64_t end_pos = fai[seq+1];
+			int length = (int)(end_pos - start_pos);
+			fa_input.seekg(start_pos, ios::beg);
+			string sequence;
+			sequence.resize(length);
+			fa_input.read(&sequence[0], length);
+			cout << sequence;
+		}
 	}
+	fa_input.close();
+#endif
+// 输出每个seq和他的root
+//	unordered_map<int, int> seq_group;
+//	seq_group.reserve(count);
+//	for(const auto& pair : group_map) {
+//		for(const auto& node : pair.second)
+//			cout << node << " " << pair.first << endl;
+//	}
 
 	return 0;
 	

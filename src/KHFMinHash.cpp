@@ -141,7 +141,6 @@ void KHFMinHash::sketchByAAHash(std::vector<std::string>& seed_strings, unsigned
 			}
         }
     }
-    	
 }
 void KHFMinHash::sketchByNoSeedAAHash() 
 {
@@ -156,7 +155,7 @@ void KHFMinHash::sketchByNoSeedAAHash()
 
 	for(int i = 0; i < sk.l * sk.m; i++) sk.hashes[i] = ULONG_MAX;
 	uint64_t *ptr = sk.hashes.data();
-    btllib::AAHash aahash(seqStr.data(), m_m, m_k, 3, 0);
+    btllib::AAHash aahash(seqStr.data(), m_m, m_k, 1, 0); // level 1 2 3
 	size_t pos = aahash.get_pos();
 
     bool success = true;
