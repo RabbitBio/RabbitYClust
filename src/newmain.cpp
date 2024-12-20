@@ -30,11 +30,10 @@ int main(int argc, char* argv[])
 	int min_len = 50;
 	int k = 8;
 	int m = 15;
+	int r = 2;
 	float similarity = 0.9;
 	string filename = "";
 	string res_file = "";
-	string fa_file_name = "";
-	bool comment_ignore = false;
 
 	auto option_threads = app.add_option("-t, --threads", threads,  "set the thread number, default 1 thread");
 	auto option_min_len = app.add_option("--min-length", min_len, "set the filter minimum length (minLen), protein length less than minLen will be ignore, default 50");
@@ -42,16 +41,22 @@ int main(int argc, char* argv[])
 	auto option_kmer_size = app.add_option("-k, --kmer-size", k, "set the kmer size, default 8");
 	auto option_m_size = app.add_option("-m, --m-size", m, "set the number of hash functions will be used, default 15");
 	auto option_input = app.add_option("-i, --input", filename, "input file name, fasta or gziped fasta formats");
+	auto option_r = app.add_option("-r, --r-size", r, "set the number of block");
 #ifdef OUTPUT
 	auto option_output = app.add_option("-o, --output", res_file, "output file, 64bit binary hashes");
 	option_output->required();
 #endif
 #ifdef FAI
+	string fa_file_name = "";
+	bool comment_ignore = false;
 	auto option_output_fa = app.add_option("-f, --new-fa", fa_file_name, "output new formated fasta file");
 	auto option_comment = app.add_flag("-c, --comment", comment_ignore, "If this flat is enabled, ignore the comment.");
 	option_output_fa->required();
 #endif
 	option_input->required();
+
+	bool xxhash_flag = false;
+	auto option_xxhash = app.add_flag("-x, --xxhash", xxhash_flag, "Default hash is aahash, if this flag is enabled, use xxhash");
 
 	CLI11_PARSE(app, argc, argv);
 
@@ -60,30 +65,33 @@ int main(int argc, char* argv[])
 		cerr << "Invalid thread number: " << threads << endl;
 		return 1;
 	}
-#ifdef SeedAAHash
     const unsigned h = 1 ;  // 哈希数量（每个种子）
     const unsigned hash_num_per_seed = m / h;  // 每个种子生成的哈希数
     
     // 随机生成种子
     std::vector<std::string> seed_strings;
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(0, 3);
-    
-    for (int i = 0; i < h; ++i) {
-        std::string seed = "";
-        for (int j = 0; j < k; ++j) {
-            seed += std::to_string(dis(gen));  // 随机生成 0-3 的数字
-            // seed+=std::to_string(i);
-        }
-        seed_strings.push_back(seed);
-    }
-#endif
+//    std::random_device rd;
+//    std::mt19937 gen(rd());
+//    std::uniform_int_distribution<> dis(0, 3);
+//    
+//    for (int i = 0; i < h; ++i) {
+//        std::string seed = "";
+//        for (int j = 0; j < k; ++j) {
+//            seed += std::to_string(dis(gen));  // 随机生成 0-3 的数字
+//            // seed+=std::to_string(i);
+//        }
+//        seed_strings.push_back(seed);
+//    }
+//    gyj新写的代码，不用随机种子
+//	std::string seed = "11111111";
+//	seed_strings.push_back(seed);
+
 
 	cerr << "==========Paramters==========" << endl;
 	cerr << "Threads: " << threads << endl;
 	cerr << "K: " << k << endl;
 	cerr << "M: " << m << endl;
+	cerr << "R: " << r << endl;
 	cerr << "Min_len: " << min_len << endl;
 	cerr << "Similarity Threshold:" << similarity << endl;
 	cerr << "Input: " << filename << endl;
@@ -93,10 +101,8 @@ int main(int argc, char* argv[])
 	#ifdef FAI
 	cerr << "New Fasta File: " << fa_file_name << endl;
 	#endif
-	#ifdef SeedAAHash
 	cerr << "seed: " << h << endl;
 	cerr << "hashNum per seed: " << hash_num_per_seed << endl;
-	#endif
 	cerr << "==========End Paramters==========" << endl;
 #elif defined(OUTPUT) && defined(FAI)
 	if(argc != 4)
@@ -189,6 +195,14 @@ int main(int argc, char* argv[])
 	int count = 0;	
 	vector<vector<uint64_t>> hashes;
 
+// 输出sequence-id sequence-group groupid-sequences
+//	ofstream seq_id("sequence-id.txt");
+//	ostringstream group_res_name;
+//	group_res_name << "k" << k << "m" << m << "group.res";
+//	ofstream seqfile(group_res_name.str());
+//	streambuf* origin_cout = cout.rdbuf();
+//	cout.rdbuf(seq_id.rdbuf());
+
 	auto generation_start = chrono::high_resolution_clock::now();
 	while(1)
 	{
@@ -198,7 +212,7 @@ int main(int argc, char* argv[])
 		if (ks1->seq.l <= min_len) continue;
 
 		char * seq1 = ks1->seq.s;
-		//cout << ">" << ks1->name.s << " ";
+//		cout << ks1->name.s << " " << count << endl;
 		////cout << ks1->comment.s << " " << ks1->seq.l << endl;
 		//cout << ks1->seq.l << endl;
 		//cout << ks1->seq.s << endl;
@@ -207,13 +221,11 @@ int main(int argc, char* argv[])
 		mh.setK(k);
 		mh.setM(m);
 #endif
-#ifdef SeedAAHash
-		mh.buildSketch(seq1, seed_strings, h, hash_num_per_seed);
-#elif defined(NoSeedAAHash)
-		mh.buildSketchByNoSeedAAHash(seq1);
-#else
-		mh.buildSketch(seq1);
-#endif
+		if(xxhash_flag) mh.buildSketch(seq1);
+		else mh.buildSketchByNoSeedAAHash(seq1);
+//		mh.buildSketch(seq1, seed_strings, h, hash_num_per_seed);
+//		mh.buildSketch(seq1);
+
 	
 		auto & sketch = mh.getSektch();	
 		// 构建vector<vector> hashes
@@ -300,14 +312,13 @@ int main(int argc, char* argv[])
     gzclose(fp1);
     kseq_destroy(ks1);
 
-	GroupStream gs(count, m);
+	GroupStream gs(count, m, r);
 	unordered_map<int, vector<int>> group_map;
 	gs.Group(hashes, group_map);
 #ifdef FAI
 	int group_id = 0;
 	ifstream fa_input(fa_file_name, ios::binary);
 	for(const auto& pair : group_map) {
-		cout << group_id << endl;
 		for(const auto& seq : pair.second) {
 			uint64_t start_pos = fai[seq];
 			uint64_t end_pos = fai[seq+1];
@@ -316,19 +327,20 @@ int main(int argc, char* argv[])
 			string sequence;
 			sequence.resize(length);
 			fa_input.read(&sequence[0], length);
-			cout << sequence;
 		}
 	}
 	fa_input.close();
 #endif
 // 输出每个seq和他的root
-//	unordered_map<int, int> seq_group;
-//	seq_group.reserve(count);
-//	for(const auto& pair : group_map) {
-//		for(const auto& node : pair.second)
-//			cout << node << " " << pair.first << endl;
-//	}
+	int max_group_Size = 0;
+	for(const auto& pair : group_map) {
+		max_group_Size = max_group_Size > pair.second.size() ? max_group_Size : pair.second.size();
+		for(const auto& node : pair.second)
+			cout << node << " " << pair.first << endl;
+	}
 
+	cerr << "MAX-Group-Size: " << max_group_Size << endl;
+	cerr << "Total Group Nums: " << group_map.size() << endl;
 	return 0;
 	
 }

@@ -8,10 +8,11 @@ public:
 	UnionFind uf;
 	int items;
 	int M;
+	int R;
 	vector<Data> hash_vec;
 //	vector<pair<int, int>> hash_vec;
 
-	GroupStream(int n, int m) : uf(n), items(n), M(m) {
+	GroupStream(int n, int m, int r) : uf(n), items(n), M(m), R(r) {
 		hash_vec.resize(items);
 //		cerr << "hash_vec size is: " << hash_vec.size() << endl;
 //		cerr << "groupstream gerneration ends." << endl;

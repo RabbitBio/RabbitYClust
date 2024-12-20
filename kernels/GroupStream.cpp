@@ -1,7 +1,9 @@
 #include "GroupStream.h"
 
 bool compareByHash(const Data &a, const Data &b) {
-	return a.value < b.value;
+	if(a.value1 != b.value1)
+		return a.value1 < b.value1;
+	return a.value2 < b.value2;
 }
 
 void GroupStream::Sort(vector<Data>& dataList){
@@ -22,9 +24,9 @@ void GroupStream::Sort(vector<Data>& dataList){
 
 //#pragma omp parallel for num_threads(num_threads)
 	for (int i = 1; i < num_threads; ++i) {
-			inplace_merge(dataList.begin(), dataList.begin() + i * chunk_size,
-		 				  dataList.begin() + ((i == num_threads - 1) ? n : (i + 1) * chunk_size),
-						  compareByHash);
+		inplace_merge(dataList.begin(), dataList.begin() + i * chunk_size,
+			dataList.begin() + ((i == num_threads - 1) ? n : (i + 1) * chunk_size),
+			compareByHash);
 	}
 #else
 //	sort(dataList.begin(), dataList.end(), [](const Data& a, const Data& b){
@@ -38,16 +40,18 @@ void GroupStream::Unite(vector<Data> dataList, UnionFind& uf) {
 #ifdef countInGrouping
 	int count = 1;
 #endif
-	uint64_t cur_value = dataList[0].value;
+	uint64_t cur_value1 = dataList[0].value1;
+	uint64_t cur_value2 = dataList[0].value2;
 	int cur_head = dataList[0].id;
 	for (const auto& data : dataList) {
-		if(data.value == cur_value){
+		if(data.value1 == cur_value1 && data.value2 == cur_value2){
 			uf.unite(data.id, cur_head);
 		}else{
 #ifdef countInGrouping
 			count++;
 #endif
-			cur_value = data.value;
+			cur_value1 = data.value1;
+			cur_value2 = data.value2;
 			cur_head = data.id;
 		}
 	}
@@ -93,10 +97,17 @@ void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>&
 //        hash_vec[i].id = i;
 //        hash_vec[i].value = vec[i];
 //    }
-	
-    for (int i = 0; i < items; ++i) {
-		hash_vec[i].id = i;
-		hash_vec[i].value = vec[i][m];
+	if(R == 2) {
+    	for (int i = 0; i < items; ++i) {
+			hash_vec[i].id = i;
+			hash_vec[i].value1 = vec[i][m];
+			hash_vec[i].value2 = vec[i][m+1];
+		}
+	}else{
+    	for (int i = 0; i < items; ++i) {
+			hash_vec[i].id = i;
+			hash_vec[i].value1 = vec[i][m];
+		}
 	}
 // 3. memory alignment and memcpy
 
@@ -126,16 +137,19 @@ void GroupStream::getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& gr
 	auto map_duration = chrono::duration_cast<chrono::seconds>(map_end - map_start).count();
 	cout << "time need for constructing GroupResMap is " << map_duration << endl;
 #else
+
 	uf.findRoot(hash_vec);
-	Sort(hash_vec);
+	sort(hash_vec.begin(), hash_vec.end(), [](const Data& a, const Data& b){
+		return a.value1 < b.value1; 
+		});
     for (const auto& p : hash_vec) {
-    	group_map[p.value].push_back(p.id); 
+    	group_map[p.value1].push_back(p.id); 
     }
 #endif
 }
 
 void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map) {
-	for(int m=0; m < M; m++){
+	for(int m=0; m < M-1; m++){
 		cerr << "round "<<  m << endl;
 		fillHashVec(hashes, hash_vec, m);
 		GroupByCol(hash_vec, uf);

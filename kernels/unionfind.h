@@ -4,19 +4,29 @@
 #include <iostream>
 #include <numeric> //iota
 #include <algorithm>
+#include <variant>
 
 using namespace std;
 
-struct Data {
+struct Data1 {
 	uint64_t value;
 	int id;
+
+	// 构造函数用于 r=1 的情况
+	Data1(int id, uint64_t hash1) : id(id), value(hash1){}
 
 	// 打印结构体数据，方便调试
 	void print() const {
 		cout << "Hash: " << value << ", ID: " << id << endl;
 	}
+	Data1() {}
+};
+
+struct Data {
+	uint64_t value1, value2;
+	int id;
+	Data(int id, uint64_t hash1, uint64_t hash2) : id(id), value1(hash1), value2(hash2) {}
 	Data() {}
-	Data(int hash, int idx) : value(hash), id(idx) {}
 };
 
 class UnionFind {
@@ -69,7 +79,7 @@ public:
 		for(int i=0; i < parent.size(); i++) {
 			int root_id = find(parent[i]);
 			root[i].id = i;
-			root[i].value = root_id;
+			root[i].value1 = root_id;
 		}
 	}
 
