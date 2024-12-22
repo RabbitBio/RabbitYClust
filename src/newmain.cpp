@@ -9,6 +9,7 @@
 #include <fstream>
 #include <chrono>
 #include <random>
+#include <queue>
 
 #include "../kernels/GroupStream.h"
 
@@ -58,6 +59,9 @@ int main(int argc, char* argv[])
 	bool xxhash_flag = false;
 	auto option_xxhash = app.add_flag("-x, --xxhash", xxhash_flag, "Default hash is aahash, if this flag is enabled, use xxhash");
 
+	bool block_on = false;
+	auto option_block = app.add_flag("-b, --block-on", block_on, "If this flat is enabled, sort in block mode. eg. m cols unites m / r times");
+	option_block->needs("-r");
 	CLI11_PARSE(app, argc, argv);
 
 	if(threads < 1)
@@ -313,6 +317,8 @@ int main(int argc, char* argv[])
     kseq_destroy(ks1);
 
 	GroupStream gs(count, m, r);
+	if(block_on) 
+		gs.setSlideOff();
 	unordered_map<int, vector<int>> group_map;
 	gs.Group(hashes, group_map);
 #ifdef FAI
@@ -332,14 +338,27 @@ int main(int argc, char* argv[])
 	fa_input.close();
 #endif
 // 输出每个seq和他的root
+	priority_queue<int, std::vector<int>, std::greater<int>> minHeap;
 	int max_group_Size = 0;
 	for(const auto& pair : group_map) {
+        minHeap.push(pair.second.size());
+        if (minHeap.size() > 10) {
+            minHeap.pop(); // 保持堆的大小为 10
+        }
 		max_group_Size = max_group_Size > pair.second.size() ? max_group_Size : pair.second.size();
 		for(const auto& node : pair.second)
 			cout << node << " " << pair.first << endl;
 	}
 
-	cerr << "MAX-Group-Size: " << max_group_Size << endl;
+//	vector<int> elements(minHeap.c.begin(), minHeap.c.end());
+//    for (auto it = elements.rbegin(); it != elements.rend(); ++it) {
+//        std::cout << *it << " ";
+//    }
+	while(!minHeap.empty()){
+		cerr << minHeap.top() << endl;
+		minHeap.pop();
+	}
+//	cerr << "MAX-Group-Size: " << max_group_Size << endl;
 	cerr << "Total Group Nums: " << group_map.size() << endl;
 	return 0;
 	
