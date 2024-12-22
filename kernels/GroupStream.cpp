@@ -98,12 +98,14 @@ void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>&
 //        hash_vec[i].value = vec[i];
 //    }
 	if(R == 2) {
+		cerr << "col " << m << " and " << m+1 << endl;
     	for (int i = 0; i < items; ++i) {
 			hash_vec[i].id = i;
 			hash_vec[i].value1 = vec[i][m];
 			hash_vec[i].value2 = vec[i][m+1];
 		}
 	}else{
+		cerr << "col " << m << endl;
     	for (int i = 0; i < items; ++i) {
 			hash_vec[i].id = i;
 			hash_vec[i].value1 = vec[i][m];
@@ -149,10 +151,23 @@ void GroupStream::getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& gr
 }
 
 void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map) {
-	for(int m=0; m < M-1; m++){
-		cerr << "round "<<  m << endl;
-		fillHashVec(hashes, hash_vec, m);
-		GroupByCol(hash_vec, uf);
+	if(slide) {
+		for(int m=0; m < M-1; m++){
+			cerr << "round "<<  m << endl;
+			fillHashVec(hashes, hash_vec, m);
+			GroupByCol(hash_vec, uf);
+		}
+	}else{
+		for(int m=0; m < M / R; m++){
+			cerr << "round "<<  m << endl;
+			fillHashVec(hashes, hash_vec, m*R);
+			GroupByCol(hash_vec, uf);
+		}
+		if(M % R != 0){
+			setR(1);
+			fillHashVec(hashes, hash_vec, M-1);
+			GroupByCol(hash_vec, uf);
+		}
 	}
 	
 #ifdef timing

@@ -9,6 +9,7 @@ public:
 	int items;
 	int M;
 	int R;
+	bool slide = true;
 	vector<Data> hash_vec;
 //	vector<pair<int, int>> hash_vec;
 
@@ -18,6 +19,9 @@ public:
 //		cerr << "groupstream gerneration ends." << endl;
 	}
 
+	void setSlideOff(){ slide = false; }
+	void setR(int r) { R = r; }
+	void setM(int m) { M = m; }
 	void Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map);
 	// grouping sequences with m hash-functions
 
