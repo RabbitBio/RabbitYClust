@@ -1,14 +1,12 @@
 /* This is an efficient implementation of KHF MinHash sketching algorithms. */
 /* Attention: This is only used for protein sequences! */
-#pragma once
+#ifndef __KHFMINHASH_H__
+#define __KHFMINHASH_H__
 
 #include <string>
 #include <stdint.h>
 #include <vector>
 
-
-// Function to encode a string of amino acids to a 64-bit integer
-uint64_t encodeAminoAcidsTo64Bit(const std::string& sequence);
 
 
 namespace Sketch{
@@ -92,3 +90,5 @@ namespace Sketch{
 			void sketchByNoSeedAAHash();
 	};
 }
+
+#endif
