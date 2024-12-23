@@ -1,4 +1,5 @@
 #include "GroupStream.h"
+#include <queue>
 
 bool compareByHash(const Data &a, const Data &b) {
 	if(a.value1 != b.value1)
@@ -39,7 +40,6 @@ void GroupStream::Sort(vector<Data>& dataList){
 void GroupStream::Unite(vector<Data> dataList, UnionFind& uf) {
 #ifdef countInGrouping
 	int count = 1;
-#endif
 	uint64_t cur_value1 = dataList[0].value1;
 	uint64_t cur_value2 = dataList[0].value2;
 	int cur_head = dataList[0].id;
@@ -47,16 +47,26 @@ void GroupStream::Unite(vector<Data> dataList, UnionFind& uf) {
 		if(data.value1 == cur_value1 && data.value2 == cur_value2){
 			uf.unite(data.id, cur_head);
 		}else{
-#ifdef countInGrouping
 			count++;
-#endif
 			cur_value1 = data.value1;
 			cur_value2 = data.value2;
 			cur_head = data.id;
 		}
 	}
-#ifdef countInGrouping
 	cerr << "groups number in this col is: " << count << endl;
+#else
+	uint64_t cur_value1 = dataList[0].value1;
+	uint64_t cur_value2 = dataList[0].value2;
+	int cur_head = dataList[0].id;
+	for (const auto& data : dataList) {
+		if(data.value1 == cur_value1 && data.value2 == cur_value2){
+			uf.unite(data.id, cur_head);
+		}else{
+			cur_value1 = data.value1;
+			cur_value2 = data.value2;
+			cur_head = data.id;
+		}
+	}
 #endif
 }
 
@@ -109,6 +119,7 @@ void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>&
     	for (int i = 0; i < items; ++i) {
 			hash_vec[i].id = i;
 			hash_vec[i].value1 = vec[i][m];
+			hash_vec[i].value2 = 0;
 		}
 	}
 // 3. memory alignment and memcpy
@@ -150,23 +161,57 @@ void GroupStream::getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& gr
 #endif
 }
 
+void GroupStream::countGroupSize(UnionFind& uf, int m) {
+	uf.findRoot(hash_vec);
+	sort(hash_vec.begin(), hash_vec.end(), [](const Data& a, const Data& b){
+		return a.value1 < b.value1; 
+		});
+	priority_queue<int, vector<int>, greater<int>> minHeap;
+	int group_size = 0;
+	int cur_root = hash_vec[0].value1; // 第一个root-id
+    for (const auto& p : hash_vec) {
+    	if(cur_root == p.value1) {
+			group_size++;
+		}else{
+			minHeap.push(group_size);
+			if (minHeap.size() > 10){
+				 minHeap.pop();
+			}
+			cur_root = p.value1;
+			group_size = 1;
+		}
+    }
+	if(R == 1){
+		cerr << "top 10 group_size in col " << m << "is " << endl;
+	}else{
+		cerr << "top 10 group_size in col " << m << " and " << m+1 << "is " << endl;
+	}
+	while(!minHeap.empty()){
+		cerr << minHeap.top() << endl;
+		minHeap.pop();
+	}
+}
+
 void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map) {
 	if(slide) {
 		for(int m=0; m < M-1; m++){
 			cerr << "round "<<  m << endl;
 			fillHashVec(hashes, hash_vec, m);
 			GroupByCol(hash_vec, uf);
+			countGroupSize(uf, m);
 		}
 	}else{
 		for(int m=0; m < M / R; m++){
 			cerr << "round "<<  m << endl;
 			fillHashVec(hashes, hash_vec, m*R);
 			GroupByCol(hash_vec, uf);
+			countGroupSize(uf, m);
 		}
 		if(M % R != 0){
 			setR(1);
 			fillHashVec(hashes, hash_vec, M-1);
 			GroupByCol(hash_vec, uf);
+			countGroupSize(uf, M-1);
 		}
 	}
 	
