@@ -27,7 +27,8 @@ void OrderMinHash::sketch()
 	sk.l = m_l;		
 	sk.m = m_m;		
 
-	sk.data.resize(std::max(sk.l, 1) * sk.m * sk.k);
+	sk.hashes.resize(std::max(sk.l, 1) * sk.m);
+	sk.positions.resize(std::max(sk.l, 1) * sk.m);
 
 	std::string seqStr(this->seq);
 
@@ -100,11 +101,13 @@ void OrderMinHash::sketch()
 		assert(lmers.size() == m_l);
 
 		//	block(i, j, lmers[j].pos);
-		char *ptr = sk.data.data();
+		//char *ptr = sk.data.data();
 		for(int j = 0; j < m_l; ++j)
 		{
-			memcpy(ptr, &seqStr.data()[lmers[j].pos], m_k);
-			ptr += m_k;
+			sk.hashes[i*m_l + j] = lmers[j].hash;
+			sk.positions[i*m_l + j] = lmers[j].pos;
+			//memcpy(ptr, &seqStr.data()[lmers[j].pos], m_k);
+			//ptr += m_k;
 		}
 	}
 

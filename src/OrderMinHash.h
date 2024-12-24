@@ -9,7 +9,8 @@ namespace Sketch{
 struct OSketch {
 	//std::string       name;
 	int               k, l, m;
-	std::vector<char> data;
+	std::vector<uint64_t> hashes;
+	std::vector<uint32_t> positions;
 
 };
 
