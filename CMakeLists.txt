@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 
 project(RabbitYClust)
 
-set(CMAKE_CXX_FLAGS "-std=c++17 -g -O3 ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "-std=c++17 -g -O3 -pthread ${CMAKE_CXX_FLAGS}")
 
 if(USE_DEBUG)
 	set(CMAKE_CXX_FLAGS "-D DEBUG ${CMAKE_CXX_FLAGS}")

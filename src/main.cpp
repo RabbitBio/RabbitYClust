@@ -10,6 +10,9 @@
 #include <chrono>
 #include <random>
 #include <queue>
+#include <thread>
+#include <mutex>
+#include <atomic>
 
 #include "GroupStream.h"
 
@@ -19,11 +22,53 @@ using namespace Sketch;
 
 KSEQ_INIT(gzFile, gzread)
 
+std::mutex mtx1;
+std::mutex mtx2;
+std::atomic<int> num_seqs(0);
+
+vector<vector<uint64_t>> hashes;
+vector<uint64_t> seq_ids;
+
+void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, int min_len) {
+    while (true) {
+        std::string sequence;
+        int seq_id;
+
+		{
+				std::lock_guard<std::mutex> lock(mtx1);
+				int length = kseq_read(ks);
+				if (length < 0) break;
+				if (length < min_len) continue;
+
+				sequence = ks->seq.s;//direct copy?
+				seq_id = num_seqs.fetch_add(1);
+		}
+
+		KHFMinHash mh;
+		mh.setK(k);
+		mh.setM(m);
+
+		if (xxhash_flag)
+				mh.buildSketch(sequence.c_str());
+		else
+				mh.buildSketchByNoSeedAAHash(sequence.c_str());
+
+		auto& sketch = mh.getSektch();
+		
+	
+		{
+				std::lock_guard<std::mutex> lock(mtx2);
+				hashes.emplace_back(sketch.hashes);
+				seq_ids.emplace_back(seq_id);
+		}
+	}
+}
+
 int main(int argc, char* argv[])
 {
 
 	CLI::App app{"yclust v.0.0.1, extremely fast and scalable protein clustering"};
-	int threads = 1;
+	int num_threads = 1;
 	int min_len = 50;
 	int k = 8;
 	int m = 15;
@@ -32,7 +77,7 @@ int main(int argc, char* argv[])
 	string filename = "";
 	string res_file = "";
 
-	auto option_threads = app.add_option("-t, --threads", threads,  "set the thread number, default 1 thread");
+	auto option_threads = app.add_option("-t, --threads", num_threads,  "set the thread number, default 1 thread");
 	auto option_min_len = app.add_option("--min-length", min_len, "set the filter minimum length (minLen), protein length less than minLen will be ignore, default 50");
 	auto option_min_similarity = app.add_option("-s, --min-similarity", similarity, "set the minimum similarity for clustering, default 0.9");
 	auto option_kmer_size = app.add_option("-k, --kmer-size", k, "set the kmer size, default 8");
@@ -50,14 +95,14 @@ int main(int argc, char* argv[])
 	option_block->needs("-r");
 	CLI11_PARSE(app, argc, argv);
 
-	if(threads < 1)
+	if(num_threads < 1)
 	{
-		cerr << "Invalid thread number: " << threads << endl;
+		cerr << "Invalid thread number: " << num_threads << endl;
 		return 1;
 	}
 
 	cerr << "==========Paramters==========" << endl;
-	cerr << "Threads: " << threads << endl;
+	cerr << "Threads: " << num_threads << endl;
 	cerr << "K: " << k << endl;
 	cerr << "M: " << m << endl;
 	cerr << "R: " << r << endl;
@@ -66,11 +111,9 @@ int main(int argc, char* argv[])
 	cerr << "Input: " << filename << endl;
 	cerr << "==========End Paramters==========" << endl;
 
-	vector<vector<uint64_t>> hashes;
 
 	gzFile fp1;
 	kseq_t *ks1;
-	int count = 0;	
 
 	fp1 = gzopen(filename.c_str(),"r");
 
@@ -83,52 +126,63 @@ int main(int argc, char* argv[])
 
 	cerr << "Start Building sketches!" << endl;
 	auto generation_start = chrono::high_resolution_clock::now();
+
+    std::vector<std::thread> threads;
+    for (int i = 0; i < num_threads; ++i) {
+        threads.emplace_back(consumer, i, fp1, ks1, k, m, xxhash_flag, min_len);
+    }
+    for (auto& t : threads) {
+        t.join();
+    }
+    
 	// build sketches
-	while(1)
-	{
-		int length = kseq_read(ks1);
+	//int count = 0;	
+	//while(1)
+	//{
+	//	int length = kseq_read(ks1);
 
-		if(length < 0) break;
-		if (ks1->seq.l <= min_len) continue;
+	//	if(length < 0) break;
+	//	if (ks1->seq.l <= min_len) continue;
 
-		char * seq1 = ks1->seq.s;
-//		cout << ks1->name.s << " " << count << endl;
-		////cout << ks1->comment.s << " " << ks1->seq.l << endl;
-		//cout << ks1->seq.l << endl;
-		//cout << ks1->seq.s << endl;
-		KHFMinHash mh = KHFMinHash();			
-		mh.setK(k);
-		mh.setM(m);
+	//	char * seq1 = ks1->seq.s;
+	//	//cout << ks1->name.s << " " << count << endl;
+	//	//cout << ks1->comment.s << " " << ks1->seq.l << endl;
+	//	//cout << ks1->seq.l << endl;
+	//	//cout << ks1->seq.s << endl;
+	//	KHFMinHash mh = KHFMinHash();			
+	//	mh.setK(k);
+	//	mh.setM(m);
 
-		if(xxhash_flag) 
-			mh.buildSketch(seq1);
-		else 
-			mh.buildSketchByNoSeedAAHash(seq1);
+	//	if(xxhash_flag) 
+	//		mh.buildSketch(seq1);
+	//	else 
+	//		mh.buildSketchByNoSeedAAHash(seq1);
+	//
+	//	auto & sketch = mh.getSektch();	
+
+	//	hashes.emplace_back(sketch.hashes);
+
+	//	count++;
+	//}
 	
-		auto & sketch = mh.getSektch();	
-
-		hashes.emplace_back(sketch.hashes);
-
-		count++;
-	}
 	auto generation_end = chrono::high_resolution_clock::now();
 	auto generation_duration = chrono::duration_cast<chrono::seconds>(generation_end - generation_start).count();
 
 	cerr << "Sketching time: " << generation_duration << endl;
-	cerr << "Total number of seqs: " << count << endl;
+	cerr << "Total number of seqs: " << num_seqs.load() << endl;
 
     gzclose(fp1);
     kseq_destroy(ks1);
 
 	//grouping
 	cerr << "Start grouping!" << endl;
-	GroupStream gs(count, m, r);
+	GroupStream gs(num_seqs.load(), m, r);
 	if(block_on) 
 		gs.setSlideOff();
 	unordered_map<int, vector<int>> group_map;
 	gs.Group(hashes, group_map);
 
-	// 输出每个seq和他的root
+	//输出每个seq和他的root
 	priority_queue<int, std::vector<int>, std::greater<int>> minHeap;
 	int max_group_Size = 0;
 	for(const auto& pair : group_map) {

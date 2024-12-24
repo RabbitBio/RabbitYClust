@@ -20,13 +20,13 @@ using namespace std;
 namespace Sketch
 {
 
-KHFMinHash::KHFMinHash(char * seqNew):
+KHFMinHash::KHFMinHash(const char * seqNew):
 	seq(seqNew)
 {
 	sketch();
 }
 
-void KHFMinHash::buildSketch(char * seqNew = NULL)
+void KHFMinHash::buildSketch(const char * seqNew = NULL)
 {
 	// rebuild sketch using old data
 	if(seqNew == NULL)
@@ -45,7 +45,7 @@ void KHFMinHash::buildSketch(char * seqNew = NULL)
 
 	}
 }
-void KHFMinHash::buildSketch(char * seqNew, std::vector<std::string>& seed_strings, unsigned h, unsigned hash_num_per_seed)
+void KHFMinHash::buildSketch(const char * seqNew, std::vector<std::string>& seed_strings, unsigned h, unsigned hash_num_per_seed)
 {
 	if(seqNew == NULL)
 	{
@@ -63,7 +63,7 @@ void KHFMinHash::buildSketch(char * seqNew, std::vector<std::string>& seed_strin
 
 	}
 }
-void KHFMinHash::buildSketchByNoSeedAAHash(char * seqNew)
+void KHFMinHash::buildSketchByNoSeedAAHash(const char * seqNew)
 {
 	if(seqNew == NULL)
 	{

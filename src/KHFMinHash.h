@@ -28,7 +28,7 @@ namespace Sketch{
 			/// KHFMinHash constructor
 			KHFMinHash() : seq(NULL), m_k(8), m_l(1), m_m(15), mtSeed(32)  {};
 			/// KHFMinHash constructor for sketching sequences using default parameters
-			KHFMinHash(char * seqNew);
+			KHFMinHash(const char * seqNew);
 			~KHFMinHash() {};
 
 			/// return sketch result in `OSketch` type
@@ -41,9 +41,9 @@ namespace Sketch{
 			  This is useful when chaning parameters and build a new sketch.
 			 \endrst
 			*/
-			void buildSketch(char * seqNew);
-			void buildSketch(char * seqNew, std::vector<std::string>& seed_strings, unsigned h, unsigned hash_num_per_seed);
-			void buildSketchByNoSeedAAHash(char * seqNew);
+			void buildSketch(const char * seqNew);
+			void buildSketch(const char * seqNew, std::vector<std::string>& seed_strings, unsigned h, unsigned hash_num_per_seed);
+			void buildSketchByNoSeedAAHash(const char * seqNew);
 
 			/// Set parameter `kmerSize`: default 21.
 			void setK(int k){ m_k = k; }
@@ -71,7 +71,7 @@ namespace Sketch{
 
 		private:
 
-			char * seq = NULL;
+			const char * seq = NULL;
 			//kmer: 8 for protein in default, if using int hash, kmer max size is 12
 			//m: 15 
 			int m_k = 8, m_m = 15;
