@@ -1,7 +1,7 @@
+#ifndef __GROUPSTREAM_H__
+#define __GROUPSTREAM_H__
+
 #include "unionfind.h"
-
-
-
 
 class GroupStream {
 public:
@@ -40,3 +40,4 @@ public:
 	//unordered_map<int, vector<int>> getGroupMap();
 
 };
+#endif

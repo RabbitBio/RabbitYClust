@@ -1,3 +1,6 @@
+#ifndef __UNIFIND_H__
+#define __UNIFIND_H__
+
 #include <vector>
 #include <unordered_map>
 #include <chrono>
@@ -84,3 +87,4 @@ public:
 	}
 
 };
+#endif
