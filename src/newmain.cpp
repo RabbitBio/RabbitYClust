@@ -32,6 +32,7 @@ int main(int argc, char* argv[])
 	int k = 8;
 	int m = 15;
 	int r = 2;
+	int l = 1;
 	float similarity = 0.9;
 	string filename = "";
 	string res_file = "";
@@ -316,7 +317,7 @@ int main(int argc, char* argv[])
     gzclose(fp1);
     kseq_destroy(ks1);
 
-	GroupStream gs(count, m, r);
+	GroupStream gs(count,m, r, l);
 	if(block_on) 
 		gs.setSlideOff();
 	unordered_map<int, vector<int>> group_map;
