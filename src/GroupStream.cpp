@@ -1,9 +1,8 @@
 #include "GroupStream.h"
+#include <queue>
 
 bool compareByHash(const Data &a, const Data &b) {
-	if(a.value1 != b.value1)
-		return a.value1 < b.value1;
-	return a.value2 < b.value2;
+	return a.value < b.value;
 }
 
 void GroupStream::Sort(vector<Data>& dataList){
@@ -40,18 +39,16 @@ void GroupStream::Unite(vector<Data> dataList, UnionFind& uf) {
 #ifdef VERBOSE
 	int count = 1;
 #endif
-	uint64_t cur_value1 = dataList[0].value1;
-	uint64_t cur_value2 = dataList[0].value2;
+	vector<uint64_t> cur_value = dataList[0].value;
 	int cur_head = dataList[0].id;
 	for (const auto& data : dataList) {
-		if(data.value1 == cur_value1 && data.value2 == cur_value2){
+		if(data.value == cur_value) {
 			uf.unite(data.id, cur_head);
 		}else{
 #ifdef VERBOSE
 			count++;
 #endif
-			cur_value1 = data.value1;
-			cur_value2 = data.value2;
+			cur_value = data.value;
 			cur_head = data.id;
 		}
 	}
@@ -97,20 +94,11 @@ void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>&
 //        hash_vec[i].id = i;
 //        hash_vec[i].value = vec[i];
 //    }
-	if(R == 2) {
-		cerr << "col " << m << " and " << m+1 << endl;
-    	for (int i = 0; i < items; ++i) {
-			hash_vec[i].id = i;
-			hash_vec[i].value1 = vec[i][m];
-			hash_vec[i].value2 = vec[i][m+1];
-		}
-	}else{
-		cerr << "col " << m << endl;
-    	for (int i = 0; i < items; ++i) {
-			hash_vec[i].id = i;
-			hash_vec[i].value1 = vec[i][m];
-		}
+	for (int i = 0; i < items; i++) {
+		hash_vec[i].id = i;
+		copy(vec[i].begin() + m * R * L, vec[i].begin() + (m+1) * R * L, hash_vec[i].value.begin());
 	}
+
 // 3. memory alignment and memcpy
 
 }
@@ -142,34 +130,69 @@ void GroupStream::getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& gr
 
 	uf.findRoot(hash_vec);
 	sort(hash_vec.begin(), hash_vec.end(), [](const Data& a, const Data& b){
-		return a.value1 < b.value1; 
+		return a.value[0] < b.value[0]; 
 		});
     for (const auto& p : hash_vec) {
-    	group_map[p.value1].push_back(p.id); 
+    	group_map[p.value[0]].push_back(p.id); 
     }
 #endif
 }
 
+void GroupStream::countGroupSize(UnionFind& uf, int m) {
+	uf.findRoot(hash_vec);
+	sort(hash_vec.begin(), hash_vec.end(), [](const Data& a, const Data& b){
+		return a.value[0] < b.value[0]; 
+		});
+	priority_queue<int, vector<int>, greater<int>> minHeap;
+	int group_size = 0;
+	int cur_root = hash_vec[0].value[0]; // 第一个root-id
+    for (const auto& p : hash_vec) {
+    	if(cur_root == p.value[0]) {
+			group_size++;
+		}else{
+			minHeap.push(group_size);
+			if (minHeap.size() > 3){
+				 minHeap.pop();
+			}
+			cur_root = p.value[0];
+			group_size = 1;
+		}
+    }
+	while(!minHeap.empty()){
+		cerr << minHeap.top() << " ";
+		minHeap.pop();
+	}
+	cerr << endl;
+}
+
 void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map) {
 	if(slide) {
-		for(int m=0; m < M-1; m++){
-			cerr << "round "<<  m << endl;
-			fillHashVec(hashes, hash_vec, m);
+		for(int m=0; m < M-R+1; m++){
+			cerr << "round "<<  m;
+			cerr << " in col: " << m << endl;
+			fillHashVec(hashes, hash_vec, m * L);
 			GroupByCol(hash_vec, uf);
+			countGroupSize(uf, m);
 		}
 	}else{
 		for(int m=0; m < M / R; m++){
-			cerr << "round "<<  m << endl;
-			fillHashVec(hashes, hash_vec, m*R);
+			cerr << "round "<<  m;
+			cerr << " in col: " << m * R;
+			cerr << " to " << ((m+1) * R - 1) << endl;
+			fillHashVec(hashes, hash_vec, m * R * L);
 			GroupByCol(hash_vec, uf);
+			countGroupSize(uf, m);
 		}
 		if(M % R != 0){
-			setR(1);
-			fillHashVec(hashes, hash_vec, M-1);
+			cerr << "round "<<  M / R;
+			cerr << " in col: " << M / R * R;
+			cerr << " to " << M-1 << endl;
+			setR(M % R);
+			fillHashVec(hashes, hash_vec, (M-R) * R * L );
 			GroupByCol(hash_vec, uf);
+			countGroupSize(uf, M-R);
 		}
 	}
-	
 #ifdef TIMING
 	auto transpose_start_time = chrono::high_resolution_clock::now();
 	getGroupMap(uf, group_map);

@@ -8,20 +8,26 @@ public:
 	UnionFind uf;
 	int items;
 	int M;
-	int R;
+	int R = 1;
+	int L = 1;
 	bool slide = true;
 	vector<Data> hash_vec;
-//	vector<pair<int, int>> hash_vec;
 
-	GroupStream(int n, int m, int r) : uf(n), items(n), M(m), R(r) {
+	GroupStream(int n, int m, int r, int l) : uf(n), items(n), R(r), L(l), M(m) {
 		hash_vec.resize(items);
-//		cerr << "hash_vec size is: " << hash_vec.size() << endl;
-//		cerr << "groupstream gerneration ends." << endl;
+		resize();
 	}
 
+	GroupStream(int n) : uf(n), items(n) { hash_vec.resize(items); }
+
 	void setSlideOff(){ slide = false; }
-	void setR(int r) { R = r; }
 	void setM(int m) { M = m; }
+	void setR(int r) { R = r; }
+	void setL(int l) { L = l; }
+	void resize() {
+		for(auto& data : hash_vec)
+			data.value.resize(L * R);
+	}
 	void Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map);
 	// grouping sequences with m hash-functions
 
@@ -35,6 +41,7 @@ public:
 	void fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m);
 	// construct a sorted struct Data(hash-vec) for a column of hash-funtions(vec)
 
+	void countGroupSize(UnionFind& uf, int m);
 	
 	void getGroupMap(UnionFind& uf,unordered_map<int, vector<int>>& group_map);
 	//unordered_map<int, vector<int>> getGroupMap();

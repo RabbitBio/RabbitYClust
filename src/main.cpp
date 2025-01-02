@@ -42,6 +42,7 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 
 				sequence = ks->seq.s;//direct copy?
 				seq_id = num_seqs.fetch_add(1);
+				cout << ks->name.s << " " << seq_id << endl;
 		}
 
 		KHFMinHash mh;
@@ -124,6 +125,13 @@ int main(int argc, char* argv[])
 	   
 	ks1 = kseq_init(fp1);
 
+	ostringstream seq_id_name;
+	seq_id_name << "k" << k << "m" << m << "seq-id.txt";
+	ofstream seq_id(seq_id_name.str());
+	streambuf* origin_cout = cout.rdbuf();
+	cout.rdbuf(seq_id.rdbuf());
+
+
 	cerr << "Start Building sketches!" << endl;
 	auto generation_start = chrono::high_resolution_clock::now();
 
@@ -176,13 +184,14 @@ int main(int argc, char* argv[])
 
 	//grouping
 	cerr << "Start grouping!" << endl;
-	GroupStream gs(num_seqs.load(), m, r);
+	GroupStream gs(num_seqs.load(), m, r, 1);
 	if(block_on) 
 		gs.setSlideOff();
 	unordered_map<int, vector<int>> group_map;
 	gs.Group(hashes, group_map);
 
 	//输出每个seq和他的root
+	cout.rdbuf(origin_cout);
 	priority_queue<int, std::vector<int>, std::greater<int>> minHeap;
 	int max_group_Size = 0;
 	for(const auto& pair : group_map) {
