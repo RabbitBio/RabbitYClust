@@ -41,7 +41,7 @@ public:
 	void fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m);
 	// construct a sorted struct Data(hash-vec) for a column of hash-funtions(vec)
 
-	void countGroupSize(UnionFind& uf, int m);
+	void countGroupSize(UnionFind& uf);
 	
 	void getGroupMap(UnionFind& uf,unordered_map<int, vector<int>>& group_map);
 	//unordered_map<int, vector<int>> getGroupMap();

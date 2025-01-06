@@ -32,6 +32,7 @@ vector<uint64_t> seq_ids;
 void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, int min_len) {
     while (true) {
         std::string sequence;
+		std::string name;
         int seq_id;
 
 		{
@@ -39,10 +40,9 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 				int length = kseq_read(ks);
 				if (length < 0) break;
 				if (length < min_len) continue;
-
+				name = ks->name.s;
 				sequence = ks->seq.s;//direct copy?
 				seq_id = num_seqs.fetch_add(1);
-				cout << ks->name.s << " " << seq_id << endl;
 		}
 
 		KHFMinHash mh;
@@ -61,6 +61,7 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 				std::lock_guard<std::mutex> lock(mtx2);
 				hashes.emplace_back(sketch.hashes);
 				seq_ids.emplace_back(seq_id);
+				cout << name << " " << hashes.size() - 1 << endl;
 		}
 	}
 }
