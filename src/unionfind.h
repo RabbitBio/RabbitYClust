@@ -18,6 +18,13 @@ struct Data {
 	Data() {}
 };
 
+struct GroupNode {
+	int id;
+	int root;
+	GroupNode(int id, int root_id) : id(id), root(root_id) {}
+	GroupNode() {}
+};
+
 class UnionFind {
 private:
 	vector<int> parent;
@@ -62,6 +69,14 @@ public:
 			if (parent[i] == i) count++;
 		}
 		return count;
+	}
+
+	void findRoot (vector<GroupNode>& root) {
+		for(int i=0; i < parent.size(); i++) {
+			int root_id = find(parent[i]);
+			root[i].id = i;
+			root[i].root = root_id;
+		}
 	}
 
 	void findRoot (vector<Data>& root) {

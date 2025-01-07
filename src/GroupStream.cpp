@@ -129,36 +129,54 @@ void GroupStream::getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& gr
 	cout << "time need for constructing GroupResMap is " << map_duration << endl;
 #else
 
-	uf.findRoot(hash_vec);
-	sort(hash_vec.begin(), hash_vec.end(), [](const Data& a, const Data& b){
-		return a.value[0] < b.value[0]; 
+	uf.findRoot(id_root_map);
+	sort(id_root_map.begin(), id_root_map.end(), [](const GroupNode& a, const GroupNode& b){
+		return a.root < b.root; 
 		});
-    for (const auto& p : hash_vec) {
-    	group_map[p.value[0]].push_back(p.id); 
+    for (const auto& p : id_root_map) {
+    	group_map[p.root].push_back(p.id); 
     }
 #endif
 }
 
 void GroupStream::countGroupSize(UnionFind& uf) {
-	uf.findRoot(hash_vec);
-	sort(hash_vec.begin(), hash_vec.end(), [](const Data& a, const Data& b){
-		return a.value[0] < b.value[0]; 
-		});
+	uf.findRoot(id_root_map);
 	priority_queue<int, vector<int>, greater<int>> minHeap;
-	int group_size = 0;
-	int cur_root = hash_vec[0].value[0]; // 第一个root-id
-    for (const auto& p : hash_vec) {
-    	if(cur_root == p.value[0]) {
-			group_size++;
-		}else{
-			minHeap.push(group_size);
-			if (minHeap.size() > 3){
-				 minHeap.pop();
-			}
-			cur_root = p.value[0];
-			group_size = 1;
+// 1.用map来统计分组结果
+	unordered_map<int, vector<int>> map;
+	for(auto &p : id_root_map){
+    	map[p.root].push_back(p.id); 
+	}
+	for(auto &[root_id, seqs] : map){
+		minHeap.push(seqs.size());
+		if (minHeap.size() > 10){
+			 minHeap.pop();
 		}
-    }
+	}
+//	2.直接排序统计分组结果
+//	sort(id_root_map.begin(), id_root_map.end(), [](const GroupNode& a, const GroupNode& b){
+//		return a.root < b.root;
+//		});
+//	int group_size = 0;
+//	int cur_root = id_root_map[0].root;//  第一个root-id
+//    for (const auto& p : id_root_map) {
+//    	if(cur_root == p.root) {
+//			group_size++;
+//		}else{
+//			minHeap.push(group_size);
+//			if (minHeap.size() > 10){
+//				 minHeap.pop();
+//			}
+//			cur_root = p.root;
+//			group_size = 1;
+//		}
+//    }
+//	if(group_size >= 1) {
+//		minHeap.push(group_size);
+//		if (minHeap.size() > 10){
+//			 minHeap.pop();
+//		}
+//	}
 	while(!minHeap.empty()){
 		cerr << minHeap.top() << " ";
 		minHeap.pop();

@@ -12,19 +12,21 @@ public:
 	int L = 1;
 	bool slide = true;
 	vector<Data> hash_vec;
+	vector<GroupNode> id_root_map;
 
 	GroupStream(int n, int m, int r, int l) : uf(n), items(n), R(r), L(l), M(m) {
-		hash_vec.resize(items);
-		resize();
+		resize(items);
 	}
 
-	GroupStream(int n) : uf(n), items(n) { hash_vec.resize(items); }
+	GroupStream(int n) : uf(n), items(n) { resize(items); }
 
 	void setSlideOff(){ slide = false; }
 	void setM(int m) { M = m; }
 	void setR(int r) { R = r; }
 	void setL(int l) { L = l; }
-	void resize() {
+	void resize(int n) {
+		hash_vec.resize(items);
+		id_root_map.resize(items);
 		for(auto& data : hash_vec)
 			data.value.resize(L * R);
 	}
