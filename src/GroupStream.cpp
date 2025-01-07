@@ -140,9 +140,12 @@ void GroupStream::getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& gr
 }
 
 void GroupStream::countGroupSize(UnionFind& uf) {
+// FIXME:用结构体GroupNode存储id-root的映射还是用hash_vec继续存
+// 用GroupNode增加内存但是如果排序的话要搬移的数据少
 	uf.findRoot(id_root_map);
 	priority_queue<int, vector<int>, greater<int>> minHeap;
-// 1.用map来统计分组结果
+// FIXME:用map来统计还是排序后统计
+// 1.用map来统计分组结果 增加内存 只遍历一次
 	unordered_map<int, vector<int>> map;
 	for(auto &p : id_root_map){
     	map[p.root].push_back(p.id); 
@@ -153,7 +156,7 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 			 minHeap.pop();
 		}
 	}
-//	2.直接排序统计分组结果
+//	2.直接排序统计分组结果 不增加内存 但多了排序的时间
 //	sort(id_root_map.begin(), id_root_map.end(), [](const GroupNode& a, const GroupNode& b){
 //		return a.root < b.root;
 //		});
