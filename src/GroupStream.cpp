@@ -96,7 +96,8 @@ void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>&
 //    }
 //	cerr << m << " " << m*L << " " << m * L + R << endl; 
 	for (int i = 0; i < items; i++) {
-		hash_vec[i].id = i;
+		//hash_vec[i].id = i;
+		hash_vec[i].id = seq_ids[i];
 		copy(vec[i].begin() + m * L, vec[i].begin() + m * L + R * L, hash_vec[i].value.begin());
 	}
 
@@ -105,30 +106,6 @@ void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>&
 }
 
 void GroupStream::getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& group_map) {
-#ifdef TIMING
-	auto construct_start = chrono::high_resolution_clock::now();
-	uf.findRoot(hash_vec);
-	auto construct_end = chrono::high_resolution_clock::now();
-	auto construct_duration = chrono::duration_cast<chrono::seconds>(construct_end - construct_start).count();
-	cout << "construct vector<id, root> time needed is " << construct_duration << endl;
-
-	auto sort_start = chrono::high_resolution_clock::now();
-	Sort(hash_vec);
-	auto sort_end = chrono::high_resolution_clock::now();
-	auto sort_duration = chrono::duration_cast<chrono::seconds>(construct_end - construct_start).count();
-	cout << "sort vector<id, root> time needed is " << sort_duration << endl;
-
-	auto map_start = chrono::high_resolution_clock::now();
-    for (const auto& p : hash_vec) {
-    	group_map[p.value].push_back(p.id); 
-    }
-
-	cout << "size of hashmap is " << group_map.size() << endl;
-	auto map_end = chrono::high_resolution_clock::now();
-	auto map_duration = chrono::duration_cast<chrono::seconds>(map_end - map_start).count();
-	cout << "time need for constructing GroupResMap is " << map_duration << endl;
-#else
-
 	uf.findRoot(id_root_map);
 	sort(id_root_map.begin(), id_root_map.end(), [](const GroupNode& a, const GroupNode& b){
 		return a.root < b.root; 
@@ -136,7 +113,6 @@ void GroupStream::getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& gr
     for (const auto& p : id_root_map) {
     	group_map[p.root].push_back(p.id); 
     }
-#endif
 }
 
 void GroupStream::countGroupSize(UnionFind& uf) {

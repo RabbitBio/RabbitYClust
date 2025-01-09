@@ -14,11 +14,17 @@ public:
 	vector<Data> hash_vec;
 	vector<GroupNode> id_root_map;
 
+	vector<uint64_t> seq_ids;
+
 	GroupStream(int n, int m, int r, int l) : uf(n), items(n), R(r), L(l), M(m) {
 		resize(items);
 	}
 
 	GroupStream(int n) : uf(n), items(n) { resize(items); }
+
+	void setIDs(const vector<uint64_t>& seq_ids) {
+		this->seq_ids = seq_ids;
+	}
 
 	void setSlideOff(){ slide = false; }
 	void setM(int m) { M = m; }

@@ -32,7 +32,6 @@ vector<uint64_t> seq_ids;
 void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, int min_len) {
     while (true) {
         std::string sequence;
-		std::string name;
         int seq_id;
 
 		{
@@ -40,9 +39,9 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 				int length = kseq_read(ks);
 				if (length < 0) break;
 				if (length < min_len) continue;
-				name = ks->name.s;
 				sequence = ks->seq.s;//direct copy?
 				seq_id = num_seqs.fetch_add(1);
+				cout << ks->name.s << " " << seq_id << endl;
 		}
 
 		KHFMinHash mh;
@@ -61,7 +60,6 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 				std::lock_guard<std::mutex> lock(mtx2);
 				hashes.emplace_back(sketch.hashes);
 				seq_ids.emplace_back(seq_id);
-				cout << name << " " << hashes.size() - 1 << endl;
 		}
 	}
 }
@@ -126,9 +124,11 @@ int main(int argc, char* argv[])
 	   
 	ks1 = kseq_init(fp1);
 
-	ostringstream seq_id_name;
-	seq_id_name << "k" << k << "m" << m << "seq-id.txt";
-	ofstream seq_id(seq_id_name.str());
+//  FIXME:临时的验证方式 为了把其他聚类软件的结果和seqid对应起来
+//	ostringstream seq_id_name;
+//	seq_id_name << "k" << k << "m" << m << "seq-id.txt";
+//	ofstream seq_id(seq_id_name.str());
+	ofstream seq_id("sequence-id.txt");
 	streambuf* origin_cout = cout.rdbuf();
 	cout.rdbuf(seq_id.rdbuf());
 
@@ -186,6 +186,7 @@ int main(int argc, char* argv[])
 	//grouping
 	cerr << "Start grouping!" << endl;
 	GroupStream gs(num_seqs.load(), m, r, 1);
+	gs.setIDs(seq_ids);
 	if(block_on) 
 		gs.setSlideOff();
 	unordered_map<int, vector<int>> group_map;
