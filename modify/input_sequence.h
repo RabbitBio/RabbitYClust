@@ -7,8 +7,16 @@
 
 struct Input_Sequence
 {
+	int seq_id;
     char* identifier;
     char* data;
 };
 
+struct Sequence_new
+{
+	int seq_id;
+    char* data;
+	Sequence_new() {}
+//    char* identifier = null;
+};
 #endif

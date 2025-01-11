@@ -1923,6 +1923,56 @@ void SequenceDB::Read(const char* file, const Options& options)
 	fclose(fin);
 }
 
+// yy add new read vector<sequence-new>
+void SequenceDB::Readvector(const std::vector<Sequence_new>& input, const Options& options) {
+	int count = 0;
+	int option_l = options.min_length;
+	Sequence one;
+	Sequence des;
+	if (input.size() == 0) {
+		printf("Input Vector is empty\n");
+		return;
+	}
+	// std::cout << "Vector Size: " << input.size() << std::endl;
+	for (size_t index = 0;index < input.size();index++) {
+//		int len = strlen(input[index].identifier);
+//		one.des_begin = index;
+//		one.tot_length += len;
+//
+//		des.size = 0;
+//		des += input[index].identifier;
+//		int i = 0;
+//		if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+') i += 1;
+//		if (des.data[i] == ' ' or des.data[i] == '\t') i += 1;
+//		if (options.des_len and options.des_len < des.size) des.size = options.des_len;
+//		while (i < des.size and !isspace(des.data[i]))
+//			i += 1;
+//		des.data[i] = 0;
+//		one.identifier = des.data;
+		one.identifier = NULL;
+
+		one = input[index].data;
+		one.tot_length += strlen(input[index].data);
+		count += one.tot_length;
+		one.index = input[index].seq_id;
+		if (one.size > option_l) {
+			if (options.trim_len > 0) one.trim(options.trim_len);
+			sequences.Append(new Sequence(one));
+		}
+	}
+	one.identifier = NULL;
+}
+// yy add update vector parent 
+void SequenceDB::updateParent(vector<int>& parent){
+	
+	int N = sequences.size();
+
+	for(int i = 0; i < N; i++){
+		int id = sequences[i]->index;
+		int root_id = sequences[i]->cluster_id;
+		parent[id] = root_id;
+	}
+}
 // codes by mgl
 void SequenceDB::Readvector(const std::vector<Input_Sequence*>& input, const Options& options) {
 	int count = 0;

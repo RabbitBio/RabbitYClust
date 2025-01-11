@@ -41,13 +41,13 @@ void cdhit_vector(std::vector<Input_Sequence*>& seq, std::string output, std::st
         return;
     }
 
-    float begin_time = current_time();
+//    float begin_time = current_time();
     float end_time;
 
     // ***********************************    parse command line and open file
-    if (argc < 5) print_usage(argv[0]);
-    if (options.SetOptions(argc, argv) == 0)
-        print_usage(argv[0]);
+//    if (argc < 5) print_usage(argv[0]);
+//    if (options.SetOptions(argc, argv) == 0)
+//        print_usage(argv[0]);
     options.SetOptionsInputVector();
     options.Validate();
 
@@ -70,8 +70,8 @@ void cdhit_vector(std::vector<Input_Sequence*>& seq, std::string output, std::st
     // write a backup clstr file in case next step crashes
     seq_db.WriteExtra1D(options);
     cout << "program completed !" << endl << endl;
-    end_time = current_time();
-    printf("Total CPU time %.2f\n", end_time - begin_time);
+//    end_time = current_time();
+//    printf("Total CPU time %.2f\n", end_time - begin_time);
 
     free_char_array(argv, argc);
 
@@ -89,13 +89,13 @@ void cdhit_file(std::string input, std::string output, std::string command) {
     string db_in;
     string db_out;
 
-    float begin_time = current_time();
+//    float begin_time = current_time();
     float end_time;
 
     // ***********************************    parse command line and open file
-    if (argc < 5) print_usage(argv[0]);
-    if (options.SetOptions(argc, argv) == 0)
-        print_usage(argv[0]);
+//    if (argc < 5) print_usage(argv[0]);
+//    if (options.SetOptions(argc, argv) == 0)
+//        print_usage(argv[0]);
     options.Validate();
 
     db_in = options.input;
@@ -121,8 +121,8 @@ void cdhit_file(std::string input, std::string output, std::string command) {
     // write a backup clstr file in case next step crashes
     seq_db.WriteExtra1D(options);
     cout << "program completed !" << endl << endl;
-    end_time = current_time();
-    printf("Total CPU time %.2f\n", end_time - begin_time);
+//    end_time = current_time();
+//    printf("Total CPU time %.2f\n", end_time - begin_time);
 
     free_char_array(argv, argc);
 

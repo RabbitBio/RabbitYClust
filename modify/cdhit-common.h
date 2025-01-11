@@ -25,6 +25,7 @@
 //                    Email: l2fu@ucsd.edu, fu@daovm.net
 // =============================================================================
 
+#pragma once
 #include<iostream>
 #include<fstream>
 #include<iomanip>
@@ -571,9 +572,13 @@ public:
 	~SequenceDB() { Clear(); }
 
 	void printSequences();
+	// add by yy
+	void updateParent(vector<int>& parent);
 
 	void Read(const char* file, const Options& options);
 	void Readgz(const char* file, const Options& options);
+
+	void Readvector(const std::vector<Sequence_new>& input, const Options& options);
 
 	void Readvector(const std::vector<Input_Sequence*>& input, const Options& options);
 
