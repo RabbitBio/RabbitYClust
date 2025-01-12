@@ -14,6 +14,7 @@ public:
 	int R = 1;
 	int L = 1;
 	bool slide = true;
+	bool cluster_on = false;
 	vector<Data> hash_vec;
 
 //	vector<GroupNode> id_root_map;
@@ -35,6 +36,7 @@ public:
 	}
 	
 
+	void setClusterOn() { cluster_on = true; }
 	void setSlideOff(){ slide = false; }
 	void setM(int m) { M = m; }
 	void setR(int r) { R = r; }

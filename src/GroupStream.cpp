@@ -116,7 +116,9 @@ void GroupStream::getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& gr
 //    }
 
 	for(int i = 0; i < items; i++) {
-		group_map[id_root_map[i]].push_back(i);
+		int id = seq_ids[i];
+		int root_id = id_root_map[id];
+		group_map[root_id].push_back(id);
 	}
 }
 
@@ -134,13 +136,32 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 	for(int i = 0; i < items; i++) {
 		map[id_root_map[i]].push_back(i);
 	}
-	for(auto &[key, seqs] : map){
-		clusterEachGroup(seqs);
-	}
-	for(auto &[root_id, seqs] : map){
-		minHeap.push(seqs.size());
-		if (minHeap.size() > 10){
-			 minHeap.pop();
+
+	if(cluster_on) {
+		for(auto &[key, seqs] : map){
+			if(seqs.size() > 1) {
+				clusterEachGroup(seqs);
+			}
+		}
+		uf.updateParent(id_root_map);
+
+		unordered_map<int, vector<int>> map_after_cluster;
+		for(int i = 0; i < items; i++) {
+			map_after_cluster[id_root_map[i]].push_back(i);
+		}
+		for(auto &[root_id, seqs] : map_after_cluster){
+			minHeap.push(seqs.size());
+			if (minHeap.size() > 10){
+				 minHeap.pop();
+			}
+		}
+	}else {
+
+		for(auto &[root_id, seqs] : map){
+			minHeap.push(seqs.size());
+			if (minHeap.size() > 10){
+				 minHeap.pop();
+			}
 		}
 	}
 //	2.直接排序统计分组结果 不增加内存 但多了排序的时间
@@ -208,11 +229,11 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 #endif
 }
 
-void GroupStream::clusterEachGroup(vector<int>& seq_ids){
-//	vector<Sequence_new>& sequences;
-//	for(int i = 0; i < seq_ids.size(); i++) {
-//		sequences.emplace_back(seq_ids[i], map[seq_ids[i]]);
-//	}
+void GroupStream::clusterEachGroup(vector<int>& group_seqs){
+	vector<Sequence_new> sequences;
+	for(int i = 0; i < group_seqs.size(); i++) {
+		sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]]);
+	}
 	//读取FAI获取data
-	//cluster_cdhit.cdhit_cluster(sequences, uf.parent);
+	cluster_cdhit.cdhit_cluster(sequences, id_root_map);
 }

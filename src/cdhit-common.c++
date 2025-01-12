@@ -46,6 +46,9 @@
 
 #endif
 
+// yy add to close print
+#define printf(...) ((void)0)
+
 //class function definition
 const char aa[] = { "ARNDCQEGHILKMFPSTWYVBZX" };
 //{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,2,6,20};
@@ -3948,7 +3951,7 @@ void SequenceDB::DoClustering(const Options& options)
 			m++;
 		}
 		if (m > N) m = N;
-		printf("\rcomparing sequences from  %9i  to  %9i\n", i, m);
+//		printf("\rcomparing sequences from  %9i  to  %9i\n", i, m);
 		fflush(stdout);
 		for (int ks = i; ks < m; ks++) { // clustering this block
 			Sequence* seq = sequences[ks];
@@ -3986,9 +3989,9 @@ void SequenceDB::DoClustering(const Options& options)
 		//if( i && i < m ) printf( "\r---------- %6i remaining sequences to the next cycle\n", m-i );
 		word_table.Clear();
 	}
-	printf("\n%9i  finished  %9i  clusters\n", sequences.size(), rep_seqs.size());
+//	printf("\n%9i  finished  %9i  clusters\n", sequences.size(), rep_seqs.size());
 	mem = (mem_need + tabsize * sizeof(IndexCount)) / mega;
-	printf("\nApproximated maximum memory consumption: %liM\n", mem);
+//	printf("\nApproximated maximum memory consumption: %liM\n", mem);
 	temp_files.Clear();
 	word_table.Clear();
 
@@ -4069,9 +4072,9 @@ void SequenceDB::ClusterTo(SequenceDB& other, const Options& options)
 			seq->cluster_id = ks;
 			seq->state |= IS_REP;
 			if ((ks + 1) % 1000 == 0) {
-				printf(".");
+//				printf(".");
 				fflush(stdout);
-				if ((ks + 1) % 10000 == 0) printf("%9i  finished\n", ks + 1);
+//				if ((ks + 1) % 10000 == 0) printf("%9i  finished\n", ks + 1);
 			}
 		}
 		float p0 = 0;

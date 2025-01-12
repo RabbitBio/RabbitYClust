@@ -47,7 +47,7 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 				if (length < min_len) continue;
 				sequence = ks->seq.s;//direct copy?
 				seq_id = num_seqs.fetch_add(1);
-//				cout << ks->name.s << " " << seq_id << endl;
+				cout << ks->name.s << " " << seq_id << endl;
 		}
 
 		KHFMinHash mh;
@@ -219,6 +219,9 @@ int main(int argc, char* argv[])
 	cerr << "Start grouping!" << endl;
 	GroupStream gs(num_seqs.load(), m, r, 1);
 	gs.setIDs(seq_ids);
+	if(cluster_on) {
+		gs.setClusterOn();
+	}
 	if(block_on) 
 		gs.setSlideOff();
 	unordered_map<int, vector<int>> group_map;
@@ -234,8 +237,8 @@ int main(int argc, char* argv[])
             minHeap.pop(); // 保持堆的大小为 10
         }
 		max_group_Size = max_group_Size > pair.second.size() ? max_group_Size : pair.second.size();
-//		for(const auto& node : pair.second)
-//			cout << node << " " << pair.first << endl;
+		for(const auto& node : pair.second)
+			cout << node << " " << pair.first << endl;
 	}
 
 	while(!minHeap.empty()){

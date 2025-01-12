@@ -72,6 +72,12 @@ public:
 		return count;
 	}
 
+	void updateParent(const vector<int> & new_parents) {
+		for(int i=0; i < parent.size(); i++) {
+			parent[i] = new_parents[i];
+		}
+	}
+
 	void findRoot (vector<int>& root) {
 		for(int i=0; i < parent.size(); i++) {
 			int root_id = find(parent[i]);
