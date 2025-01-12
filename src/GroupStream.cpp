@@ -146,12 +146,17 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 				//clusterEachGroup(seqs);
 			}
 		}
-		#pragma omp parallel for num_threads(8)
+
+		auto start_time = chrono::high_resolution_clock::now();
+		#pragma omp parallel for num_threads(20)
 		for(int i = 0; i < cluster_sequences.size(); i++) {
 			clusterEachGroup(cluster_sequences[i]);
 		}
 		uf.updateParent(id_root_map);
 
+		auto end_time = chrono::high_resolution_clock::now();
+		auto duration = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
+	cout << "cdhit cluster time is " << duration << endl;
 		unordered_map<int, vector<int>> map_after_cluster;
 		for(int i = 0; i < items; i++) {
 			map_after_cluster[id_root_map[i]].push_back(i);
