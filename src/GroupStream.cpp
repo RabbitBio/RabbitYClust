@@ -1,5 +1,6 @@
 #include "GroupStream.h"
 #include <queue>
+#include <omp.h>
 
 bool compareByHash(const Data &a, const Data &b) {
 	return a.value < b.value;
@@ -138,10 +139,16 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 	}
 
 	if(cluster_on) {
+		vector<vector<int>> cluster_sequences;
 		for(auto &[key, seqs] : map){
 			if(seqs.size() > 1) {
-				clusterEachGroup(seqs);
+				cluster_sequences.emplace_back(seqs);
+				//clusterEachGroup(seqs);
 			}
+		}
+		#pragma omp parallel for num_threads(8)
+		for(int i = 0; i < cluster_sequences.size(); i++) {
+			clusterEachGroup(cluster_sequences[i]);
 		}
 		uf.updateParent(id_root_map);
 

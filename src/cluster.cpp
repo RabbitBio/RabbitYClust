@@ -27,7 +27,6 @@ void cluster::cdhit_cluster(std::vector<Sequence_new>& seq, std::vector<int>& pa
 
     seq_db.Readvector(seq, options);
 
-    cout << "total seq: " << seq_db.sequences.size() << endl;
     seq_db.SortDivide(options);
 
     seq_db.DoClustering(options);
