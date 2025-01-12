@@ -86,7 +86,8 @@ void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_
 
 		// FIXME: store char* for simply using cdhit to cluster
 		const char* cstr = sequence.c_str();
-		char* buffer = new char(sequence.size() + 1);
+//		char* buffer = (char*)malloc(sequence.size()+1);
+		char* buffer = new char[sequence.size() + 1];
 		strcpy(buffer, cstr);
 		KHFMinHash mh;
 		mh.setK(k);
@@ -209,6 +210,8 @@ int main(int argc, char* argv[])
 	cerr << "Sketching time: " << generation_duration << endl;
 	cerr << "Total number of seqs: " << num_seqs.load() << endl;
 
+	cerr << "Generated Map Size: " << fa_map.size() << endl;
+
     gzclose(fp1);
     kseq_destroy(ks1);
 
@@ -231,8 +234,8 @@ int main(int argc, char* argv[])
             minHeap.pop(); // 保持堆的大小为 10
         }
 		max_group_Size = max_group_Size > pair.second.size() ? max_group_Size : pair.second.size();
-		for(const auto& node : pair.second)
-			cout << node << " " << pair.first << endl;
+//		for(const auto& node : pair.second)
+//			cout << node << " " << pair.first << endl;
 	}
 
 	while(!minHeap.empty()){
