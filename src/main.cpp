@@ -16,6 +16,7 @@
 
 #include "GroupStream.h"
 
+#define BUFFER_SIZE (1<<20 * sizeof(char))
 
 using namespace std;
 using namespace Sketch;
@@ -28,6 +29,11 @@ std::atomic<int> num_seqs(0);
 
 vector<vector<uint64_t>> hashes;
 vector<uint64_t> seq_ids;
+// yy add for cluster
+bool cluster_on = false;
+unordered_map<uint64_t, uint64_t> fai_map;
+unordered_map<uint64_t, char*> fa_map;
+int64_t pos = 0;
 
 void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, int min_len) {
     while (true) {
@@ -41,7 +47,7 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 				if (length < min_len) continue;
 				sequence = ks->seq.s;//direct copy?
 				seq_id = num_seqs.fetch_add(1);
-				cout << ks->name.s << " " << seq_id << endl;
+//				cout << ks->name.s << " " << seq_id << endl;
 		}
 
 		KHFMinHash mh;
@@ -64,6 +70,45 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 	}
 }
 
+void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, int min_len) {
+    while (true) {
+        std::string sequence;
+        int seq_id;
+		{
+				std::lock_guard<std::mutex> lock(mtx1);
+				int length = kseq_read(ks);
+				if (length < 0) break;
+				if (length < min_len) continue;
+				sequence = ks->seq.s;//direct copy?
+				seq_id = num_seqs.fetch_add(1);
+//				cout << ks->name.s << " " << seq_id << endl;
+		}
+
+		// FIXME: store char* for simply using cdhit to cluster
+		const char* cstr = sequence.c_str();
+		char* buffer = new char(sequence.size() + 1);
+		strcpy(buffer, cstr);
+		KHFMinHash mh;
+		mh.setK(k);
+		mh.setM(m);
+
+		if (xxhash_flag)
+				mh.buildSketch(sequence.c_str());
+		else
+				mh.buildSketchByNoSeedAAHash(sequence.c_str());
+
+		auto& sketch = mh.getSektch();
+		
+	
+		{
+				std::lock_guard<std::mutex> lock(mtx2);
+				hashes.emplace_back(sketch.hashes);
+				seq_ids.emplace_back(seq_id);
+				fa_map.emplace(seq_id, buffer);
+		}
+	}
+}
+
 int main(int argc, char* argv[])
 {
 
@@ -76,6 +121,7 @@ int main(int argc, char* argv[])
 	float similarity = 0.9;
 	string filename = "";
 	string res_file = "";
+	string fa_output_name = "";
 
 	auto option_threads = app.add_option("-t, --threads", num_threads,  "set the thread number, default 1 thread");
 	auto option_min_len = app.add_option("--min-length", min_len, "set the filter minimum length (minLen), protein length less than minLen will be ignore, default 50");
@@ -93,6 +139,10 @@ int main(int argc, char* argv[])
 	bool block_on = false;
 	auto option_block = app.add_flag("-b, --block-on", block_on, "If this flat is enabled, sort in block mode. eg. m cols unites m / r times");
 	option_block->needs("-r");
+
+	cluster_on = false;
+	auto option_cluster = app.add_flag("-c, --cluster", cluster_on, "If this flat is enabled, clustering during the grouping");
+
 	CLI11_PARSE(app, argc, argv);
 
 	if(num_threads < 1)
@@ -121,7 +171,8 @@ int main(int argc, char* argv[])
 		cerr << "Fail to open file: " << filename << endl;
 		return 0;
 	}
-	   
+
+	
 	ks1 = kseq_init(fp1);
 
 //  FIXME:临时的验证方式 为了把其他聚类软件的结果和seqid对应起来
@@ -135,45 +186,23 @@ int main(int argc, char* argv[])
 
 	cerr << "Start Building sketches!" << endl;
 	auto generation_start = chrono::high_resolution_clock::now();
-
+	
     std::vector<std::thread> threads;
-    for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back(consumer, i, fp1, ks1, k, m, xxhash_flag, min_len);
-    }
+	if(cluster_on) {
+    	for (int i = 0; i < num_threads; ++i) {
+    	    threads.emplace_back(consumer_cluster, i, fp1, ks1, k, m, xxhash_flag, min_len);
+    	}
+	}else {
+
+    	for (int i = 0; i < num_threads; ++i) {
+    	    threads.emplace_back(consumer, i, fp1, ks1, k, m, xxhash_flag, min_len);
+    	}
+	}
     for (auto& t : threads) {
         t.join();
     }
     
-	// build sketches
-	//int count = 0;	
-	//while(1)
-	//{
-	//	int length = kseq_read(ks1);
 
-	//	if(length < 0) break;
-	//	if (ks1->seq.l <= min_len) continue;
-
-	//	char * seq1 = ks1->seq.s;
-	//	//cout << ks1->name.s << " " << count << endl;
-	//	//cout << ks1->comment.s << " " << ks1->seq.l << endl;
-	//	//cout << ks1->seq.l << endl;
-	//	//cout << ks1->seq.s << endl;
-	//	KHFMinHash mh = KHFMinHash();			
-	//	mh.setK(k);
-	//	mh.setM(m);
-
-	//	if(xxhash_flag) 
-	//		mh.buildSketch(seq1);
-	//	else 
-	//		mh.buildSketchByNoSeedAAHash(seq1);
-	//
-	//	auto & sketch = mh.getSektch();	
-
-	//	hashes.emplace_back(sketch.hashes);
-
-	//	count++;
-	//}
-	
 	auto generation_end = chrono::high_resolution_clock::now();
 	auto generation_duration = chrono::duration_cast<chrono::seconds>(generation_end - generation_start).count();
 

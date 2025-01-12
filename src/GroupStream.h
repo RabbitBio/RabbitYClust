@@ -2,6 +2,9 @@
 #define __GROUPSTREAM_H__
 
 #include "unionfind.h"
+#include "cluster.h"
+
+extern unordered_map<uint64_t, char*> fa_map;
 
 class GroupStream {
 public:
@@ -12,9 +15,14 @@ public:
 	int L = 1;
 	bool slide = true;
 	vector<Data> hash_vec;
-	vector<GroupNode> id_root_map;
 
-	vector<uint64_t> seq_ids;
+//	vector<GroupNode> id_root_map;
+	vector<int> id_root_map;
+	// 存储seq-id到root-id的映射
+	vector<uint64_t> seq_ids; 
+	// 存储序列在hash-vec里的顺序和读入顺序的映射
+
+	cluster cluster_cdhit;
 
 	GroupStream(int n, int m, int r, int l) : uf(n), items(n), R(r), L(l), M(m) {
 		resize(items);
@@ -25,6 +33,7 @@ public:
 	void setIDs(const vector<uint64_t>& seq_ids) {
 		this->seq_ids = seq_ids;
 	}
+	
 
 	void setSlideOff(){ slide = false; }
 	void setM(int m) { M = m; }
@@ -32,7 +41,7 @@ public:
 	void setL(int l) { L = l; }
 	void resize(int n) {
 		hash_vec.resize(items);
-		id_root_map.resize(items);
+		id_root_map.resize(items, -1);
 		for(auto& data : hash_vec)
 			data.value.resize(L * R);
 	}
@@ -54,5 +63,6 @@ public:
 	void getGroupMap(UnionFind& uf,unordered_map<int, vector<int>>& group_map);
 	//unordered_map<int, vector<int>> getGroupMap();
 
+	void clusterEachGroup(vector<int>& seq_ids);
 };
 #endif

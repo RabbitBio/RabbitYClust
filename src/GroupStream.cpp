@@ -107,12 +107,17 @@ void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>&
 
 void GroupStream::getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& group_map) {
 	uf.findRoot(id_root_map);
-	sort(id_root_map.begin(), id_root_map.end(), [](const GroupNode& a, const GroupNode& b){
-		return a.root < b.root; 
-		});
-    for (const auto& p : id_root_map) {
-    	group_map[p.root].push_back(p.id); 
-    }
+//  1.用vector<GroupNode>存储id-root-map时候要对其进行kj
+//	sort(id_root_map.begin(), id_root_map.end(), [](const GroupNode& a, const GroupNode& b){
+//		return a.root < b.root; 
+//		});
+//    for (const auto& p : id_root_map) {
+//    	group_map[p.root].push_back(p.id); 
+//    }
+
+	for(int i = 0; i < items; i++) {
+		group_map[id_root_map[i]].push_back(i);
+	}
 }
 
 void GroupStream::countGroupSize(UnionFind& uf) {
@@ -123,8 +128,14 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 // FIXME:用map来统计还是排序后统计
 // 1.用map来统计分组结果 增加内存 只遍历一次
 	unordered_map<int, vector<int>> map;
-	for(auto &p : id_root_map){
-    	map[p.root].push_back(p.id); 
+//	for(auto &p : id_root_map){
+//    	map[p.root].push_back(p.id); 
+//	}
+	for(int i = 0; i < items; i++) {
+		map[id_root_map[i]].push_back(i);
+	}
+	for(auto &[key, seqs] : map){
+		clusterEachGroup(seqs);
 	}
 	for(auto &[root_id, seqs] : map){
 		minHeap.push(seqs.size());
@@ -195,4 +206,13 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 #else
 	getGroupMap(uf, group_map);
 #endif
+}
+
+void GroupStream::clusterEachGroup(vector<int>& seq_ids){
+//	vector<Sequence_new>& sequences;
+//	for(int i = 0; i < seq_ids.size(); i++) {
+//		sequences.emplace_back(seq_ids[i], map[seq_ids[i]]);
+//	}
+	//读取FAI获取data
+	//cluster_cdhit.cdhit_cluster(sequences, uf.parent);
 }

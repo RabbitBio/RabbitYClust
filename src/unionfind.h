@@ -27,11 +27,12 @@ struct GroupNode {
 
 class UnionFind {
 private:
-	vector<int> parent;
+//	vector<int> parent;
 	vector<int> rank;
 
-public:
-	
+public:	
+	vector<int> parent;
+
     UnionFind(int n) {
         parent.resize(n);
 		rank.resize(n);
@@ -69,6 +70,13 @@ public:
 			if (parent[i] == i) count++;
 		}
 		return count;
+	}
+
+	void findRoot (vector<int>& root) {
+		for(int i=0; i < parent.size(); i++) {
+			int root_id = find(parent[i]);
+			root[i] = root_id;
+		}
 	}
 
 	void findRoot (vector<GroupNode>& root) {
