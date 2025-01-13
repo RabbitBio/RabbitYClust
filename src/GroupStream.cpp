@@ -141,14 +141,14 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 	if(cluster_on) {
 		vector<vector<int>> cluster_sequences;
 		for(auto &[key, seqs] : map){
-			if(seqs.size() > 1) {
+			if(seqs.size() > split_on) {
 				cluster_sequences.emplace_back(seqs);
 				//clusterEachGroup(seqs);
 			}
 		}
 
 		auto start_time = chrono::high_resolution_clock::now();
-		#pragma omp parallel for num_threads(20)
+		//#pragma omp parallel for num_threads(20)
 		for(int i = 0; i < cluster_sequences.size(); i++) {
 			clusterEachGroup(cluster_sequences[i]);
 		}

@@ -13,6 +13,7 @@ public:
 	int M;
 	int R = 1;
 	int L = 1;
+	int split_on = 1000;
 	bool slide = true;
 	bool cluster_on = false;
 	vector<Data> hash_vec;
