@@ -148,7 +148,7 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 		}
 
 		auto start_time = chrono::high_resolution_clock::now();
-		//#pragma omp parallel for num_threads(20)
+		#pragma omp parallel for num_threads(8)
 		for(int i = 0; i < cluster_sequences.size(); i++) {
 			clusterEachGroup(cluster_sequences[i]);
 		}
@@ -213,6 +213,9 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 			cerr << "round "<<  m << endl;
 			fillHashVec(hashes, hash_vec, m * L);
 			GroupByCol(hash_vec, uf);
+			if(m == M - R) {
+				split_on = 2;
+			}
 			countGroupSize(uf);
 		}
 	}else{
