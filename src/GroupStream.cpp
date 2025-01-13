@@ -141,7 +141,7 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 	if(cluster_on) {
 		vector<vector<int>> cluster_sequences;
 		for(auto &[key, seqs] : map){
-			if(seqs.size() > split_on) {
+			if(seqs.size() > cluster_condition) {
 				cluster_sequences.emplace_back(seqs);
 				//clusterEachGroup(seqs);
 			}
@@ -214,7 +214,7 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 			fillHashVec(hashes, hash_vec, m * L);
 			GroupByCol(hash_vec, uf);
 			if(m == M - R) {
-				split_on = 2;
+				setClusterCondition(2);
 			}
 			countGroupSize(uf);
 		}

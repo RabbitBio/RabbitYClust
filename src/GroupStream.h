@@ -13,7 +13,7 @@ public:
 	int M;
 	int R = 1;
 	int L = 1;
-	int split_on = 1000;
+	int cluster_condition = 1000;
 	bool slide = true;
 	bool cluster_on = false;
 	vector<Data> hash_vec;
@@ -38,6 +38,7 @@ public:
 	
 
 	void setClusterOn() { cluster_on = true; }
+	void setClusterCondition(int conditon) { cluster_condition = conditon; }
 	void setSlideOff(){ slide = false; }
 	void setM(int m) { M = m; }
 	void setR(int r) { R = r; }
