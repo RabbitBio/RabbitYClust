@@ -147,16 +147,15 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 			}
 		}
 
-		auto start_time = chrono::high_resolution_clock::now();
+//		auto start_time = chrono::high_resolution_clock::now();
 		#pragma omp parallel for num_threads(8)
 		for(int i = 0; i < cluster_sequences.size(); i++) {
 			clusterEachGroup(cluster_sequences[i]);
 		}
 		uf.updateParent(id_root_map);
 
-		auto end_time = chrono::high_resolution_clock::now();
-		auto duration = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
-	cout << "cdhit cluster time is " << duration << endl;
+//		auto end_time = chrono::high_resolution_clock::now();
+//		auto duration = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
 		unordered_map<int, vector<int>> map_after_cluster;
 		for(int i = 0; i < items; i++) {
 			map_after_cluster[id_root_map[i]].push_back(i);
@@ -214,7 +213,7 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 			fillHashVec(hashes, hash_vec, m * L);
 			GroupByCol(hash_vec, uf);
 			if(m == M - R) {
-				setClusterCondition(2);
+				setClusterCondition(1);
 			}
 			countGroupSize(uf);
 		}
