@@ -4,7 +4,7 @@
 #include "unionfind.h"
 #include "cluster.h"
 
-extern unordered_map<uint64_t, char*> fa_map;
+extern unordered_map<uint64_t, string> fa_map;
 
 class GroupStream {
 public:

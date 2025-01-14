@@ -32,8 +32,14 @@ vector<uint64_t> seq_ids;
 // yy add for cluster
 bool cluster_on = false;
 unordered_map<uint64_t, uint64_t> fai_map;
-unordered_map<uint64_t, char*> fa_map;
+unordered_map<uint64_t, string> fa_map;
 int64_t pos = 0;
+
+struct compare {
+	bool operator()(const pair<int, int> &a, const pair<int, int> &b) {
+		return a.first > b.first;
+	}
+};
 
 void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, int min_len) {
     while (true) {
@@ -47,7 +53,7 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 				if (length < min_len) continue;
 				sequence = ks->seq.s;//direct copy?
 				seq_id = num_seqs.fetch_add(1);
-				cout << ks->name.s << " " << seq_id << endl;
+//				cout << ks->name.s << " " << seq_id << endl;
 		}
 
 		KHFMinHash mh;
@@ -81,14 +87,14 @@ void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_
 				if (length < min_len) continue;
 				sequence = ks->seq.s;//direct copy?
 				seq_id = num_seqs.fetch_add(1);
-//				cout << ks->name.s << " " << seq_id << endl;
+	//			cout << ks->name.s << " " << seq_id << endl;
 		}
 
 		// FIXME: store char* for simply using cdhit to cluster
 		const char* cstr = sequence.c_str();
 //		char* buffer = (char*)malloc(sequence.size()+1);
-		char* buffer = new char[sequence.size() + 1];
-		strcpy(buffer, cstr);
+//		char* buffer = new char[sequence.size() + 1];
+//		strcpy(buffer, cstr);
 		KHFMinHash mh;
 		mh.setK(k);
 		mh.setM(m);
@@ -105,7 +111,7 @@ void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_
 				std::lock_guard<std::mutex> lock(mtx2);
 				hashes.emplace_back(sketch.hashes);
 				seq_ids.emplace_back(seq_id);
-				fa_map.emplace(seq_id, buffer);
+				fa_map.emplace(seq_id, sequence);
 		}
 	}
 }
@@ -229,17 +235,42 @@ int main(int argc, char* argv[])
 
 	//输出每个seq和他的root
 	cout.rdbuf(origin_cout);
+// 打印代表序列
+//	int name_pos = filename.find('.');
+//	string rep_name = filename.substr(0, name_pos) + ".rep";
+//	ofstream rep_file(rep_name);
+//	vector<int> rep_ids;
+
+	string folder_name = "test-output";
 	priority_queue<int, std::vector<int>, std::greater<int>> minHeap;
+//	priority_queue<pair<int,int>, std::vector<pair<int, int>>, compare> minHeap;
 	int max_group_Size = 0;
 	for(const auto& pair : group_map) {
+/**
+ * 把含有多个序列的类输出用cdhit聚类
+		if(pair.second.size() > 1) {
+			string file_name = folder_name + "/" + to_string(pair.first) + ".fa";
+			ofstream out_file(file_name);
+			for(int id : pair.second) {
+				out_file << ">" << id << endl;
+				out_file << fa_map[id]  << endl;
+			}
+			out_file.close();
+		}
+**/
+		// 输出rep
+		//rep_ids.emplace_back(pair.first);
         minHeap.push(pair.second.size());
         if (minHeap.size() > 10) {
             minHeap.pop(); // 保持堆的大小为 10
         }
-		max_group_Size = max_group_Size > pair.second.size() ? max_group_Size : pair.second.size();
-		for(const auto& node : pair.second)
-			cout << node << " " << pair.first << endl;
+//		打印id-rootid
+//		for(const auto& node : pair.second)
+//			cout << node << " " << pair.first << endl;
 	}
+
+//	输出代表序列
+//	std::copy(rep_ids.begin(), rep_ids.end(), std::ostream_iterator<int>(rep_file, "\n"));
 
 	while(!minHeap.empty()){
 		cerr << minHeap.top() << endl;

@@ -246,7 +246,7 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 void GroupStream::clusterEachGroup(vector<int>& group_seqs){
 	vector<Sequence_new> sequences;
 	for(int i = 0; i < group_seqs.size(); i++) {
-		sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]]);
+		sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]].c_str());
 	}
 	//读取FAI获取data
 	cluster_cdhit.cdhit_cluster(sequences, id_root_map);

@@ -15,9 +15,9 @@ struct Input_Sequence
 struct Sequence_new
 {
 	int seq_id;
-    char* data;
+    const char* data;
 	Sequence_new() {}
-	Sequence_new(int id, char* d) : seq_id(id), data(d) {}
+	Sequence_new(int id, const char* d) : seq_id(id), data(d) {}
 //    char* identifier = null;
 };
 #endif
