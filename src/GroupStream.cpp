@@ -148,7 +148,7 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 		}
 
 //		auto start_time = chrono::high_resolution_clock::now();
-		#pragma omp parallel for num_threads(8)
+		#pragma omp parallel for num_threads(num_threads)
 		for(int i = 0; i < cluster_sequences.size(); i++) {
 			clusterEachGroup(cluster_sequences[i]);
 		}

@@ -14,6 +14,7 @@ public:
 	int R = 1;
 	int L = 1;
 	int cluster_condition = 1000;
+	int num_threads = 8;
 	bool slide = true;
 	bool cluster_on = false;
 	vector<Data> hash_vec;
@@ -43,6 +44,7 @@ public:
 	void setM(int m) { M = m; }
 	void setR(int r) { R = r; }
 	void setL(int l) { L = l; }
+	void setNumThreads(int threads) { num_threads = threads; }
 	void resize(int n) {
 		hash_vec.resize(items);
 		id_root_map.resize(items, -1);

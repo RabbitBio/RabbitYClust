@@ -225,6 +225,7 @@ int main(int argc, char* argv[])
 	cerr << "Start grouping!" << endl;
 	GroupStream gs(num_seqs.load(), m, r, 1);
 	gs.setIDs(seq_ids);
+	gs.setNumThreads(num_threads);
 	if(cluster_on) {
 		gs.setClusterOn();
 	}
