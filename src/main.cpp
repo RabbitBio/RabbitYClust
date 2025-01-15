@@ -124,7 +124,7 @@ int main(int argc, char* argv[])
 	int min_len = 50;
 	int k = 8;
 	int m = 15;
-	int r = 2;
+	int r = 1;
 	float similarity = 0.9;
 	string filename = "";
 	string res_file = "";
@@ -243,8 +243,8 @@ int main(int argc, char* argv[])
 //	vector<int> rep_ids;
 
 	string folder_name = "test-output";
-	priority_queue<int, std::vector<int>, std::greater<int>> minHeap;
-//	priority_queue<pair<int,int>, std::vector<pair<int, int>>, compare> minHeap;
+//	priority_queue<int, std::vector<int>, std::greater<int>> minHeap;
+	priority_queue<pair<int,int>, std::vector<pair<int, int>>, compare> minHeap;
 	int max_group_Size = 0;
 	for(const auto& pair : group_map) {
 /**
@@ -261,7 +261,7 @@ int main(int argc, char* argv[])
 **/
 		// 输出rep
 		//rep_ids.emplace_back(pair.first);
-        minHeap.push(pair.second.size());
+        minHeap.push({pair.second.size(), pair.first});
         if (minHeap.size() > 10) {
             minHeap.pop(); // 保持堆的大小为 10
         }
@@ -274,7 +274,16 @@ int main(int argc, char* argv[])
 //	std::copy(rep_ids.begin(), rep_ids.end(), std::ostream_iterator<int>(rep_file, "\n"));
 
 	while(!minHeap.empty()){
-		cerr << minHeap.top() << endl;
+//		string file_name = "nr/" + to_string(minHeap.top().second) + ".fa";
+//		cout << "results output to: " << file_name << endl;
+//		ofstream ofile(file_name);
+//		int rootid = minHeap.top().second;
+//		for(int i : group_map[rootid]) {
+//			ofile << ">" << i << endl;
+//			ofile << fa_map[i] << endl;
+//		}
+//		ofile.close();
+		cerr << minHeap.top().first << endl;
 		minHeap.pop();
 	}
 

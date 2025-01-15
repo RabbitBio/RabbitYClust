@@ -17,6 +17,7 @@ public:
 	int num_threads = 8;
 	bool slide = true;
 	bool cluster_on = false;
+	bool temp_output_on = false;
 	vector<Data> hash_vec;
 
 //	vector<GroupNode> id_root_map;
@@ -65,6 +66,7 @@ public:
 	// construct a sorted struct Data(hash-vec) for a column of hash-funtions(vec)
 
 	void countGroupSize(UnionFind& uf);
+	void countGroupSizeBySort(UnionFind& uf);
 	
 	void getGroupMap(UnionFind& uf,unordered_map<int, vector<int>>& group_map);
 	//unordered_map<int, vector<int>> getGroupMap();

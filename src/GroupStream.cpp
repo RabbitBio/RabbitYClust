@@ -2,6 +2,12 @@
 #include <queue>
 #include <omp.h>
 
+struct minheapcompare {
+	bool operator()(const pair<int, int> &a, const pair<int, int> &b) {
+		return a.first > b.first;
+	}
+};
+
 bool compareByHash(const Data &a, const Data &b) {
 	return a.value < b.value;
 }
@@ -127,13 +133,9 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 // FIXME:用结构体GroupNode存储id-root的映射还是用hash_vec继续存
 // 用GroupNode增加内存但是如果排序的话要搬移的数据少
 	uf.findRoot(id_root_map);
-	priority_queue<int, vector<int>, greater<int>> minHeap;
 // FIXME:用map来统计还是排序后统计
 // 1.用map来统计分组结果 增加内存 只遍历一次
 	unordered_map<int, vector<int>> map;
-//	for(auto &p : id_root_map){
-//    	map[p.root].push_back(p.id); 
-//	}
 	for(int i = 0; i < items; i++) {
 		map[id_root_map[i]].push_back(i);
 	}
@@ -143,38 +145,65 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 		for(auto &[key, seqs] : map){
 			if(seqs.size() > cluster_condition) {
 				cluster_sequences.emplace_back(seqs);
-				//clusterEachGroup(seqs);
 			}
 		}
+		cerr << "Groups need to be clustered: " << cluster_sequences.size() << endl;
+		sort(cluster_sequences.begin(), cluster_sequences.end(), [](const vector<int>& a, const vector<int>& b){
+		return a.size() > b.size();
+		});
 
-//		auto start_time = chrono::high_resolution_clock::now();
 		#pragma omp parallel for num_threads(num_threads)
 		for(int i = 0; i < cluster_sequences.size(); i++) {
+			cerr << i << " is doing cluster " << cluster_sequences[i].size() << " sequences" << endl;
 			clusterEachGroup(cluster_sequences[i]);
 		}
 		uf.updateParent(id_root_map);
 
-//		auto end_time = chrono::high_resolution_clock::now();
-//		auto duration = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
 		unordered_map<int, vector<int>> map_after_cluster;
+		priority_queue<pair<int,int>, vector<pair<int, int>>, minheapcompare> minHeap;
 		for(int i = 0; i < items; i++) {
 			map_after_cluster[id_root_map[i]].push_back(i);
 		}
 		for(auto &[root_id, seqs] : map_after_cluster){
-			minHeap.push(seqs.size());
+			minHeap.push({seqs.size(), root_id});
 			if (minHeap.size() > 10){
 				 minHeap.pop();
 			}
 		}
-	}else {
+		while(!minHeap.empty()){
+			if(temp_output_on){
+				int rootid = minHeap.top().second;
+				string filename = to_string(rootid) + ".fa";
+				ofstream ofile(filename);
+				for(int id : map_after_cluster[rootid]){
+					ofile << ">" << id << endl;
+					ofile << fa_map[id] << endl;
+				}
+				ofile.close();
+				cerr << "cluster: " << rootid << " contains " << minHeap.top().first << " seqs stored in: " << filename << endl; 
+			}
+			minHeap.pop();
+		}
+		cerr << endl;
 
+	}else {
+		priority_queue<int, vector<int>, greater<int>> minHeap;
 		for(auto &[root_id, seqs] : map){
 			minHeap.push(seqs.size());
 			if (minHeap.size() > 10){
 				 minHeap.pop();
 			}
 		}
+		while(!minHeap.empty()){
+			cerr << minHeap.top() << " ";
+			minHeap.pop();
+		}
+		cerr << endl;
 	}
+}
+
+void GroupStream::countGroupSizeBySort(UnionFind& uf) {
+	priority_queue<int, vector<int>, greater<int>> minHeap;
 //	2.直接排序统计分组结果 不增加内存 但多了排序的时间
 //	sort(id_root_map.begin(), id_root_map.end(), [](const GroupNode& a, const GroupNode& b){
 //		return a.root < b.root;
@@ -212,8 +241,8 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 			cerr << "round "<<  m << endl;
 			fillHashVec(hashes, hash_vec, m * L);
 			GroupByCol(hash_vec, uf);
-			if(m == M - R) {
-				setClusterCondition(1);
+			if(m == M-R) {
+				temp_output_on = true;
 			}
 			countGroupSize(uf);
 		}
