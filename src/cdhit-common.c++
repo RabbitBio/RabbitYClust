@@ -3895,12 +3895,17 @@ void SequenceDB::DoClustering(const Options& options)
 	return;
 #endif
 
-	if (options.threads > 1) {
-		DoClustering(options.threads, options);
+// yy add multi-thread for huge clusters
+	if (sequences.size() > 100000) {
+		DoClustering(4, options);
 		temp_files.Clear();
 		return;
 	}
-
+//	if (options.threads > 1) {
+//		DoClustering(options.threads, options);
+//		temp_files.Clear();
+//		return;
+//	}
 	if (frag_size) {
 		frag_no = 0;
 		for (i = 0; i < seq_no; i++) frag_no += (sequences[i]->size - NAA) / frag_size + 1;
