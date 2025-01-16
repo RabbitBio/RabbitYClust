@@ -13,12 +13,13 @@ public:
 	int M;
 	int R = 1;
 	int L = 1;
-	int cluster_condition = 1000;
+	int cluster_condition = 200;
 	int num_threads = 8;
 	bool slide = true;
 	bool cluster_on = false;
 	bool temp_output_on = false;
 	vector<Data> hash_vec;
+	string folder_name = "nr-15/";
 
 //	vector<GroupNode> id_root_map;
 	vector<int> id_root_map;
@@ -72,5 +73,7 @@ public:
 	//unordered_map<int, vector<int>> getGroupMap();
 
 	void clusterEachGroup(vector<int>& seq_ids);
+
+	void tempOutput(vector<vector<int>>& cluster_sequences);
 };
 #endif

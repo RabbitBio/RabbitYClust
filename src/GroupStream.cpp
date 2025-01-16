@@ -1,6 +1,8 @@
 #include "GroupStream.h"
 #include <queue>
 #include <omp.h>
+#include <thread>
+#include <algorithm>
 
 struct minheapcompare {
 	bool operator()(const pair<int, int> &a, const pair<int, int> &b) {
@@ -10,6 +12,36 @@ struct minheapcompare {
 
 bool compareByHash(const Data &a, const Data &b) {
 	return a.value < b.value;
+}
+
+void GroupStream::tempOutput(vector<vector<int>>& cluster_sequences) {	
+	unordered_map<int, vector<int>> map_after_cluster;
+	priority_queue<pair<int,int>, vector<pair<int, int>>, minheapcompare> minHeap;
+	for(int i = 0; i < cluster_sequences.size(); i++) {
+		for(int x : cluster_sequences[i]) {
+			map_after_cluster[id_root_map[x]].push_back(x);
+		}
+	}
+	for(auto &[root_id, seqs] : map_after_cluster){
+		if (seqs.size() > 10000){
+			minHeap.push({seqs.size(), root_id});
+		}
+	}
+	ofstream log("output.log");
+	cerr.rdbuf(log.rdbuf());
+	while(!minHeap.empty()){
+		int rootid = minHeap.top().second;
+		string filename = folder_name + to_string(rootid) + ".fa";
+		ofstream ofile(filename);
+		for(int id : map_after_cluster[rootid]){
+			ofile << ">" << id << endl;
+			ofile << fa_map[id] << endl;
+		}
+		ofile.close();
+		cerr << "cluster: " << rootid << " contains " << minHeap.top().first << " seqs stored in: " << filename << endl; 
+		minHeap.pop();
+	}
+	cerr << endl;
 }
 
 void GroupStream::Sort(vector<Data>& dataList){
@@ -147,10 +179,16 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 				cluster_sequences.emplace_back(seqs);
 			}
 		}
-		cerr << "Groups need to be clustered: " << cluster_sequences.size() << endl;
+		cerr << "Groups larger than " << cluster_condition << " : " << cluster_sequences.size() << endl;
+
 		sort(cluster_sequences.begin(), cluster_sequences.end(), [](const vector<int>& a, const vector<int>& b){
 		return a.size() > b.size();
 		});
+		cerr << "Top 10 largest group size is: ";
+		for(int i = 0; i < std::min(10, (int)cluster_sequences.size()); i++){
+			cerr << cluster_sequences[i].size() << " ";
+		}
+		cerr << endl;
 
 		#pragma omp parallel for num_threads(num_threads)
 		for(int i = 0; i < cluster_sequences.size(); i++) {
@@ -160,28 +198,37 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 		uf.updateParent(id_root_map);
 
 		unordered_map<int, vector<int>> map_after_cluster;
-		priority_queue<pair<int,int>, vector<pair<int, int>>, minheapcompare> minHeap;
+		priority_queue<int, vector<int>, greater<int>> minHeap;
+
+//		if(temp_output_on) {
+//			thread output_thread(temp_output_on, ref(cluster_sequences));
+//		}
 		for(int i = 0; i < items; i++) {
 			map_after_cluster[id_root_map[i]].push_back(i);
 		}
+		int largethan1w = 0;
 		for(auto &[root_id, seqs] : map_after_cluster){
-			minHeap.push({seqs.size(), root_id});
+			if(seqs.size() > cluster_condition)
+				largethan1w++;
+			minHeap.push(seqs.size());
 			if (minHeap.size() > 10){
 				 minHeap.pop();
 			}
 		}
+		cerr << "After clustering, clusters size large than " << cluster_condition << " : "<< largethan1w << endl;
 		while(!minHeap.empty()){
-			if(temp_output_on){
-				int rootid = minHeap.top().second;
-				string filename = to_string(rootid) + ".fa";
-				ofstream ofile(filename);
-				for(int id : map_after_cluster[rootid]){
-					ofile << ">" << id << endl;
-					ofile << fa_map[id] << endl;
-				}
-				ofile.close();
-				cerr << "cluster: " << rootid << " contains " << minHeap.top().first << " seqs stored in: " << filename << endl; 
-			}
+//			if(temp_output_on){
+//				int rootid = minHeap.top().second;
+//				string filename = folder_name + to_string(rootid) + ".fa";
+//				ofstream ofile(filename);
+//				for(int id : map_after_cluster[rootid]){
+//					ofile << ">" << id << endl;
+//					ofile << fa_map[id] << endl;
+//				}
+//				ofile.close();
+//				cerr << "cluster: " << rootid << " contains " << minHeap.top().first << " seqs stored in: " << filename << endl; 
+//			}
+			cerr << minHeap.top() << " ";
 			minHeap.pop();
 		}
 		cerr << endl;
