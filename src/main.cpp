@@ -33,7 +33,7 @@ vector<uint64_t> seq_ids;
 bool cluster_on = false;
 unordered_map<uint64_t, uint64_t> fai_map;
 unordered_map<uint64_t, string> fa_map;
-int64_t pos = 0;
+vector<vector<size_t>> pos;
 
 struct compare {
 	bool operator()(const pair<int, int> &a, const pair<int, int> &b) {
@@ -70,6 +70,7 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 	
 		{
 				std::lock_guard<std::mutex> lock(mtx2);
+				pos.emplace_back(sketch.pos);
 				hashes.emplace_back(sketch.hashes);
 				seq_ids.emplace_back(seq_id);
 		}
@@ -109,6 +110,7 @@ void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_
 	
 		{
 				std::lock_guard<std::mutex> lock(mtx2);
+				pos.emplace_back(sketch.pos);
 				hashes.emplace_back(sketch.hashes);
 				seq_ids.emplace_back(seq_id);
 				fa_map.emplace(seq_id, sequence);
@@ -232,7 +234,7 @@ int main(int argc, char* argv[])
 	if(block_on) 
 		gs.setSlideOff();
 	unordered_map<int, vector<int>> group_map;
-	gs.Group(hashes, group_map);
+	gs.Group(hashes,pos, group_map);
 
 	//输出每个seq和他的root
 	cout.rdbuf(origin_cout);

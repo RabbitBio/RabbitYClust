@@ -19,6 +19,7 @@ namespace Sketch{
 		//std::vector<uint32_t> data32;
 		//TODO: using 64bit for test
 		std::vector<uint64_t> hashes;
+		std::vector<size_t> pos;
 	};
 
 	/// Sketching and compare sequences or strings using KHF MinHash algorithm.
@@ -68,7 +69,7 @@ namespace Sketch{
 
 			/// Return random generator seed value.
 			uint64_t getSeed() { return mtSeed; }
-
+			
 		private:
 
 			const char * seq = NULL;

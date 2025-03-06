@@ -19,6 +19,8 @@ public:
 	bool cluster_on = false;
 	bool temp_output_on = false;
 	vector<Data> hash_vec;
+	vector<Data> pos_vec;
+	
 	string folder_name = "nr-15/";
 
 //	vector<GroupNode> id_root_map;
@@ -51,9 +53,9 @@ public:
 		hash_vec.resize(items);
 		id_root_map.resize(items, -1);
 		for(auto& data : hash_vec)
-			data.value.resize(L * R);
+			data.value.resize(L * R + 1);
 	}
-	void Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map);
+	void Group(vector<vector<uint64_t>>& hashes, vector<vector<uint64_t>>& pos,unordered_map<int, vector<int>>& group_map);
 	// grouping sequences with m hash-functions
 
 	void Unite(vector<Data> dataList, UnionFind& uf);
@@ -62,8 +64,8 @@ public:
 	// sort hash-vec by value 1.used for fast unite; 2.used for constructing GroupResMap
 	void GroupByCol(vector<Data>& hash_vec, UnionFind& uf);
 	// grouping by column
-
-	void fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m);
+	void fillHashVec(const vector<vector<uint64_t>>& vec,const vector<vector<size_t>>& pos,vector<Data>& pos_vec,int m);
+	// void fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m);
 	// construct a sorted struct Data(hash-vec) for a column of hash-funtions(vec)
 
 	void countGroupSize(UnionFind& uf);

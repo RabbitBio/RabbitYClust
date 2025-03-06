@@ -120,12 +120,10 @@ void KHFMinHash::sketchByNoSeedAAHash()
 
 	sk.hashes.resize(sk.l * sk.m);
 	std::string seqStr(seq);
-
 	for(int i = 0; i < sk.l * sk.m; i++) sk.hashes[i] = ULONG_MAX;
+	for(int i = 0; i < m_m; i++)sk.pos.push_back(0);
 	uint64_t *ptr = sk.hashes.data();
     btllib::AAHash aahash(seqStr.data(), m_m, m_k, 1, 0); // level 1 2 3
-	size_t pos = aahash.get_pos();
-
     bool success = true;
     while (success) {
         success = aahash.roll();  // 计算下一个 k-mer 的哈希值
@@ -134,7 +132,10 @@ void KHFMinHash::sketchByNoSeedAAHash()
             const uint64_t* hashes = aahash.hashes();
             // Hashes for position : aahash.get_pos()
             for(unsigned i = 0; i < m_m; i++){
-				ptr[i] = std::min(ptr[i], hashes[i]);
+				if(hashes[i]<ptr[i]){
+					ptr[i]=hashes[i];
+					sk.pos[i]=aahash.get_pos();
+				}
 			}
         }
     }

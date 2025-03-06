@@ -11,13 +11,18 @@
 
 using namespace std;
 
+// struct Data {
+// 	vector<uint64_t> value;
+// 	int id;
+// 	Data(int id, vector<uint64_t> hash) : id(id), value(hash) {}
+// 	Data() {}
+// };
 struct Data {
 	vector<uint64_t> value;
 	int id;
-	Data(int id, vector<uint64_t> hash) : id(id), value(hash) {}
+	Data(int id, vector<uint64_t> hash,int rel ) : id(id), value(hash) {}
 	Data() {}
 };
-
 struct GroupNode {
 	int id;
 	int root;

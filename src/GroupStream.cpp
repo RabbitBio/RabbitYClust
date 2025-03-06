@@ -44,7 +44,7 @@ void GroupStream::tempOutput(vector<vector<int>>& cluster_sequences) {
 	cerr << endl;
 }
 
-void GroupStream::Sort(vector<Data>& dataList){
+void GroupStream::Sort(vector<Data>&dataList){
 
 #ifdef parallel
 	size_t n = dataList.size();
@@ -79,6 +79,9 @@ void GroupStream::Unite(vector<Data> dataList, UnionFind& uf) {
 	int count = 1;
 #endif
 	vector<uint64_t> cur_value = dataList[0].value;
+	for(int i=0;i<cur_value.size();i++){
+		// cerr<<cur_value[i]<<endl;
+	}
 	int cur_head = dataList[0].id;
 	for (const auto& data : dataList) {
 		if(data.value == cur_value) {
@@ -96,7 +99,7 @@ void GroupStream::Unite(vector<Data> dataList, UnionFind& uf) {
 #endif
 }
 
-void GroupStream::GroupByCol(vector<Data>& hash_vec, UnionFind& uf) {
+void GroupStream::GroupByCol(vector<Data>& hash_vec ,UnionFind& uf) {
 #ifdef TIMING
 	auto sort_start_time = chrono::high_resolution_clock::now();
 	Sort(hash_vec);
@@ -121,7 +124,7 @@ void GroupStream::GroupByCol(vector<Data>& hash_vec, UnionFind& uf) {
 #endif
 }
 
-void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m) {
+void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, const vector<vector<size_t>>& pos,vector<Data>& hash_vec,int m) {
 // 1. use std::transform
 //	int index = 0;
 //	transform(vec.begin(), vec.end(), hash_vec.begin(), 
@@ -135,9 +138,21 @@ void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>&
 //    }
 //	cerr << m << " " << m*L << " " << m * L + R << endl; 
 	for (int i = 0; i < items; i++) {
-		//hash_vec[i].id = i;
+		//hash_vec[i].id = i; 
 		hash_vec[i].id = seq_ids[i];
+
 		copy(vec[i].begin() + m * L, vec[i].begin() + m * L + R * L, hash_vec[i].value.begin());
+		
+		// cerr<<pos.size()<<endl;
+
+		// cerr<<pos[i][m * L + R * L-1]<<endl;
+		if(pos[i][m*L] < pos[i][m * L + R * L-1]  )
+		hash_vec[i].value[L*R]=1;
+		else{
+			hash_vec[i].value[L*R]=0;
+		}
+		// cerr<<hash_vec[i].value[L*R]<<endl;
+
 	}
 
 // 3. memory alignment and memcpy
@@ -282,11 +297,11 @@ void GroupStream::countGroupSizeBySort(UnionFind& uf) {
 	cerr << endl;
 }
 
-void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map) {
+void GroupStream::Group(vector<vector<uint64_t>>& hashes,vector<vector<size_t>>& pos, unordered_map<int, vector<int>>& group_map) {
 	if(slide) {
 		for(int m=0; m < M-R+1; m++){
 			cerr << "round "<<  m << endl;
-			fillHashVec(hashes, hash_vec, m * L);
+			fillHashVec(hashes,pos,hash_vec,m * L);
 			GroupByCol(hash_vec, uf);
 			if(m == M-R) {
 				temp_output_on = true;
@@ -296,14 +311,14 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 	}else{
 		for(int m=0; m < M / R; m++){
 			cerr << "round "<<  m << endl;
-			fillHashVec(hashes, hash_vec, m * R * L);
+			fillHashVec(hashes,pos,hash_vec, m * R * L);
 			GroupByCol(hash_vec, uf);
 			countGroupSize(uf);
 		}
 		if(M % R != 0){
 			cerr << "round "<<  M / R;
 			setR(M % R);
-			fillHashVec(hashes, hash_vec, (M/R) * R * L );
+			fillHashVec(hashes,pos,hash_vec, (M/R) * R * L );
 			GroupByCol(hash_vec, uf);
 			countGroupSize(uf);
 		}
