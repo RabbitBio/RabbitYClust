@@ -26,7 +26,8 @@ KSEQ_INIT(gzFile, gzread)
 std::mutex mtx1;
 std::mutex mtx2;
 std::atomic<int> num_seqs(0);
-
+std::unordered_map<std::string, int> global_kmer_counts;
+std::queue<std::string> sequence_queue;
 vector<vector<uint64_t>> hashes;
 vector<uint64_t> seq_ids;
 // yy add for cluster
@@ -41,19 +42,53 @@ struct compare {
 	}
 };
 
-void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, int min_len) {
+// 计算 全局k-mer 频率
+void compute_kmer_counts(const string sequence, int k) {
+    
+    
+        for (size_t i = 0; i <= sequence.size() - k; i++) {
+            std::string kmer = sequence.substr(i, k);
+            global_kmer_counts[kmer]++;
+        }
+}
+//计算 全局k-mer 频率
+void build_rare_kmers(int tid, gzFile fp, kseq_t* ks, int k, int min_len){
+	cerr<<"开始build_rare_kmers"<<endl;
     while (true) {
         std::string sequence;
-        int seq_id;
-
-		{
+		{	
 				std::lock_guard<std::mutex> lock(mtx1);
 				int length = kseq_read(ks);
 				if (length < 0) break;
 				if (length < min_len) continue;
 				sequence = ks->seq.s;//direct copy?
+				compute_kmer_counts(sequence, k);
+				sequence_queue.push(sequence);
+		}
+
+
+	}
+
+	
+	cerr<<"全局hash结束"<<endl;
+}
+void consumer(int tid, int k, int m, bool xxhash_flag) {
+	cerr<<"开始consumer"<<endl;
+    while (true) {
+        std::string sequence;
+        int seq_id;
+
+		{		
+				std::lock_guard<std::mutex> lock(mtx1);
+				if (sequence_queue.empty()) {
+					break;  // `build_rare_kmers()` 已完成，且队列为空，退出
+				}
+	
+				// cerr << "11111111, length: " << length << endl;
+				sequence = sequence_queue.front();
+				sequence_queue.pop();
 				seq_id = num_seqs.fetch_add(1);
-//				cout << ks->name.s << " " << seq_id << endl;
+				// cerr << ks->name.s << " " << seq_id << endl;
 		}
 
 		KHFMinHash mh;
@@ -74,27 +109,28 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 				seq_ids.emplace_back(seq_id);
 		}
 	}
+	cerr<<"consumer结束"<<endl;
 }
-
-void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, int min_len) {
+void consumer_cluster(int tid, int k, int m, bool xxhash_flag) {
+	cerr<<"开始consumer_cluster"<<endl;
     while (true) {
         std::string sequence;
         int seq_id;
-		{
+
+		{		
 				std::lock_guard<std::mutex> lock(mtx1);
-				int length = kseq_read(ks);
-				if (length < 0) break;
-				if (length < min_len) continue;
-				sequence = ks->seq.s;//direct copy?
+				if (sequence_queue.empty()) {
+					break;  // `build_rare_kmers()` 已完成，且队列为空，退出
+				}
+	
+				// cerr << "11111111, length: " << length << endl;
+				std::string local_sequence = sequence_queue.front();
+           		sequence_queue.pop();
+            	sequence = std::move(local_sequence);
 				seq_id = num_seqs.fetch_add(1);
-	//			cout << ks->name.s << " " << seq_id << endl;
+				cerr << seq_id << endl;
 		}
 
-		// FIXME: store char* for simply using cdhit to cluster
-		const char* cstr = sequence.c_str();
-//		char* buffer = (char*)malloc(sequence.size()+1);
-//		char* buffer = new char[sequence.size() + 1];
-//		strcpy(buffer, cstr);
 		KHFMinHash mh;
 		mh.setK(k);
 		mh.setM(m);
@@ -111,10 +147,12 @@ void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_
 				std::lock_guard<std::mutex> lock(mtx2);
 				hashes.emplace_back(sketch.hashes);
 				seq_ids.emplace_back(seq_id);
-				fa_map.emplace(seq_id, sequence);
+				fa_map.emplace(seq_id, std::string(sequence));
 		}
 	}
+	cerr<<"consumer_cluster结束"<<endl;
 }
+
 
 int main(int argc, char* argv[])
 {
@@ -193,22 +231,44 @@ int main(int argc, char* argv[])
 
 	cerr << "Start Building sketches!" << endl;
 	auto generation_start = chrono::high_resolution_clock::now();
-	
-    std::vector<std::thread> threads;
-	if(cluster_on) {
-    	for (int i = 0; i < num_threads; ++i) {
-    	    threads.emplace_back(consumer_cluster, i, fp1, ks1, k, m, xxhash_flag, min_len);
-    	}
-	}else {
 
-    	for (int i = 0; i < num_threads; ++i) {
-    	    threads.emplace_back(consumer, i, fp1, ks1, k, m, xxhash_flag, min_len);
+    std::vector<std::thread> threads;
+
+	if(cluster_on) {
+		// cerr<<"1111111"<<endl;
+		// cerr<<"222222"<<endl;
+		std::vector<std::thread> build_threads;
+		for (int i = 0; i < num_threads; ++i) {
+    	    build_threads.emplace_back(build_rare_kmers, i, fp1, ks1, k,  min_len);
     	}
+		for (auto& t : build_threads) {
+			t.join();
+		}
+		std::vector<std::thread> consumer_threads;
+    	for (int i = 0; i < num_threads; ++i) {
+    	    consumer_threads.emplace_back(consumer_cluster, i,  k, m, xxhash_flag);
+    	}
+		for (auto& t : consumer_threads) {
+			t.join();
+		}
+	}else {
+		// cerr<<"222222"<<endl;
+		std::vector<std::thread> build_threads;
+		for (int i = 0; i < num_threads; ++i) {
+    	    build_threads.emplace_back(build_rare_kmers, i, fp1, ks1, k,  min_len);
+    	}
+		for (auto& t : build_threads) {
+			t.join();
+		}
+		std::vector<std::thread> consumer_threads;
+    	for (int i = 0; i < num_threads; ++i) {
+    	    consumer_threads.emplace_back(consumer, i,  k, m, xxhash_flag);
+    	}
+		for (auto& t : consumer_threads) {
+			t.join();
+		}
 	}
-    for (auto& t : threads) {
-        t.join();
-    }
-    
+
 
 	auto generation_end = chrono::high_resolution_clock::now();
 	auto generation_duration = chrono::duration_cast<chrono::seconds>(generation_end - generation_start).count();

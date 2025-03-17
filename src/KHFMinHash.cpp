@@ -15,7 +15,7 @@
 #include <immintrin.h>
 
 using namespace std;
-
+extern std::unordered_map<std::string, int> global_kmer_counts;
 
 namespace Sketch
 {
@@ -63,8 +63,7 @@ void KHFMinHash::buildSketch(const char * seqNew, std::vector<std::string>& seed
 
 	}
 }
-void KHFMinHash::buildSketchByNoSeedAAHash(const char * seqNew)
-{
+void KHFMinHash::buildSketchByNoSeedAAHash(const char * seqNew) {	
 	if(seqNew == NULL)
 	{
 		if(seq == NULL)
@@ -122,21 +121,38 @@ void KHFMinHash::sketchByNoSeedAAHash()
 	std::string seqStr(seq);
 
 	for(int i = 0; i < sk.l * sk.m; i++) sk.hashes[i] = ULONG_MAX;
+	std::vector<std::pair<std::vector<uint64_t>, int>> kmers;
+
 	uint64_t *ptr = sk.hashes.data();
     btllib::AAHash aahash(seqStr.data(), m_m, m_k, 1, 0); // level 1 2 3
+
 	size_t pos = aahash.get_pos();
 
     bool success = true;
     while (success) {
         success = aahash.roll();  // 计算下一个 k-mer 的哈希值
+		 std::vector<uint64_t> hashes_vec;
         if (success) {
             // 获取当前的哈希值
             const uint64_t* hashes = aahash.hashes();
             // Hashes for position : aahash.get_pos()
+			 std::string current_kmer = seqStr.substr(aahash.get_pos(), m_k);  // 取当前 k-mer 序列
+			
+
             for(unsigned i = 0; i < m_m; i++){
-				ptr[i] = std::min(ptr[i], hashes[i]);
+				hashes_vec.push_back( hashes[i]);
 			}
+			kmers.emplace_back(hashes_vec,global_kmer_counts[current_kmer]);
         }
+    }
+	std::sort(kmers.begin(), kmers.end(), [](const auto& a, const auto& b) {
+        return a.second < b.second;
+    });
+	int rare_kmer_except = 10;  // 剔除
+	for (int i = 0; i < std::min((int)kmers.size()-rare_kmer_except, (int)kmers.size()); i++) {
+		for(unsigned j = 0; j < m_m; j++){
+			ptr[j] = std::min(ptr[j], kmers[i].first[j]);
+		}
     }
 }
 void KHFMinHash::sketch()
