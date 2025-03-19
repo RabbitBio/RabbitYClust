@@ -9,14 +9,14 @@
 #include <queue>
 #include <iostream>
 #include <random>
+#include <map>
 
 #include <sys/time.h>
 #include <limits.h>
 #include <immintrin.h>
 
 using namespace std;
-extern std::unordered_map<std::string, int> global_kmer_counts;
-
+extern std::map<std::string, int> top_kmer_map;
 namespace Sketch
 {
 
@@ -115,13 +115,13 @@ void KHFMinHash::sketchByNoSeedAAHash()
 	sk.k = m_k;		
 	sk.l = m_l;		
 	sk.m = m_m;		
-
+	int count=0;
 
 	sk.hashes.resize(sk.l * sk.m);
 	std::string seqStr(seq);
 
 	for(int i = 0; i < sk.l * sk.m; i++) sk.hashes[i] = ULONG_MAX;
-	std::vector<std::pair<std::vector<uint64_t>, int>> kmers;
+	std::vector<std::vector<uint64_t>> kmers;
 
 	uint64_t *ptr = sk.hashes.data();
     btllib::AAHash aahash(seqStr.data(), m_m, m_k, 1, 0); // level 1 2 3
@@ -129,29 +129,29 @@ void KHFMinHash::sketchByNoSeedAAHash()
 	size_t pos = aahash.get_pos();
 
     bool success = true;
+
     while (success) {
         success = aahash.roll();  // 计算下一个 k-mer 的哈希值
 		 std::vector<uint64_t> hashes_vec;
-        if (success) {
+        if (success) { 
             // 获取当前的哈希值
             const uint64_t* hashes = aahash.hashes();
             // Hashes for position : aahash.get_pos()
 			 std::string current_kmer = seqStr.substr(aahash.get_pos(), m_k);  // 取当前 k-mer 序列
-			
-
+			 if (top_kmer_map.find(current_kmer) != top_kmer_map.end()&&count<(m_l+m_k-1)) {
+				count++;
+                continue; // 直接跳过高频 k-mer
+            }
             for(unsigned i = 0; i < m_m; i++){
 				hashes_vec.push_back( hashes[i]);
 			}
-			kmers.emplace_back(hashes_vec,global_kmer_counts[current_kmer]);
+			kmers.emplace_back(hashes_vec);
         }
     }
-	std::sort(kmers.begin(), kmers.end(), [](const auto& a, const auto& b) {
-        return a.second < b.second;
-    });
-	int rare_kmer_except = 10;  // 剔除
-	for (int i = 0; i < std::min((int)kmers.size()-rare_kmer_except, (int)kmers.size()); i++) {
+
+	for (int i = 0; i <  (int)kmers.size(); i++) {
 		for(unsigned j = 0; j < m_m; j++){
-			ptr[j] = std::min(ptr[j], kmers[i].first[j]);
+			ptr[j] = std::min(ptr[j], kmers[i][j]);
 		}
     }
 }

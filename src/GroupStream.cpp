@@ -192,7 +192,7 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 
 		#pragma omp parallel for num_threads(num_threads)
 		for(int i = 0; i < cluster_sequences.size(); i++) {
-			cerr << i << " is doing cluster " << cluster_sequences[i].size() << " sequences" << endl;
+			// cerr << i << " is doing cluster " << cluster_sequences[i].size() << " sequences" << endl;
 			clusterEachGroup(cluster_sequences[i]);
 		}
 		uf.updateParent(id_root_map);
@@ -290,7 +290,9 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 			GroupByCol(hash_vec, uf);
 			if(m == M-R) {
 				temp_output_on = true;
+				cluster_condition=1;
 			}
+
 			countGroupSize(uf);
 		}
 	}else{

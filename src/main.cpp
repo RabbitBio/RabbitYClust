@@ -30,12 +30,21 @@ std::unordered_map<std::string, int> global_kmer_counts;
 std::queue<std::string> sequence_queue;
 vector<vector<uint64_t>> hashes;
 vector<uint64_t> seq_ids;
+int rare_kmer_except = 200;
 // yy add for cluster
 bool cluster_on = false;
 unordered_map<uint64_t, uint64_t> fai_map;
 unordered_map<uint64_t, string> fa_map;
 int64_t pos = 0;
-
+using KmerFreqPair = std::pair<int, std::string>;
+struct Compare {
+    bool operator()(const KmerFreqPair& a, const KmerFreqPair& b) {
+        return a.first > b.first; // 最小堆
+    }
+};
+std::vector<KmerFreqPair> top_kmers;
+std::map<std::string, int> top_kmer_map;
+std::mutex top_kmers_mtx;  // 互斥锁，避免数据竞争
 struct compare {
 	bool operator()(const pair<int, int> &a, const pair<int, int> &b) {
 		return a.first > b.first;
@@ -51,6 +60,47 @@ void compute_kmer_counts(const string sequence, int k) {
             global_kmer_counts[kmer]++;
         }
 }
+
+// 维护前 10 个最高频的 k-mer，并存入 map
+void update_top_kmers() {
+    std::priority_queue<KmerFreqPair, std::vector<KmerFreqPair>, Compare> local_pq;
+    if (global_kmer_counts.empty()) {
+		std::cerr << "Error: global_kmer_counts is empty!" << std::endl;
+		return;  // 避免崩溃
+	}
+	else if(rare_kmer_except==0){
+		return;
+	}
+    for (const auto& kv : global_kmer_counts) {
+        if (local_pq.size() < rare_kmer_except) {
+            local_pq.push({kv.second, kv.first});
+        } else if (kv.second > local_pq.top().first) {
+            local_pq.pop();
+            local_pq.push({kv.second, kv.first});
+        }
+    }
+    
+    std::lock_guard<std::mutex> lock(top_kmers_mtx);
+    
+    // 存储到 vector
+    top_kmers.clear();
+    while (!local_pq.empty()) {
+        top_kmers.push_back(local_pq.top());
+        local_pq.pop();
+    }
+
+    // 存储到 map
+    top_kmer_map.clear();
+    for (const auto& kv : top_kmers) {
+        top_kmer_map[kv.second] = kv.first;
+    }
+	cerr << "Top  frequent k-mers:\n";
+    for (const auto& kv : top_kmer_map) {
+        cerr << kv.first << ": " << kv.second << "\n";
+    }
+	global_kmer_counts = std::unordered_map<std::string, int>();
+	cerr<<"全局hash结束"<<endl;
+}
 //计算 全局k-mer 频率
 void build_rare_kmers(int tid, gzFile fp, kseq_t* ks, int k, int min_len){
 	cerr<<"开始build_rare_kmers"<<endl;
@@ -64,16 +114,17 @@ void build_rare_kmers(int tid, gzFile fp, kseq_t* ks, int k, int min_len){
 				sequence = ks->seq.s;//direct copy?
 				compute_kmer_counts(sequence, k);
 				sequence_queue.push(sequence);
+				
 		}
 
 
 	}
 
 	
-	cerr<<"全局hash结束"<<endl;
+	
 }
 void consumer(int tid, int k, int m, bool xxhash_flag) {
-	cerr<<"开始consumer"<<endl;
+	// cerr<<"开始consumer"<<endl;
     while (true) {
         std::string sequence;
         int seq_id;
@@ -88,7 +139,7 @@ void consumer(int tid, int k, int m, bool xxhash_flag) {
 				sequence = sequence_queue.front();
 				sequence_queue.pop();
 				seq_id = num_seqs.fetch_add(1);
-				// cerr << ks->name.s << " " << seq_id << endl;
+				cout << sequence << " " << seq_id << endl;
 		}
 
 		KHFMinHash mh;
@@ -109,10 +160,10 @@ void consumer(int tid, int k, int m, bool xxhash_flag) {
 				seq_ids.emplace_back(seq_id);
 		}
 	}
-	cerr<<"consumer结束"<<endl;
+	// cerr<<"consumer结束"<<endl;
 }
 void consumer_cluster(int tid, int k, int m, bool xxhash_flag) {
-	cerr<<"开始consumer_cluster"<<endl;
+	// cerr<<"开始consumer_cluster"<<endl;
     while (true) {
         std::string sequence;
         int seq_id;
@@ -128,7 +179,7 @@ void consumer_cluster(int tid, int k, int m, bool xxhash_flag) {
            		sequence_queue.pop();
             	sequence = std::move(local_sequence);
 				seq_id = num_seqs.fetch_add(1);
-				cerr << seq_id << endl;
+				cout << sequence << " " << seq_id << endl;
 		}
 
 		KHFMinHash mh;
@@ -150,7 +201,7 @@ void consumer_cluster(int tid, int k, int m, bool xxhash_flag) {
 				fa_map.emplace(seq_id, std::string(sequence));
 		}
 	}
-	cerr<<"consumer_cluster结束"<<endl;
+	// cerr<<"consumer_cluster结束"<<endl;
 }
 
 
@@ -238,12 +289,13 @@ int main(int argc, char* argv[])
 		// cerr<<"1111111"<<endl;
 		// cerr<<"222222"<<endl;
 		std::vector<std::thread> build_threads;
-		for (int i = 0; i < num_threads; ++i) {
+		for (int i = 0; i < 1; ++i) {
     	    build_threads.emplace_back(build_rare_kmers, i, fp1, ks1, k,  min_len);
     	}
 		for (auto& t : build_threads) {
 			t.join();
 		}
+		update_top_kmers(); // 在处理完序列后更新 top-k kmers
 		std::vector<std::thread> consumer_threads;
     	for (int i = 0; i < num_threads; ++i) {
     	    consumer_threads.emplace_back(consumer_cluster, i,  k, m, xxhash_flag);
@@ -254,12 +306,13 @@ int main(int argc, char* argv[])
 	}else {
 		// cerr<<"222222"<<endl;
 		std::vector<std::thread> build_threads;
-		for (int i = 0; i < num_threads; ++i) {
+		for (int i = 0; i < 1; ++i) {
     	    build_threads.emplace_back(build_rare_kmers, i, fp1, ks1, k,  min_len);
     	}
 		for (auto& t : build_threads) {
 			t.join();
 		}
+		update_top_kmers(); // 在处理完序列后更新 top-k kmers
 		std::vector<std::thread> consumer_threads;
     	for (int i = 0; i < num_threads; ++i) {
     	    consumer_threads.emplace_back(consumer, i,  k, m, xxhash_flag);
@@ -297,10 +350,10 @@ int main(int argc, char* argv[])
 	//输出每个seq和他的root
 	cout.rdbuf(origin_cout);
 // 打印代表序列
-//	int name_pos = filename.find('.');
-//	string rep_name = filename.substr(0, name_pos) + ".rep";
-//	ofstream rep_file(rep_name);
-//	vector<int> rep_ids;
+	// int name_pos = filename.find('.');
+	// string rep_name = filename.substr(0, name_pos) + ".rep";
+	// ofstream rep_file(rep_name);
+	// vector<int> rep_ids;
 
 	string folder_name = "test-output";
 //	priority_queue<int, std::vector<int>, std::greater<int>> minHeap;
@@ -320,18 +373,18 @@ int main(int argc, char* argv[])
 		}
 **/
 		// 输出rep
-		//rep_ids.emplace_back(pair.first);
+		// rep_ids.emplace_back(pair.first);
         minHeap.push({pair.second.size(), pair.first});
         if (minHeap.size() > 10) {
             minHeap.pop(); // 保持堆的大小为 10
         }
 //		打印id-rootid
-//		for(const auto& node : pair.second)
-//			cout << node << " " << pair.first << endl;
+	// 	for(const auto& node : pair.second)
+	// 		cout << node << " " << pair.first << endl;
 	}
 
 //	输出代表序列
-//	std::copy(rep_ids.begin(), rep_ids.end(), std::ostream_iterator<int>(rep_file, "\n"));
+	// std::copy(rep_ids.begin(), rep_ids.end(), std::ostream_iterator<int>(rep_file, "\n"));
 
 	while(!minHeap.empty()){
 //		string file_name = "nr/" + to_string(minHeap.top().second) + ".fa";

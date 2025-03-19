@@ -1,0 +1,11 @@
+==========Paramters==========
+Threads: 64
+K: 8
+M: 15
+R: 1
+Min_len: 50
+Similarity Threshold:0.9
+Input: ../../pure-aahash/nr.fa
+==========End Paramters==========
+Start Building sketches!
+开始build_rare_kmers
