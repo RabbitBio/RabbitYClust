@@ -30,7 +30,7 @@ std::unordered_map<std::string, int> global_kmer_counts;
 std::queue<std::string> sequence_queue;
 vector<vector<uint64_t>> hashes;
 vector<uint64_t> seq_ids;
-int rare_kmer_except = 200;
+int rare_kmer_except = 20000;
 // yy add for cluster
 bool cluster_on = false;
 unordered_map<uint64_t, uint64_t> fai_map;
@@ -139,7 +139,7 @@ void consumer(int tid, int k, int m, bool xxhash_flag) {
 				sequence = sequence_queue.front();
 				sequence_queue.pop();
 				seq_id = num_seqs.fetch_add(1);
-				cout << sequence << " " << seq_id << endl;
+				// cout << sequence << " " << seq_id << endl;
 		}
 
 		KHFMinHash mh;
@@ -179,7 +179,7 @@ void consumer_cluster(int tid, int k, int m, bool xxhash_flag) {
            		sequence_queue.pop();
             	sequence = std::move(local_sequence);
 				seq_id = num_seqs.fetch_add(1);
-				cout << sequence << " " << seq_id << endl;
+				// cout << sequence << " " << seq_id << endl;
 		}
 
 		KHFMinHash mh;
@@ -204,7 +204,31 @@ void consumer_cluster(int tid, int k, int m, bool xxhash_flag) {
 	// cerr<<"consumer_cluster结束"<<endl;
 }
 
+void load_file_to_map(const std::string& filename, std::map<std::string, int>& top_kmer_map) {
+    std::ifstream infile(filename);  // 打开文件
+    std::string line;
 
+    if (!infile) {
+        std::cerr << "Error: Could not open file " << filename << std::endl;
+        return;
+    }
+
+    // 逐行读取文件
+    while (std::getline(infile, line)) {
+        std::stringstream ss(line);  // 使用 stringstream 解析每行
+        std::string kmer;
+        int count;
+
+        // 读取字符串和整数（按 ':' 分割）
+        if (std::getline(ss, kmer, ':') && ss >> count) {
+            top_kmer_map[kmer] = count;  // 存储到 map 中
+        } else {
+            std::cerr << "Error: Invalid line format: " << line << std::endl;
+        }
+    }
+
+    infile.close();  // 关闭文件
+}
 int main(int argc, char* argv[])
 {
 
@@ -275,9 +299,9 @@ int main(int argc, char* argv[])
 //	ostringstream seq_id_name;
 //	seq_id_name << "k" << k << "m" << m << "seq-id.txt";
 //	ofstream seq_id(seq_id_name.str());
-	ofstream seq_id("sequence-id.txt");
-	streambuf* origin_cout = cout.rdbuf();
-	cout.rdbuf(seq_id.rdbuf());
+	// ofstream seq_id("sequence-id.txt");
+	// streambuf* origin_cout = cout.rdbuf();
+	// cout.rdbuf(seq_id.rdbuf());
 
 
 	cerr << "Start Building sketches!" << endl;
@@ -288,14 +312,20 @@ int main(int argc, char* argv[])
 	if(cluster_on) {
 		// cerr<<"1111111"<<endl;
 		// cerr<<"222222"<<endl;
-		std::vector<std::thread> build_threads;
-		for (int i = 0; i < 1; ++i) {
-    	    build_threads.emplace_back(build_rare_kmers, i, fp1, ks1, k,  min_len);
-    	}
-		for (auto& t : build_threads) {
-			t.join();
+		// std::vector<std::thread> build_threads;
+		// for (int i = 0; i < 1; ++i) {
+    	//     build_threads.emplace_back(build_rare_kmers, i, fp1, ks1, k,  min_len);
+    	// }
+		// for (auto& t : build_threads) {
+		// 	t.join();
+		// }
+		// update_top_kmers(); // 在处理完序列后更新 top-k kmers
+		std::string filename = "top20000_nr";  // 假设文件名是 "top20000_nr"
+		// 加载文件数据到 map 中
+		load_file_to_map(filename, top_kmer_map);
+		for (const auto& kv : top_kmer_map) {
+			std::cout << kv.first << ": " << kv.second << std::endl;
 		}
-		update_top_kmers(); // 在处理完序列后更新 top-k kmers
 		std::vector<std::thread> consumer_threads;
     	for (int i = 0; i < num_threads; ++i) {
     	    consumer_threads.emplace_back(consumer_cluster, i,  k, m, xxhash_flag);
@@ -305,14 +335,17 @@ int main(int argc, char* argv[])
 		}
 	}else {
 		// cerr<<"222222"<<endl;
-		std::vector<std::thread> build_threads;
-		for (int i = 0; i < 1; ++i) {
-    	    build_threads.emplace_back(build_rare_kmers, i, fp1, ks1, k,  min_len);
-    	}
-		for (auto& t : build_threads) {
-			t.join();
-		}
-		update_top_kmers(); // 在处理完序列后更新 top-k kmers
+		// std::vector<std::thread> build_threads;
+		// for (int i = 0; i < 1; ++i) {
+    	//     build_threads.emplace_back(build_rare_kmers, i, fp1, ks1, k,  min_len);
+    	// }
+		// for (auto& t : build_threads) {
+		// 	t.join();
+		// }
+		// update_top_kmers(); // 在处理完序列后更新 top-k kmers
+		std::string filename = "top20000_nr";  // 假设文件名是 "top20000_nr"
+		// 加载文件数据到 map 中
+		load_file_to_map(filename, top_kmer_map);
 		std::vector<std::thread> consumer_threads;
     	for (int i = 0; i < num_threads; ++i) {
     	    consumer_threads.emplace_back(consumer, i,  k, m, xxhash_flag);
@@ -348,7 +381,7 @@ int main(int argc, char* argv[])
 	gs.Group(hashes, group_map);
 
 	//输出每个seq和他的root
-	cout.rdbuf(origin_cout);
+	// cout.rdbuf(origin_cout);
 // 打印代表序列
 	// int name_pos = filename.find('.');
 	// string rep_name = filename.substr(0, name_pos) + ".rep";

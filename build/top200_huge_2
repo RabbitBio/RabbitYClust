@@ -5,7 +5,7 @@ M: 15
 R: 1
 Min_len: 50
 Similarity Threshold:0.9
-Input: ../../pure-aahash/huge.fa
+Input: ../../huge.fa
 ==========End Paramters==========
 Start Building sketches!
 开始build_rare_kmers
@@ -211,48 +211,30 @@ YNVLPQGW: 1808
 YQYNVLPQ: 1796
 YTAFTIPS: 1825
 全局hash结束
-Sketching time: 441
+Sketching time: 754
 Total number of seqs: 1644014
-Generated Map Size: 0
+Generated Map Size: 1644014
 Start grouping!
 round 0
-178 179 196 247 247 310 493 835 1210 1336 
+Groups larger than 200 : 7
+Top 10 largest group size is: 1336 1210 835 493 310 247 247 
+After clustering, clusters size large than 200 : 5
+177 178 179 179 196 233 238 243 344 890 
 round 1
-1082 1194 1209 1287 1295 1488 1642 2802 6828 9578 
+Groups larger than 200 : 75
+Top 10 largest group size is: 9578 6757 2796 1642 1488 1295 1209 1194 1082 999 
+After clustering, clusters size large than 200 : 12
+228 229 276 288 296 307 323 480 520 1266 
 round 2
-423 459 472 530 544 554 605 614 712 139959 
+Groups larger than 200 : 117
+Top 10 largest group size is: 51179 6163 2658 1877 1528 1139 1127 1087 1009 921 
+After clustering, clusters size large than 200 : 12
+229 229 272 288 296 307 323 481 520 1265 
 round 3
-221 223 247 249 254 271 297 479 719 312068 
+Groups larger than 200 : 116
+Top 10 largest group size is: 93390 6244 2479 1999 1044 1004 977 866 861 841 
+After clustering, clusters size large than 200 : 12
+229 229 273 288 296 307 323 482 520 1265 
 round 4
-164 169 174 177 179 188 216 226 251 467271 
-round 5
-122 130 143 157 169 172 179 191 227 593585 
-round 6
-83 86 92 92 94 94 102 161 179 699540 
-round 7
-76 81 92 93 99 102 120 162 179 789591 
-round 8
-69 76 80 92 93 102 122 169 179 866216 
-round 9
-59 64 65 78 93 93 102 122 179 932534 
-round 10
-51 52 55 60 61 65 80 93 179 988824 
-round 11
-39 42 48 51 51 52 60 94 179 1039062 
-round 12
-38 39 39 43 48 52 52 60 179 1082958 
-round 13
-34 35 39 39 43 48 52 60 179 1122029 
-round 14
-33 34 34 34 35 39 39 60 179 1156533 
-33
-34
-34
-34
-35
-39
-39
-60
-179
-1156533
-Total Group Nums: 399461
+Groups larger than 200 : 89
+Top 10 largest group size is: 124077 2631 949 842 767 735 724 660 645 637 

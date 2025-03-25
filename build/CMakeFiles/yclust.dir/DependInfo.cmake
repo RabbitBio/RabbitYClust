@@ -1,26 +1,36 @@
-
-# Consider dependencies only in project.
-set(CMAKE_DEPENDS_IN_PROJECT_ONLY OFF)
-
 # The set of languages for which implicit dependencies are needed:
 set(CMAKE_DEPENDS_LANGUAGES
+  "C"
+  "CXX"
+  )
+# The set of files for implicit dependencies of each language:
+set(CMAKE_DEPENDS_CHECK_C
+  "/home/user_home/gyj/RabbitYClust/src/xxhash.c" "/home/user_home/gyj/RabbitYClust/build/CMakeFiles/yclust.dir/src/xxhash.c.o"
+  )
+set(CMAKE_C_COMPILER_ID "GNU")
+
+# The include file search paths:
+set(CMAKE_C_TARGET_INCLUDE_PATH
+  )
+set(CMAKE_DEPENDS_CHECK_CXX
+  "/home/user_home/gyj/RabbitYClust/src/AminoEncode.cpp" "/home/user_home/gyj/RabbitYClust/build/CMakeFiles/yclust.dir/src/AminoEncode.cpp.o"
+  "/home/user_home/gyj/RabbitYClust/src/GroupStream.cpp" "/home/user_home/gyj/RabbitYClust/build/CMakeFiles/yclust.dir/src/GroupStream.cpp.o"
+  "/home/user_home/gyj/RabbitYClust/src/KHFMinHash.cpp" "/home/user_home/gyj/RabbitYClust/build/CMakeFiles/yclust.dir/src/KHFMinHash.cpp.o"
+  "/home/user_home/gyj/RabbitYClust/src/OrderMinHash.cpp" "/home/user_home/gyj/RabbitYClust/build/CMakeFiles/yclust.dir/src/OrderMinHash.cpp.o"
+  "/home/user_home/gyj/RabbitYClust/src/aahash/aahash.cpp" "/home/user_home/gyj/RabbitYClust/build/CMakeFiles/yclust.dir/src/aahash/aahash.cpp.o"
+  "/home/user_home/gyj/RabbitYClust/src/cdhit-common.c++" "/home/user_home/gyj/RabbitYClust/build/CMakeFiles/yclust.dir/src/cdhit-common.c++.o"
+  "/home/user_home/gyj/RabbitYClust/src/cluster.cpp" "/home/user_home/gyj/RabbitYClust/build/CMakeFiles/yclust.dir/src/cluster.cpp.o"
+  "/home/user_home/gyj/RabbitYClust/src/main.cpp" "/home/user_home/gyj/RabbitYClust/build/CMakeFiles/yclust.dir/src/main.cpp.o"
+  "/home/user_home/gyj/RabbitYClust/src/temp.cpp" "/home/user_home/gyj/RabbitYClust/build/CMakeFiles/yclust.dir/src/temp.cpp.o"
+  )
+set(CMAKE_CXX_COMPILER_ID "GNU")
+
+# The include file search paths:
+set(CMAKE_CXX_TARGET_INCLUDE_PATH
   )
 
-# The set of dependency files which are needed:
-set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/user_home/gaoyijie/RabbitYClust/src/xxhash.c" "CMakeFiles/yclust.dir/src/xxhash.c.o" "gcc" "CMakeFiles/yclust.dir/src/xxhash.c.o.d"
-  "/home/user_home/gaoyijie/RabbitYClust/src/AminoEncode.cpp" "CMakeFiles/yclust.dir/src/AminoEncode.cpp.o" "gcc" "CMakeFiles/yclust.dir/src/AminoEncode.cpp.o.d"
-  "/home/user_home/gaoyijie/RabbitYClust/src/GroupStream.cpp" "CMakeFiles/yclust.dir/src/GroupStream.cpp.o" "gcc" "CMakeFiles/yclust.dir/src/GroupStream.cpp.o.d"
-  "/home/user_home/gaoyijie/RabbitYClust/src/KHFMinHash.cpp" "CMakeFiles/yclust.dir/src/KHFMinHash.cpp.o" "gcc" "CMakeFiles/yclust.dir/src/KHFMinHash.cpp.o.d"
-  "/home/user_home/gaoyijie/RabbitYClust/src/OrderMinHash.cpp" "CMakeFiles/yclust.dir/src/OrderMinHash.cpp.o" "gcc" "CMakeFiles/yclust.dir/src/OrderMinHash.cpp.o.d"
-  "/home/user_home/gaoyijie/RabbitYClust/src/aahash/aahash.cpp" "CMakeFiles/yclust.dir/src/aahash/aahash.cpp.o" "gcc" "CMakeFiles/yclust.dir/src/aahash/aahash.cpp.o.d"
-  "/home/user_home/gaoyijie/RabbitYClust/src/cdhit-common.c++" "CMakeFiles/yclust.dir/src/cdhit-common.c++.o" "gcc" "CMakeFiles/yclust.dir/src/cdhit-common.c++.o.d"
-  "/home/user_home/gaoyijie/RabbitYClust/src/cluster.cpp" "CMakeFiles/yclust.dir/src/cluster.cpp.o" "gcc" "CMakeFiles/yclust.dir/src/cluster.cpp.o.d"
-  "/home/user_home/gaoyijie/RabbitYClust/src/main.cpp" "CMakeFiles/yclust.dir/src/main.cpp.o" "gcc" "CMakeFiles/yclust.dir/src/main.cpp.o.d"
-  )
-
-# Targets to which this target links which contain Fortran sources.
-set(CMAKE_Fortran_TARGET_LINKED_INFO_FILES
+# Targets to which this target links.
+set(CMAKE_TARGET_LINKED_INFO_FILES
   )
 
 # Fortran module output directory.
