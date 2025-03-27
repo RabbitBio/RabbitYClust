@@ -226,11 +226,6 @@ int main(int argc, char* argv[])
     gzclose(fp1);
     kseq_destroy(ks1);
 
-	for (int i = 0;i < 30;i++) {
-		cerr << seq_ids[i] << endl;
-	}
-	exit(0);
-
 	//grouping
 	cerr << "Start grouping!" << endl;
 	GroupStream gs(num_seqs.load(), m, r, 1);
