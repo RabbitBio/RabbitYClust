@@ -1,0 +1,84 @@
+==========Paramters==========
+Threads: 32
+K: 8
+M: 15
+R: 2
+Min_len: 50
+Similarity Threshold:0.9
+Input: ../../huge.fa
+==========End Paramters==========
+Start Building sketches!
+Sketching time: 7
+Total number of seqs: 1644014
+Generated Map Size: 0
+Start grouping!
+>>> Number of Seqs: 1644014round 0
+Information for this group step:
+>>> The number of groups in this step: 1514024
+>>> Top 10 largest group size is: 1305 683 267 217 199 188 182 160 148 137 
+==================
+round 1
+Information for this group step:
+>>> The number of groups in this step: 1475278
+>>> Top 10 largest group size is: 1305 1074 867 783 576 409 341 243 201 182 
+==================
+round 2
+Information for this group step:
+>>> The number of groups in this step: 1437139
+>>> Top 10 largest group size is: 5311 1942 1305 1051 772 655 489 473 448 378 
+==================
+round 3
+Information for this group step:
+>>> The number of groups in this step: 1412195
+>>> Top 10 largest group size is: 5722 1970 1417 1305 826 738 731 517 457 424 
+==================
+round 4
+Information for this group step:
+>>> The number of groups in this step: 1391154
+>>> Top 10 largest group size is: 5970 1992 1445 1305 873 859 842 520 462 440 
+==================
+round 5
+Information for this group step:
+>>> The number of groups in this step: 1374169
+>>> Top 10 largest group size is: 6080 2016 1466 1305 935 919 849 673 523 463 
+==================
+round 6
+Information for this group step:
+>>> The number of groups in this step: 1359026
+>>> Top 10 largest group size is: 6124 2032 1472 1305 1014 951 852 831 781 607 
+==================
+round 7
+Information for this group step:
+>>> The number of groups in this step: 1345523
+>>> Top 10 largest group size is: 6196 2035 1476 1305 1099 1066 967 858 856 607 
+==================
+round 8
+Information for this group step:
+>>> The number of groups in this step: 1333483
+>>> Top 10 largest group size is: 6256 2045 1491 1305 1157 1101 980 902 870 616 
+==================
+round 9
+Information for this group step:
+>>> The number of groups in this step: 1322682
+>>> Top 10 largest group size is: 6287 2052 1494 1305 1190 1131 997 915 888 618 
+==================
+round 10
+Information for this group step:
+>>> The number of groups in this step: 1312952
+>>> Top 10 largest group size is: 6310 2070 1497 1305 1215 1156 1000 948 889 618 
+==================
+round 11
+Information for this group step:
+>>> The number of groups in this step: 1303615
+>>> Top 10 largest group size is: 6328 2070 1500 1305 1243 1178 1123 1015 908 628 
+==================
+round 12
+Information for this group step:
+>>> The number of groups in this step: 1295041
+>>> Top 10 largest group size is: 6333 2071 1500 1305 1247 1197 1127 1020 909 814 
+==================
+round 13
+Information for this group step:
+>>> The number of groups in this step: 1286976
+>>> Top 10 largest group size is: 6340 2072 1501 1305 1250 1213 1130 1031 910 862 
+==================

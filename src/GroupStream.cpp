@@ -14,6 +14,10 @@ bool compareByHash(const Data &a, const Data &b) {
 	return a.value < b.value;
 }
 
+bool compareById(const Data &a,const Data & b){
+	return a.id < b.id;
+}
+
 void GroupStream::tempOutput(vector<vector<int>>& cluster_sequences) {	
 	unordered_map<int, vector<int>> map_after_cluster;
 	priority_queue<pair<int,int>, vector<pair<int, int>>, minheapcompare> minHeap;
@@ -161,7 +165,7 @@ void GroupStream::getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& gr
 	}
 }
 
-void GroupStream::countGroupSize(UnionFind& uf) {
+void GroupStream::countGroupSize(UnionFind& uf,int m,vector<vector<uint64_t>>& hashes) {
 // FIXME:用结构体GroupNode存储id-root的映射还是用hash_vec继续存
 // 用GroupNode增加内存但是如果排序的话要搬移的数据少
 	uf.findRoot(id_root_map);
@@ -174,25 +178,82 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 
 	if(cluster_on) {
 		vector<vector<int>> cluster_sequences;
-		for(auto &[key, seqs] : map){
+		// 用于记录大小超过指定阈值的序列集合
+		for (auto& [key, seqs] : map) {
 			if(seqs.size() > cluster_condition) {
 				cluster_sequences.emplace_back(seqs);
 			}
 		}
+
+		int total_num = 0;
+		for (int i = 0;i < items;i++) {
+			if (id_root_map[i] == i) total_num++;
+		}
+		cerr << " >>> Total groups in this round before cluster: " << total_num << endl;
+
 		cerr << "Groups larger than " << cluster_condition << " : " << cluster_sequences.size() << endl;
 
 		sort(cluster_sequences.begin(), cluster_sequences.end(), [](const vector<int>& a, const vector<int>& b){
 		return a.size() > b.size();
-		});
+			});
+
 		cerr << "Top 10 largest group size is: ";
 		for(int i = 0; i < std::min(10, (int)cluster_sequences.size()); i++){
 			cerr << cluster_sequences[i].size() << " ";
 		}
 		cerr << endl;
 
+		if (second_group) {
+			if(m+1<=M){
+				// 这里仍旧考虑两种方案，第一种是 (m+1)%M,另一种是m+1>M时直接return
+				fillHashVec(hashes, hash_vec, (m + 1) * L);
+				sort(hash_vec.begin(), hash_vec.end(), compareById);
+			#pragma omp parallel for num_threads(num_threads)
+				for (int i = 0; i < cluster_sequences.size(); i++) {
+					SecondGroup(cluster_sequences[i], m, hashes);
+				}
+				uf.findRoot(id_root_map);
+				total_num = 0;
+				for (int i = 0;i < items;i++) {
+					if (id_root_map[i] == i) total_num++;
+				}
+				cerr << " >>> Total groups in this round after second group: " << total_num << endl;
+				unordered_map<int, vector<int>> map_after_cluster;
+				priority_queue<int, vector<int>, greater<int>> minHeap;
+				
+				for(int i = 0; i < items; i++) {
+					map_after_cluster[id_root_map[i]].push_back(i);
+				}
+				int largethan1w = 0;
+				for(auto &[root_id, seqs] : map_after_cluster){
+					if(seqs.size() > cluster_condition)
+						largethan1w++;
+					minHeap.push(seqs.size());
+					if (minHeap.size() > 10){
+						minHeap.pop();
+					}
+				}
+				cerr << "After second grouping, groups size large than " << cluster_condition << " : "<< largethan1w << endl;
+				while(!minHeap.empty()){
+					cerr << minHeap.top() << " ";
+					minHeap.pop();
+				}
+				cerr << endl;
+			}
+			else {
+				#pragma omp parallel for num_threads(num_threads)
+				for(int i = 0; i < cluster_sequences.size(); i++) {
+					// cerr << i << " is doing cluster " << cluster_sequences[i].size() << " sequences" << endl;
+					clusterEachGroup(cluster_sequences[i]);
+				}
+				uf.updateParent(id_root_map);
+			}
+		}
+
+
 		#pragma omp parallel for num_threads(num_threads)
 		for(int i = 0; i < cluster_sequences.size(); i++) {
-			cerr << i << " is doing cluster " << cluster_sequences[i].size() << " sequences" << endl;
+			// cerr << i << " is doing cluster " << cluster_sequences[i].size() << " sequences" << endl;
 			clusterEachGroup(cluster_sequences[i]);
 		}
 		uf.updateParent(id_root_map);
@@ -200,9 +261,12 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 		unordered_map<int, vector<int>> map_after_cluster;
 		priority_queue<int, vector<int>, greater<int>> minHeap;
 
-//		if(temp_output_on) {
-//			thread output_thread(temp_output_on, ref(cluster_sequences));
-//		}
+		total_num = 0;
+		for (int i = 0;i < items;i++) {
+			if (id_root_map[i] == i) total_num++;
+		}
+		cerr << " >>> Total groups in this round after cluster: " << total_num << endl;
+
 		for(int i = 0; i < items; i++) {
 			map_after_cluster[id_root_map[i]].push_back(i);
 		}
@@ -217,35 +281,30 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 		}
 		cerr << "After clustering, clusters size large than " << cluster_condition << " : "<< largethan1w << endl;
 		while(!minHeap.empty()){
-//			if(temp_output_on){
-//				int rootid = minHeap.top().second;
-//				string filename = folder_name + to_string(rootid) + ".fa";
-//				ofstream ofile(filename);
-//				for(int id : map_after_cluster[rootid]){
-//					ofile << ">" << id << endl;
-//					ofile << fa_map[id] << endl;
-//				}
-//				ofile.close();
-//				cerr << "cluster: " << rootid << " contains " << minHeap.top().first << " seqs stored in: " << filename << endl; 
-//			}
 			cerr << minHeap.top() << " ";
 			minHeap.pop();
 		}
+		cerr << endl << "==================" << endl;
 		cerr << endl;
 
-	}else {
-		priority_queue<int, vector<int>, greater<int>> minHeap;
-		for(auto &[root_id, seqs] : map){
-			minHeap.push(seqs.size());
-			if (minHeap.size() > 10){
-				 minHeap.pop();
-			}
+	}
+	else {
+		vector<vector<int>> cluster_sequences;
+		for(auto &[key, seqs] : map){
+			cluster_sequences.emplace_back(seqs);
 		}
-		while(!minHeap.empty()){
-			cerr << minHeap.top() << " ";
-			minHeap.pop();
+
+		sort(cluster_sequences.begin(), cluster_sequences.end(), [](const vector<int>& a, const vector<int>& b){
+		return a.size() > b.size();
+			});
+
+		cerr << "Information for this group step:" << endl;
+		cerr << ">>> The number of groups in this step: " << cluster_sequences.size() << endl;
+		cerr << ">>> Top 10 largest group size is: ";
+		for(int i = 0; i < std::min(10, (int)cluster_sequences.size()); i++){
+			cerr << cluster_sequences[i].size() << " ";
 		}
-		cerr << endl;
+		cerr << endl<< "==================" << endl;
 	}
 }
 
@@ -291,21 +350,22 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 			if(m == M-R) {
 				temp_output_on = true;
 			}
-			countGroupSize(uf);
+			countGroupSize(uf,m,hashes);
 		}
 	}else{
 		for(int m=0; m < M / R; m++){
 			cerr << "round "<<  m << endl;
 			fillHashVec(hashes, hash_vec, m * R * L);
 			GroupByCol(hash_vec, uf);
-			countGroupSize(uf);
+			countGroupSize(uf,m,hashes);
 		}
 		if(M % R != 0){
 			cerr << "round "<<  M / R;
 			setR(M % R);
 			fillHashVec(hashes, hash_vec, (M/R) * R * L );
 			GroupByCol(hash_vec, uf);
-			countGroupSize(uf);
+			// 此处会存在问题
+			countGroupSize(uf, 0, hashes);
 		}
 	}
 #ifdef TIMING
@@ -319,7 +379,20 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 #endif
 }
 
-void GroupStream::clusterEachGroup(vector<int>& group_seqs){
+
+void GroupStream::SecondGroup(vector<int>& group_seqs, int m, vector<vector<uint64_t>>& hashes) {
+	vector<Data> temp_hash_vec;
+	for (int i = 0;i < group_seqs.size();i++) {
+		id_root_map[group_seqs[i]] = group_seqs[i];
+		temp_hash_vec.emplace_back(hash_vec[i]);
+	}
+	uf.updateParent(id_root_map);
+	Sort(temp_hash_vec);
+	Unite(temp_hash_vec, uf);
+	return;
+}
+
+void GroupStream::clusterEachGroup(vector<int>& group_seqs) {
 	vector<Sequence_new> sequences;
 	for(int i = 0; i < group_seqs.size(); i++) {
 		sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]].c_str());

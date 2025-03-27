@@ -18,6 +18,7 @@ public:
 	bool slide = true;
 	bool cluster_on = false;
 	bool temp_output_on = false;
+	bool second_group = false;
 	vector<Data> hash_vec;
 	string folder_name = "nr-15/";
 
@@ -42,7 +43,8 @@ public:
 
 	void setClusterOn() { cluster_on = true; }
 	void setClusterCondition(int conditon) { cluster_condition = conditon; }
-	void setSlideOff(){ slide = false; }
+	void setSlideOff() { slide = false; }
+	void setSecondGroup() { second_group = true; }
 	void setM(int m) { M = m; }
 	void setR(int r) { R = r; }
 	void setL(int l) { L = l; }
@@ -66,7 +68,7 @@ public:
 	void fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m);
 	// construct a sorted struct Data(hash-vec) for a column of hash-funtions(vec)
 
-	void countGroupSize(UnionFind& uf);
+	void countGroupSize(UnionFind& uf,int m,vector<vector<uint64_t>>& hashes);
 	void countGroupSizeBySort(UnionFind& uf);
 	
 	void getGroupMap(UnionFind& uf,unordered_map<int, vector<int>>& group_map);
@@ -75,5 +77,7 @@ public:
 	void clusterEachGroup(vector<int>& seq_ids);
 
 	void tempOutput(vector<vector<int>>& cluster_sequences);
+
+	void SecondGroup(vector<int>& group_seqs,int m,vector<vector<uint64_t>>& hashes);
 };
 #endif

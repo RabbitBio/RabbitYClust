@@ -1,0 +1,10 @@
+==========Paramters==========
+Threads: 32
+K: 8
+M: 15
+R: 1
+Min_len: 50
+Similarity Threshold:0.9
+Input: ../../huge.fa
+==========End Paramters==========
+Start Building sketches!

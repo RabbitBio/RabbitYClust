@@ -1,0 +1,27 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/yclust.dir/src/AminoEncode.cpp.o"
+  "CMakeFiles/yclust.dir/src/AminoEncode.cpp.o.d"
+  "CMakeFiles/yclust.dir/src/GroupStream.cpp.o"
+  "CMakeFiles/yclust.dir/src/GroupStream.cpp.o.d"
+  "CMakeFiles/yclust.dir/src/KHFMinHash.cpp.o"
+  "CMakeFiles/yclust.dir/src/KHFMinHash.cpp.o.d"
+  "CMakeFiles/yclust.dir/src/OrderMinHash.cpp.o"
+  "CMakeFiles/yclust.dir/src/OrderMinHash.cpp.o.d"
+  "CMakeFiles/yclust.dir/src/aahash/aahash.cpp.o"
+  "CMakeFiles/yclust.dir/src/aahash/aahash.cpp.o.d"
+  "CMakeFiles/yclust.dir/src/cdhit-common.c++.o"
+  "CMakeFiles/yclust.dir/src/cdhit-common.c++.o.d"
+  "CMakeFiles/yclust.dir/src/cluster.cpp.o"
+  "CMakeFiles/yclust.dir/src/cluster.cpp.o.d"
+  "CMakeFiles/yclust.dir/src/main.cpp.o"
+  "CMakeFiles/yclust.dir/src/main.cpp.o.d"
+  "CMakeFiles/yclust.dir/src/xxhash.c.o"
+  "CMakeFiles/yclust.dir/src/xxhash.c.o.d"
+  "yclust"
+  "yclust.pdb"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang C CXX)
+  include(CMakeFiles/yclust.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()

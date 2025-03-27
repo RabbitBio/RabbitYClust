@@ -31,6 +31,7 @@ vector<vector<uint64_t>> hashes;
 vector<uint64_t> seq_ids;
 // yy add for cluster
 bool cluster_on = false;
+bool second_group = false;
 unordered_map<uint64_t, uint64_t> fai_map;
 unordered_map<uint64_t, string> fa_map;
 int64_t pos = 0;
@@ -150,6 +151,10 @@ int main(int argc, char* argv[])
 	cluster_on = false;
 	auto option_cluster = app.add_flag("-c, --cluster", cluster_on, "If this flat is enabled, clustering during the grouping");
 
+	second_group = false;
+	auto option_second = app.add_flag("-S, --second", second_group, "If this flat is enabled, second grouping during the grouping");
+
+
 	CLI11_PARSE(app, argc, argv);
 
 	if(num_threads < 1)
@@ -221,6 +226,11 @@ int main(int argc, char* argv[])
     gzclose(fp1);
     kseq_destroy(ks1);
 
+	for (int i = 0;i < 30;i++) {
+		cerr << seq_ids[i] << endl;
+	}
+	exit(0);
+
 	//grouping
 	cerr << "Start grouping!" << endl;
 	GroupStream gs(num_seqs.load(), m, r, 1);
@@ -231,8 +241,12 @@ int main(int argc, char* argv[])
 	}
 	if(block_on) 
 		gs.setSlideOff();
+	if (second_group) {
+		gs.setSecondGroup();
+	}
 	unordered_map<int, vector<int>> group_map;
 	gs.Group(hashes, group_map);
+	exit(0);
 
 	//输出每个seq和他的root
 	cout.rdbuf(origin_cout);

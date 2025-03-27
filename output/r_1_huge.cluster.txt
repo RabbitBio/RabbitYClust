@@ -1,0 +1,149 @@
+==========Paramters==========
+Threads: 32
+K: 8
+M: 15
+R: 1
+Min_len: 50
+Similarity Threshold:0.9
+Input: ../../huge.fa
+==========End Paramters==========
+Start Building sketches!
+Sketching time: 8
+Total number of seqs: 1644014
+Generated Map Size: 1644014
+Start grouping!
+round 0
+ >>> Total groups in this round before cluster: 1335585
+Groups larger than 200 : 8
+Top 10 largest group size is: 1305 1293 1233 835 493 310 247 244 
+ >>> Total groups in this round after cluster: 1337441
+After clustering, clusters size large than 200 : 5
+153 177 178 179 195 234 238 241 344 889 
+==================
+
+round 1
+ >>> Total groups in this round before cluster: 1161854
+Groups larger than 200 : 76
+Top 10 largest group size is: 9814 6746 2651 1641 1488 1305 1292 1207 1182 1016 
+ >>> Total groups in this round after cluster: 1188758
+After clustering, clusters size large than 200 : 12
+228 229 276 287 296 307 323 480 520 1267 
+==================
+
+round 2
+ >>> Total groups in this round before cluster: 1050294
+Groups larger than 200 : 119
+Top 10 largest group size is: 51398 6169 2516 1864 1528 1305 1137 1126 1007 921 
+ >>> Total groups in this round after cluster: 1117135
+After clustering, clusters size large than 200 : 12
+229 229 272 287 296 307 323 481 520 1266 
+==================
+
+round 3
+ >>> Total groups in this round before cluster: 988938
+Groups larger than 200 : 118
+Top 10 largest group size is: 91275 6261 2476 1999 1305 1267 1042 1004 970 866 
+ >>> Total groups in this round after cluster: 1086240
+After clustering, clusters size large than 200 : 12
+229 229 273 287 296 307 323 482 520 1266 
+==================
+
+round 4
+ >>> Total groups in this round before cluster: 959702
+Groups larger than 200 : 87
+Top 10 largest group size is: 126605 2494 1305 948 767 732 660 638 637 546 
+ >>> Total groups in this round after cluster: 1067877
+After clustering, clusters size large than 200 : 12
+229 229 274 287 296 310 341 482 528 1266 
+==================
+
+round 5
+ >>> Total groups in this round before cluster: 942315
+Groups larger than 200 : 86
+Top 10 largest group size is: 113721 1515 1305 972 941 937 762 718 714 674 
+ >>> Total groups in this round after cluster: 1041457
+After clustering, clusters size large than 200 : 12
+229 229 274 296 310 311 341 483 528 1328 
+==================
+
+round 6
+ >>> Total groups in this round before cluster: 919282
+Groups larger than 200 : 86
+Top 10 largest group size is: 125800 2507 1418 1305 1055 920 874 808 797 766 
+ >>> Total groups in this round after cluster: 1032389
+After clustering, clusters size large than 200 : 12
+229 229 274 287 296 310 341 483 528 1267 
+==================
+
+round 7
+ >>> Total groups in this round before cluster: 909303
+Groups larger than 200 : 109
+Top 10 largest group size is: 129634 2537 1431 1342 1305 965 888 880 876 692 
+ >>> Total groups in this round after cluster: 1030138
+After clustering, clusters size large than 200 : 12
+229 229 274 287 296 310 341 483 528 1266 
+==================
+
+round 8
+ >>> Total groups in this round before cluster: 905776
+Groups larger than 200 : 111
+Top 10 largest group size is: 126123 2500 1999 1726 1613 1305 1186 1104 1035 935 
+ >>> Total groups in this round after cluster: 1028137
+After clustering, clusters size large than 200 : 12
+229 229 274 287 296 310 341 482 528 1266 
+==================
+
+round 9
+ >>> Total groups in this round before cluster: 904250
+Groups larger than 200 : 111
+Top 10 largest group size is: 119853 1305 1090 979 913 756 715 666 655 587 
+ >>> Total groups in this round after cluster: 1014943
+After clustering, clusters size large than 200 : 12
+229 229 274 296 310 311 341 482 528 1328 
+==================
+
+round 10
+ >>> Total groups in this round before cluster: 893310
+Groups larger than 200 : 98
+Top 10 largest group size is: 134341 1815 1305 1278 1218 1154 1029 1023 908 908 
+ >>> Total groups in this round after cluster: 1016732
+After clustering, clusters size large than 200 : 12
+229 229 274 296 310 311 341 482 528 1328 
+==================
+
+round 11
+ >>> Total groups in this round before cluster: 893982
+Groups larger than 200 : 95
+Top 10 largest group size is: 128649 2525 1576 1305 1143 860 757 696 595 573 
+ >>> Total groups in this round after cluster: 1011319
+After clustering, clusters size large than 200 : 12
+229 229 274 287 296 310 341 482 528 1266 
+==================
+
+round 12
+ >>> Total groups in this round before cluster: 887543
+Groups larger than 200 : 98
+Top 10 largest group size is: 137572 1305 1169 1071 1061 957 718 632 619 604 
+ >>> Total groups in this round after cluster: 1009958
+After clustering, clusters size large than 200 : 12
+229 229 274 296 310 311 341 482 528 1328 
+==================
+
+round 13
+ >>> Total groups in this round before cluster: 887236
+Groups larger than 200 : 87
+Top 10 largest group size is: 130463 7080 2683 1772 1435 1305 1274 977 748 713 
+ >>> Total groups in this round after cluster: 1009240
+After clustering, clusters size large than 200 : 12
+229 229 273 287 296 307 324 482 520 1266 
+==================
+
+round 14
+ >>> Total groups in this round before cluster: 885628
+Groups larger than 200 : 75
+Top 10 largest group size is: 135922 6207 2574 1423 1305 1084 996 855 788 670 
+ >>> Total groups in this round after cluster: 1007346
+After clustering, clusters size large than 200 : 12
+229 229 273 287 296 307 323 483 520 1266 
+==================
+
