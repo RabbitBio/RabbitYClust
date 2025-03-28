@@ -148,7 +148,6 @@ void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>&
 	// 3. memory alignment and memcpy
 
 }
-
 void GroupStream::getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& group_map) {
 	uf.findRoot(id_root_map);
 	//  1.用vector<GroupNode>存储id-root-map时候要对其进行kj
@@ -204,10 +203,6 @@ void GroupStream::countGroupSize(UnionFind& uf, int m, vector<vector<uint64_t>>&
 		}
 		cerr << endl;
 		if (m + 1 < M) {
-			// 这里仍旧考虑两种方案，第一种是 (m+1)%M,另一种是m+1>M时直接return
-			fillHashVec(hashes, hash_vec, (m + 1) * L);
-			sort(hash_vec.begin(), hash_vec.end(), compareById);
-
 		#pragma omp parallel for num_threads(num_threads)
 			for (int i = 0;i < cluster_sequences.size();i++) {
 				SecondUpdate(cluster_sequences[i]);
@@ -217,7 +212,7 @@ void GroupStream::countGroupSize(UnionFind& uf, int m, vector<vector<uint64_t>>&
 
 		#pragma omp parallel for num_threads(num_threads)
 			for (int i = 0; i < cluster_sequences.size(); i++) {
-				SecondGroup(cluster_sequences[i], m);
+				SecondGroup(cluster_sequences[i], m,hashes);
 			}
 			uf.findRoot(id_root_map);
 
@@ -392,7 +387,7 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 				cluster_condition = 1;
 			}
 			if (m <= 10) second_condition = 100000;
-			else second_condition = 1000000;
+			else second_condition = 100000;
 			countGroupSize(uf, m, hashes);
 		}
 	}
@@ -412,6 +407,7 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 			countGroupSize(uf, 0, hashes);
 		}
 	}
+	 temp_uf = uf;  
 #ifdef TIMING
 	auto transpose_start_time = chrono::high_resolution_clock::now();
 	getGroupMap(uf, group_map);
@@ -425,14 +421,18 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 
 void GroupStream::SecondUpdate(vector<int>& group_seqs) {
 	for (int i = 0;i < group_seqs.size();i++) {
-		id_root_map[group_seqs[i]] = group_seqs[i];
+		int id = group_seqs[i];
+		id_root_map[id] = temp_uf.find(id); 
 	}
 }
 
-void GroupStream::SecondGroup(vector<int>& group_seqs, int m) {
-	vector<Data> temp_hash_vec;
+void GroupStream::SecondGroup(vector<int>& group_seqs, int m,const vector<vector<uint64_t>>& vec) {
+	vector<Data> temp_hash_vec(group_seqs.size());
 	for (int i = 0;i < group_seqs.size();i++) {
-		temp_hash_vec.emplace_back(hash_vec[group_seqs[i]]);
+		int id = group_seqs[i]; 
+		temp_hash_vec[i].id = id;
+		temp_hash_vec[i].value.resize(2);    // 因为你 copy 了 2 个元素
+		copy(vec[seq_ids[i]].begin() + m , vec[seq_ids[i]].begin() + m +2,temp_hash_vec[i].value.begin());
 	}
 	Sort(temp_hash_vec);
 	Unite(temp_hash_vec, uf);

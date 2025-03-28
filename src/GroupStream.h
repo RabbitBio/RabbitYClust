@@ -9,11 +9,12 @@ extern unordered_map<uint64_t, string> fa_map;
 class GroupStream {
 public:
 	UnionFind uf;
+	UnionFind temp_uf;
 	int items;
 	int M;
 	int R = 1;
 	int L = 1;
-	int cluster_condition = 200;
+	int cluster_condition = 2000000;
 	int second_condition = 100000;
 	int num_threads = 8;
 	bool slide = true;
@@ -31,11 +32,11 @@ public:
 
 	cluster cluster_cdhit;
 
-	GroupStream(int n, int m, int r, int l) : uf(n), items(n), R(r), L(l), M(m) {
+	GroupStream(int n, int m, int r, int l) : uf(n), temp_uf(n), items(n), R(r), L(l), M(m) {
 		resize(items);
 	}
 
-	GroupStream(int n) : uf(n), items(n) { resize(items); }
+	GroupStream(int n) : uf(n), temp_uf(n),items(n) { resize(items); }
 
 	void setIDs(const vector<uint64_t>& seq_ids) {
 		this->seq_ids = seq_ids;
@@ -68,7 +69,7 @@ public:
 
 	void fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m);
 	// construct a sorted struct Data(hash-vec) for a column of hash-funtions(vec)
-
+	void fillHashVec_R2(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m);
 	void countGroupSize(UnionFind& uf,int m,vector<vector<uint64_t>>& hashes);
 	void countGroupSizeBySort(UnionFind& uf);
 	
@@ -79,7 +80,7 @@ public:
 
 	void tempOutput(vector<vector<int>>& cluster_sequences);
 
-	void SecondGroup(vector<int>& group_seqs, int m);
+	void SecondGroup(vector<int>& group_seqs, int m,const vector<vector<uint64_t>>& vec);
 
 	void SecondUpdate(vector<int>& group_seqs);
 };

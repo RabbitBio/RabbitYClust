@@ -53,7 +53,7 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 				if (length < 0) break;
 				if (length < min_len) continue;
 				sequence = ks->seq.s;//direct copy?
-				seq_id = num_seqs.fetch_add(1);
+				
 //				cout << ks->name.s << " " << seq_id << endl;
 		}
 
@@ -71,6 +71,7 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 	
 		{
 				std::lock_guard<std::mutex> lock(mtx2);
+				seq_id = num_seqs.fetch_add(1);
 				hashes.emplace_back(sketch.hashes);
 				seq_ids.emplace_back(seq_id);
 		}
@@ -87,7 +88,7 @@ void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_
 				if (length < 0) break;
 				if (length < min_len) continue;
 				sequence = ks->seq.s;//direct copy?
-				seq_id = num_seqs.fetch_add(1);
+				
 	//			cout << ks->name.s << " " << seq_id << endl;
 		}
 
@@ -110,6 +111,7 @@ void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_
 	
 		{
 				std::lock_guard<std::mutex> lock(mtx2);
+				seq_id = num_seqs.fetch_add(1);
 				hashes.emplace_back(sketch.hashes);
 				seq_ids.emplace_back(seq_id);
 				fa_map.emplace(seq_id, sequence);
@@ -241,7 +243,6 @@ int main(int argc, char* argv[])
 	}
 	unordered_map<int, vector<int>> group_map;
 	gs.Group(hashes, group_map);
-	exit(0);
 
 	//输出每个seq和他的root
 	cout.rdbuf(origin_cout);

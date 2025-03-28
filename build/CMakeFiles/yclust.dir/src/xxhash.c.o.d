@@ -1,5 +1,5 @@
 CMakeFiles/yclust.dir/src/xxhash.c.o: \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/xxhash.c \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/xxhash.c \
  /usr/include/stdc-predef.h /usr/include/stdlib.h \
  /usr/include/bits/libc-header-start.h /usr/include/features.h \
  /usr/include/sys/cdefs.h /usr/include/bits/wordsize.h \
@@ -28,12 +28,12 @@ CMakeFiles/yclust.dir/src/xxhash.c.o: \
  /usr/include/limits.h /usr/include/bits/posix1_lim.h \
  /usr/include/bits/local_lim.h /usr/include/linux/limits.h \
  /usr/include/bits/posix2_lim.h \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/xxhash.h \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/xxhash.h \
  /usr/lib/gcc/x86_64-redhat-linux/8/include/stdint.h \
  /usr/include/stdint.h /usr/include/bits/wchar.h \
  /usr/include/bits/stdint-uintn.h \
  /usr/lib/gcc/x86_64-redhat-linux/8/include/stdalign.h \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/xxh3.h \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/xxh3.h \
  /usr/lib/gcc/x86_64-redhat-linux/8/include/emmintrin.h \
  /usr/lib/gcc/x86_64-redhat-linux/8/include/xmmintrin.h \
  /usr/lib/gcc/x86_64-redhat-linux/8/include/mmintrin.h \

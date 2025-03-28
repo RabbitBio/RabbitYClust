@@ -1,7 +1,7 @@
 CMakeFiles/yclust.dir/src/OrderMinHash.cpp.o: \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/OrderMinHash.cpp \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/OrderMinHash.cpp \
  /usr/include/stdc-predef.h \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/int_hash.h \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/int_hash.h \
  /usr/include/c++/8/cstdint \
  /usr/include/c++/8/x86_64-redhat-linux/bits/c++config.h \
  /usr/include/bits/wordsize.h \
@@ -15,7 +15,7 @@ CMakeFiles/yclust.dir/src/OrderMinHash.cpp.o: \
  /usr/include/bits/types.h /usr/include/bits/typesizes.h \
  /usr/include/bits/wchar.h /usr/include/bits/stdint-intn.h \
  /usr/include/bits/stdint-uintn.h \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/OrderMinHash.h \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/OrderMinHash.h \
  /usr/include/c++/8/vector /usr/include/c++/8/bits/stl_algobase.h \
  /usr/include/c++/8/bits/functexcept.h \
  /usr/include/c++/8/bits/exception_defines.h \
@@ -50,7 +50,7 @@ CMakeFiles/yclust.dir/src/OrderMinHash.cpp.o: \
  /usr/include/c++/8/bits/functional_hash.h \
  /usr/include/c++/8/bits/range_access.h \
  /usr/include/c++/8/bits/vector.tcc \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/AminoEncode.h \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/AminoEncode.h \
  /usr/include/c++/8/string /usr/include/c++/8/bits/stringfwd.h \
  /usr/include/c++/8/bits/char_traits.h /usr/include/c++/8/bits/postypes.h \
  /usr/include/c++/8/cwchar /usr/include/wchar.h \

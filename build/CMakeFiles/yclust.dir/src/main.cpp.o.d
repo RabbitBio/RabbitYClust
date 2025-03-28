@@ -1,7 +1,7 @@
 CMakeFiles/yclust.dir/src/main.cpp.o: \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/main.cpp \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/main.cpp \
  /usr/include/stdc-predef.h \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/KHFMinHash.h \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/KHFMinHash.h \
  /usr/include/c++/8/string \
  /usr/include/c++/8/x86_64-redhat-linux/bits/c++config.h \
  /usr/include/bits/wordsize.h \
@@ -102,9 +102,9 @@ CMakeFiles/yclust.dir/src/main.cpp.o: \
  /usr/include/c++/8/bits/stl_relops.h \
  /usr/include/c++/8/bits/stl_vector.h \
  /usr/include/c++/8/bits/stl_bvector.h /usr/include/c++/8/bits/vector.tcc \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/kseq.h \
- /usr/include/string.h /usr/include/strings.h /usr/include/c++/8/stdlib.h \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/CLI11.hpp \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/kseq.h /usr/include/string.h \
+ /usr/include/strings.h /usr/include/c++/8/stdlib.h \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/CLI11.hpp \
  /usr/include/c++/8/algorithm /usr/include/c++/8/bits/stl_algo.h \
  /usr/include/c++/8/bits/algorithmfwd.h \
  /usr/include/c++/8/bits/stl_heap.h /usr/include/c++/8/bits/stl_tempbuf.h \
@@ -213,12 +213,12 @@ CMakeFiles/yclust.dir/src/main.cpp.o: \
  /usr/include/c++/8/bits/deque.tcc /usr/include/c++/8/bits/stl_queue.h \
  /usr/include/c++/8/thread /usr/include/c++/8/mutex \
  /usr/include/c++/8/bits/std_mutex.h /usr/include/c++/8/atomic \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/GroupStream.h \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/unionfind.h \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/GroupStream.h \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/unionfind.h \
  /usr/include/c++/8/variant \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/cluster.h \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/cdhit-common.h \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/input_sequence.h \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/cluster.h \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/cdhit-common.h \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/input_sequence.h \
  /usr/include/c++/8/valarray /usr/include/c++/8/bits/valarray_array.h \
  /usr/include/c++/8/bits/valarray_array.tcc \
  /usr/include/c++/8/bits/valarray_before.h \

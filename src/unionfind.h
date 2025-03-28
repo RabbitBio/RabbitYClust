@@ -40,7 +40,9 @@ public:
         // iota(rank.begin(), rank.end(), 0); 
 		//cout << "unionfind generation ends." << endl;
     }
-
+	//拷贝
+	UnionFind(const UnionFind&) = default;
+	UnionFind& operator=(const UnionFind&) = default;
     int find(int x) {
         if (parent[x] != x) {
             parent[x] = find(parent[x]); // 路径压缩

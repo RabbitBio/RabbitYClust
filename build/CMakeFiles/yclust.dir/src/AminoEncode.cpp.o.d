@@ -1,7 +1,7 @@
 CMakeFiles/yclust.dir/src/AminoEncode.cpp.o: \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/AminoEncode.cpp \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/AminoEncode.cpp \
  /usr/include/stdc-predef.h \
- /home/user_home/maguiliang/ycluster/RabbitYClust/src/AminoEncode.h \
+ /home/gaoyijie/Ycluster/RabbitYClust/src/AminoEncode.h \
  /usr/include/c++/8/string \
  /usr/include/c++/8/x86_64-redhat-linux/bits/c++config.h \
  /usr/include/bits/wordsize.h \
