@@ -190,7 +190,7 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 		}
 		cerr << endl;
 
-		#pragma omp parallel for num_threads(num_threads)
+		//#pragma omp parallel for num_threads(num_threads)
 		for(int i = 0; i < cluster_sequences.size(); i++) {
 			cerr << i << " is doing cluster " << cluster_sequences[i].size() << " sequences" << endl;
 			clusterEachGroup(cluster_sequences[i]);
