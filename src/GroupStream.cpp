@@ -207,9 +207,17 @@ void GroupStream::countGroupSize(UnionFind& uf, int m, vector<vector<uint64_t>>&
 			// 这里仍旧考虑两种方案，第一种是 (m+1)%M,另一种是m+1>M时直接return
 			fillHashVec(hashes, hash_vec, (m + 1) * L);
 			sort(hash_vec.begin(), hash_vec.end(), compareById);
+
+		#pragma omp parallel for num_threads(num_threads)
+			for (int i = 0;i < cluster_sequences.size();i++) {
+				SecondUpdate(cluster_sequences[i]);
+			}
+
+			uf.updateParent(id_root_map);
+
 		#pragma omp parallel for num_threads(num_threads)
 			for (int i = 0; i < cluster_sequences.size(); i++) {
-				SecondGroup(cluster_sequences[i], m, hashes);
+				SecondGroup(cluster_sequences[i], m);
 			}
 			uf.findRoot(id_root_map);
 
@@ -331,13 +339,12 @@ void GroupStream::countGroupSize(UnionFind& uf, int m, vector<vector<uint64_t>>&
 			return a.size() > b.size();
 			});
 
-		cerr << "Information for this group step:" << endl;
 		cerr << ">>> The number of groups in this step: " << cluster_sequences.size() << endl;
-		cerr << ">>> Top 10 largest group size is: ";
+		cerr << ">>> Top 10 largest group size is: " << endl;
 		for (int i = 0; i < std::min(10, (int)cluster_sequences.size()); i++) {
 			cerr << cluster_sequences[i].size() << " ";
 		}
-		cerr << endl << "==================" << endl;
+		cerr << endl << "==================" << endl << endl;
 	}
 }
 
@@ -371,7 +378,7 @@ void GroupStream::countGroupSizeBySort(UnionFind& uf) {
 		cerr << minHeap.top() << " ";
 		minHeap.pop();
 	}
-	cerr << endl;
+	cerr << endl <<endl;
 }
 
 void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map) {
@@ -384,6 +391,8 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 				temp_output_on = true;
 				cluster_condition = 1;
 			}
+			if (m <= 10) second_condition = 100000;
+			else second_condition = 1000000;
 			countGroupSize(uf, m, hashes);
 		}
 	}
@@ -414,14 +423,17 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 #endif
 }
 
-
-void GroupStream::SecondGroup(vector<int>& group_seqs, int m, vector<vector<uint64_t>>& hashes) {
-	vector<Data> temp_hash_vec;
+void GroupStream::SecondUpdate(vector<int>& group_seqs) {
 	for (int i = 0;i < group_seqs.size();i++) {
 		id_root_map[group_seqs[i]] = group_seqs[i];
+	}
+}
+
+void GroupStream::SecondGroup(vector<int>& group_seqs, int m) {
+	vector<Data> temp_hash_vec;
+	for (int i = 0;i < group_seqs.size();i++) {
 		temp_hash_vec.emplace_back(hash_vec[i]);
 	}
-	uf.updateParent(id_root_map);
 	Sort(temp_hash_vec);
 	Unite(temp_hash_vec, uf);
 	return;

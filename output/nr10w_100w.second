@@ -1,0 +1,35 @@
+==========Paramters==========
+Threads: 64
+K: 8
+M: 15
+R: 1
+Min_len: 50
+Similarity Threshold:0.9
+Input: ../../../../../ssd/protein/nr.fa
+==========End Paramters==========
+Start Building sketches!
+Sketching time: 571
+Total number of seqs: 284763149
+Generated Map Size: 0
+Start grouping!
+ROUND 0
+ >>> Total groups in this round BEFORE second group: 61547829
+Groups larger than 100000 : 4
+Top 10 largest group size is: 225083 222136 219375 145122 
+ >>> Total groups in this round AFTER second group: 62351855
+After second grouping, groups size large than 100000 : 2
+33563 34689 40178 42047 45741 60370 73225 81694 102284 342726 
+>>> The number of groups in this step: 62351855
+>>> Top 10 largest group size is: 342726 102284 81694 73225 60370 45741 42047 40178 34689 33563 
+==================
+ROUND 1
+ >>> Total groups in this round BEFORE second group: 15011975
+Groups larger than 100000 : 2
+Top 10 largest group size is: 262333003 225083 
+ >>> Total groups in this round AFTER second group: 77254556
+After second grouping, groups size large than 100000 : 5
+37232 43275 46713 59980 60829 110894 117227 207086 268556 442109 
+>>> The number of groups in this step: 77254556
+>>> Top 10 largest group size is: 442109 268556 207086 117227 110894 60829 59980 46713 43275 37232 
+==================
+ROUND 2

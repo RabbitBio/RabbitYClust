@@ -79,6 +79,8 @@ public:
 
 	void tempOutput(vector<vector<int>>& cluster_sequences);
 
-	void SecondGroup(vector<int>& group_seqs,int m,vector<vector<uint64_t>>& hashes);
+	void SecondGroup(vector<int>& group_seqs, int m);
+
+	void SecondUpdate(vector<int>& group_seqs);
 };
 #endif
