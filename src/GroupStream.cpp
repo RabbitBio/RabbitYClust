@@ -432,7 +432,7 @@ void GroupStream::SecondUpdate(vector<int>& group_seqs) {
 void GroupStream::SecondGroup(vector<int>& group_seqs, int m) {
 	vector<Data> temp_hash_vec;
 	for (int i = 0;i < group_seqs.size();i++) {
-		temp_hash_vec.emplace_back(hash_vec[i]);
+		temp_hash_vec.emplace_back(hash_vec[group_seqs[i]]);
 	}
 	Sort(temp_hash_vec);
 	Unite(temp_hash_vec, uf);

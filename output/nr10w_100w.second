@@ -8,7 +8,7 @@ Similarity Threshold:0.9
 Input: ../../../../../ssd/protein/nr.fa
 ==========End Paramters==========
 Start Building sketches!
-Sketching time: 571
+Sketching time: 550
 Total number of seqs: 284763149
 Generated Map Size: 0
 Start grouping!
@@ -16,20 +16,64 @@ ROUND 0
  >>> Total groups in this round BEFORE second group: 61547829
 Groups larger than 100000 : 4
 Top 10 largest group size is: 225083 222136 219375 145122 
- >>> Total groups in this round AFTER second group: 62351855
-After second grouping, groups size large than 100000 : 2
-33563 34689 40178 42047 45741 60370 73225 81694 102284 342726 
->>> The number of groups in this step: 62351855
->>> Top 10 largest group size is: 342726 102284 81694 73225 60370 45741 42047 40178 34689 33563 
+ >>> Total groups in this round AFTER second group: 62349599
+After second grouping, groups size large than 100000 : 4
+55914 56012 67712 68595 90462 95777 114265 119777 165905 515077 
+>>> The number of groups in this step: 62349599
+>>> Top 10 largest group size is: 
+515077 165905 119777 114265 95777 90462 68595 67712 56012 55914 
 ==================
+
 ROUND 1
- >>> Total groups in this round BEFORE second group: 15011975
+ >>> Total groups in this round BEFORE second group: 15011970
 Groups larger than 100000 : 2
-Top 10 largest group size is: 262333003 225083 
- >>> Total groups in this round AFTER second group: 77254556
+Top 10 largest group size is: 262333009 225083 
+ >>> Total groups in this round AFTER second group: 77254551
 After second grouping, groups size large than 100000 : 5
 37232 43275 46713 59980 60829 110894 117227 207086 268556 442109 
->>> The number of groups in this step: 77254556
->>> Top 10 largest group size is: 442109 268556 207086 117227 110894 60829 59980 46713 43275 37232 
+>>> The number of groups in this step: 77254551
+>>> Top 10 largest group size is: 
+442109 268556 207086 117227 110894 60829 59980 46713 43275 37232 
 ==================
+
 ROUND 2
+ >>> Total groups in this round BEFORE second group: 57948158
+Groups larger than 100000 : 5
+Top 10 largest group size is: 544943 292531 225083 146771 123920 
+ >>> Total groups in this round AFTER second group: 59243970
+After second grouping, groups size large than 100000 : 5
+84563 87215 88912 89838 90105 104369 131482 146617 175222 436785 
+>>> The number of groups in this step: 59243970
+>>> Top 10 largest group size is: 
+436785 175222 146617 131482 104369 90105 89838 88912 87215 84563 
+==================
+
+ROUND 3
+ >>> Total groups in this round BEFORE second group: 13864785
+Groups larger than 100000 : 2
+Top 10 largest group size is: 264147249 225083 
+ >>> Total groups in this round AFTER second group: 76074352
+After second grouping, groups size large than 100000 : 4
+44533 49860 54452 54854 66846 94436 170060 208538 301686 876718 
+>>> The number of groups in this step: 76074352
+>>> Top 10 largest group size is: 
+876718 301686 208538 170060 94436 66846 54854 54452 49860 44533 
+==================
+
+ROUND 4
+ >>> Total groups in this round BEFORE second group: 58289039
+Groups larger than 100000 : 5
+Top 10 largest group size is: 979047 326501 225083 186493 166265 
+ >>> Total groups in this round AFTER second group: 60084565
+After second grouping, groups size large than 100000 : 8
+87680 89607 107459 120955 132643 150471 151209 183714 185647 1143151 
+>>> The number of groups in this step: 60084565
+>>> Top 10 largest group size is: 
+1143151 185647 183714 151209 150471 132643 120955 107459 89607 87680 
+==================
+
+ROUND 5
+ >>> Total groups in this round BEFORE second group: 13986549
+Groups larger than 100000 : 2
+Top 10 largest group size is: 263909225 225083 
+ >>> Total groups in this round AFTER second group: 76239024
