@@ -377,9 +377,9 @@ void GroupStream::countGroupSizeBySort(UnionFind& uf) {
 }
 
 void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map) {
-	uf.findRoot(temp_id_root_map);
 	if (slide) {
 		for (int m = 0; m < M - R + 1; m++) {
+			uf.findRoot(temp_id_root_map);
 			cerr << "ROUND " << m << endl;
 			fillHashVec(hashes, hash_vec, m * L);
 			GroupByCol(hash_vec, uf);
