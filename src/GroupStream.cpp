@@ -212,7 +212,7 @@ void GroupStream::countGroupSize(UnionFind& uf, int m, vector<vector<uint64_t>>&
 
 		#pragma omp parallel for num_threads(num_threads)
 			for (int i = 0; i < cluster_sequences.size(); i++) {
-				SecondGroup(cluster_sequences[i], m,hashes);
+				SecondGroup(cluster_sequences[i], m, hashes);
 			}
 			uf.findRoot(id_root_map);
 
@@ -373,10 +373,11 @@ void GroupStream::countGroupSizeBySort(UnionFind& uf) {
 		cerr << minHeap.top() << " ";
 		minHeap.pop();
 	}
-	cerr << endl <<endl;
+	cerr << endl << endl;
 }
 
 void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map) {
+	uf.findRoot(temp_id_root_map);
 	if (slide) {
 		for (int m = 0; m < M - R + 1; m++) {
 			cerr << "ROUND " << m << endl;
@@ -387,7 +388,7 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 				cluster_condition = 1;
 			}
 			if (m <= 10) second_condition = 100000;
-			else second_condition = 100000;
+			else second_condition = 1000000;
 			countGroupSize(uf, m, hashes);
 		}
 	}
@@ -407,7 +408,6 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 			countGroupSize(uf, 0, hashes);
 		}
 	}
-	 temp_uf = uf;  
 #ifdef TIMING
 	auto transpose_start_time = chrono::high_resolution_clock::now();
 	getGroupMap(uf, group_map);
@@ -422,17 +422,17 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 void GroupStream::SecondUpdate(vector<int>& group_seqs) {
 	for (int i = 0;i < group_seqs.size();i++) {
 		int id = group_seqs[i];
-		id_root_map[id] = temp_uf.find(id); 
+		id_root_map[id] = temp_id_root_map[id];
 	}
 }
 
-void GroupStream::SecondGroup(vector<int>& group_seqs, int m,const vector<vector<uint64_t>>& vec) {
+void GroupStream::SecondGroup(vector<int>& group_seqs, int m, const vector<vector<uint64_t>>& hashes) {
 	vector<Data> temp_hash_vec(group_seqs.size());
 	for (int i = 0;i < group_seqs.size();i++) {
-		int id = group_seqs[i]; 
+		int id = group_seqs[i];
 		temp_hash_vec[i].id = id;
-		temp_hash_vec[i].value.resize(2);    // 因为你 copy 了 2 个元素
-		copy(vec[seq_ids[i]].begin() + m , vec[seq_ids[i]].begin() + m +2,temp_hash_vec[i].value.begin());
+		temp_hash_vec[i].value.resize(2);    // 因为你 copy 了 2 个元素 // 似乎这一句不需要
+		copy(hashes[seq_ids[i]].begin() + m, hashes[seq_ids[i]].begin() + m + 2, temp_hash_vec[i].value.begin());
 	}
 	Sort(temp_hash_vec);
 	Unite(temp_hash_vec, uf);

@@ -1,0 +1,202 @@
+==========Paramters==========
+Threads: 48
+K: 8
+M: 15
+R: 1
+Min_len: 50
+Similarity Threshold:0.9
+Input: ../../huge.fa
+==========End Paramters==========
+Start Building sketches!
+Sketching time: 8
+Total number of seqs: 1644014
+Generated Map Size: 0
+Start grouping!
+ROUND 0
+ >>> Total groups in this round BEFORE second group: 1335585
+Groups larger than 100000 : 0
+Top 10 largest group size is: 
+ >>> Total groups in this round AFTER second group: 1335585
+After second grouping, groups size large than 100000 : 0
+178 195 244 247 310 493 835 1233 1293 1305 
+>>> The number of groups in this step: 1335585
+>>> Top 10 largest group size is: 
+1305 1293 1233 835 493 310 247 244 195 178 
+==================
+
+ROUND 1
+ >>> Total groups in this round BEFORE second group: 1161628
+Groups larger than 100000 : 0
+Top 10 largest group size is: 
+ >>> Total groups in this round AFTER second group: 1161628
+After second grouping, groups size large than 100000 : 0
+1182 1207 1287 1292 1305 1488 1641 2657 6824 9814 
+>>> The number of groups in this step: 1161628
+>>> Top 10 largest group size is: 
+9814 6824 2657 1641 1488 1305 1292 1287 1207 1182 
+==================
+
+ROUND 2
+ >>> Total groups in this round BEFORE second group: 1032702
+Groups larger than 100000 : 1
+Top 10 largest group size is: 139444 
+ >>> Total groups in this round AFTER second group: 1169726
+After second grouping, groups size large than 100000 : 0
+439 459 472 529 537 554 605 614 705 1305 
+>>> The number of groups in this step: 1169726
+>>> Top 10 largest group size is: 
+1305 705 614 605 554 537 529 472 459 439 
+==================
+
+ROUND 3
+ >>> Total groups in this round BEFORE second group: 1008393
+Groups larger than 100000 : 0
+Top 10 largest group size is: 
+ >>> Total groups in this round AFTER second group: 1008393
+After second grouping, groups size large than 100000 : 0
+628 630 712 768 795 824 1151 1305 1626 87158 
+>>> The number of groups in this step: 1008393
+>>> Top 10 largest group size is: 
+87158 1626 1305 1151 824 795 768 712 630 628 
+==================
+
+ROUND 4
+ >>> Total groups in this round BEFORE second group: 893751
+Groups larger than 100000 : 1
+Top 10 largest group size is: 328848 
+ >>> Total groups in this round AFTER second group: 1211743
+After second grouping, groups size large than 100000 : 0
+216 219 226 236 251 261 267 317 731 1305 
+>>> The number of groups in this step: 1211743
+>>> Top 10 largest group size is: 
+1305 731 317 267 261 251 236 226 219 216 
+==================
+
+ROUND 5
+ >>> Total groups in this round BEFORE second group: 1012809
+Groups larger than 100000 : 0
+Top 10 largest group size is: 
+ >>> Total groups in this round AFTER second group: 1012809
+After second grouping, groups size large than 100000 : 0
+662 780 827 838 1077 1084 1149 1197 1305 45810 
+>>> The number of groups in this step: 1012809
+>>> Top 10 largest group size is: 
+45810 1305 1197 1149 1084 1077 838 827 780 662 
+==================
+
+ROUND 6
+ >>> Total groups in this round BEFORE second group: 886522
+Groups larger than 100000 : 1
+Top 10 largest group size is: 282292 
+ >>> Total groups in this round AFTER second group: 1160467
+After second grouping, groups size large than 100000 : 0
+193 197 200 201 202 223 228 248 288 1305 
+>>> The number of groups in this step: 1160467
+>>> Top 10 largest group size is: 
+1305 288 248 228 223 202 201 200 197 193 
+==================
+
+ROUND 7
+ >>> Total groups in this round BEFORE second group: 966487
+Groups larger than 100000 : 0
+Top 10 largest group size is: 
+ >>> Total groups in this round AFTER second group: 966487
+After second grouping, groups size large than 100000 : 0
+550 598 773 1156 1305 1381 1467 1561 2212 63733 
+>>> The number of groups in this step: 966487
+>>> Top 10 largest group size is: 
+63733 2212 1561 1467 1381 1305 1156 773 598 550 
+==================
+
+ROUND 8
+ >>> Total groups in this round BEFORE second group: 842709
+Groups larger than 100000 : 1
+Top 10 largest group size is: 350909 
+ >>> Total groups in this round AFTER second group: 1181455
+After second grouping, groups size large than 100000 : 0
+177 180 181 186 190 229 232 289 534 1305 
+>>> The number of groups in this step: 1181455
+>>> Top 10 largest group size is: 
+1305 534 289 232 229 190 186 181 180 177 
+==================
+
+ROUND 9
+ >>> Total groups in this round BEFORE second group: 976647
+Groups larger than 100000 : 0
+Top 10 largest group size is: 
+ >>> Total groups in this round AFTER second group: 976647
+After second grouping, groups size large than 100000 : 0
+514 581 581 633 654 786 795 876 1305 58840 
+>>> The number of groups in this step: 976647
+>>> Top 10 largest group size is: 
+58840 1305 876 795 786 654 633 581 581 514 
+==================
+
+ROUND 10
+ >>> Total groups in this round BEFORE second group: 849581
+Groups larger than 100000 : 1
+Top 10 largest group size is: 319657 
+ >>> Total groups in this round AFTER second group: 1159129
+After second grouping, groups size large than 100000 : 0
+230 234 236 255 260 330 330 343 447 1305 
+>>> The number of groups in this step: 1159129
+>>> Top 10 largest group size is: 
+1305 447 343 330 330 260 255 236 234 230 
+==================
+
+ROUND 11
+ >>> Total groups in this round BEFORE second group: 958002
+Groups larger than 1000000 : 0
+Top 10 largest group size is: 
+ >>> Total groups in this round AFTER second group: 958002
+After second grouping, groups size large than 1000000 : 0
+780 811 820 856 873 897 1288 1305 1547 63129 
+>>> The number of groups in this step: 958002
+>>> Top 10 largest group size is: 
+63129 1547 1305 1288 897 873 856 820 811 780 
+==================
+
+ROUND 12
+ >>> Total groups in this round BEFORE second group: 831400
+Groups larger than 1000000 : 0
+Top 10 largest group size is: 
+ >>> Total groups in this round AFTER second group: 831400
+After second grouping, groups size large than 1000000 : 0
+166 166 166 173 182 206 235 267 1305 349514 
+>>> The number of groups in this step: 831400
+>>> Top 10 largest group size is: 
+349514 1305 267 235 206 182 173 166 166 166 
+==================
+
+ROUND 13
+ >>> Total groups in this round BEFORE second group: 737398
+Groups larger than 1000000 : 0
+Top 10 largest group size is: 
+ >>> Total groups in this round AFTER second group: 737398
+After second grouping, groups size large than 1000000 : 0
+96 97 99 101 102 114 123 133 1305 549607 
+>>> The number of groups in this step: 737398
+>>> Top 10 largest group size is: 
+549607 1305 133 123 114 102 101 99 97 96 
+==================
+
+ROUND 14
+ >>> Total groups in this round BEFORE second group: 662570
+Groups larger than 1000000 : 0
+Top 10 largest group size is: 
+>>> The number of groups in this step: 662570
+>>> Top 10 largest group size is: 
+698061 1305 136 115 95 88 87 83 82 81 
+==================
+
+81
+82
+83
+87
+88
+95
+115
+136
+1305
+698061
+Total Group Nums: 662570

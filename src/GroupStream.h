@@ -9,7 +9,7 @@ extern unordered_map<uint64_t, string> fa_map;
 class GroupStream {
 public:
 	UnionFind uf;
-	UnionFind temp_uf;
+	//	UnionFind temp_uf;
 	int items;
 	int M;
 	int R = 1;
@@ -24,24 +24,25 @@ public:
 	vector<Data> hash_vec;
 	string folder_name = "nr-15/";
 
-//	vector<GroupNode> id_root_map;
+	//	vector<GroupNode> id_root_map;
 	vector<int> id_root_map;
+	vector<int> temp_id_root_map;
 	// 存储seq-id到root-id的映射
-	vector<uint64_t> seq_ids; 
+	vector<uint64_t> seq_ids;
 	// 存储序列在hash-vec里的顺序和读入顺序的映射
 
 	cluster cluster_cdhit;
 
-	GroupStream(int n, int m, int r, int l) : uf(n), temp_uf(n), items(n), R(r), L(l), M(m) {
+	GroupStream(int n, int m, int r, int l) : uf(n), items(n), R(r), L(l), M(m) {
 		resize(items);
 	}
 
-	GroupStream(int n) : uf(n), temp_uf(n),items(n) { resize(items); }
+	GroupStream(int n) : uf(n), items(n) { resize(items); }
 
 	void setIDs(const vector<uint64_t>& seq_ids) {
 		this->seq_ids = seq_ids;
 	}
-	
+
 
 	void setClusterOn() { cluster_on = true; }
 	void setClusterCondition(int conditon) { cluster_condition = conditon; }
@@ -54,14 +55,15 @@ public:
 	void resize(int n) {
 		hash_vec.resize(items);
 		id_root_map.resize(items, -1);
-		for(auto& data : hash_vec)
+		temp_id_root_map.resize(items, -1);
+		for (auto& data : hash_vec)
 			data.value.resize(L * R);
 	}
 	void Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map);
 	// grouping sequences with m hash-functions
 
 	void Unite(vector<Data> dataList, UnionFind& uf);
- 	// use unionfind to unite group results by per column
+	// use unionfind to unite group results by per column
 	void Sort(vector<Data>& dataList);
 	// sort hash-vec by value 1.used for fast unite; 2.used for constructing GroupResMap
 	void GroupByCol(vector<Data>& hash_vec, UnionFind& uf);
@@ -70,17 +72,17 @@ public:
 	void fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m);
 	// construct a sorted struct Data(hash-vec) for a column of hash-funtions(vec)
 	void fillHashVec_R2(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m);
-	void countGroupSize(UnionFind& uf,int m,vector<vector<uint64_t>>& hashes);
+	void countGroupSize(UnionFind& uf, int m, vector<vector<uint64_t>>& hashes);
 	void countGroupSizeBySort(UnionFind& uf);
-	
-	void getGroupMap(UnionFind& uf,unordered_map<int, vector<int>>& group_map);
+
+	void getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& group_map);
 	//unordered_map<int, vector<int>> getGroupMap();
 
 	void clusterEachGroup(vector<int>& seq_ids);
 
 	void tempOutput(vector<vector<int>>& cluster_sequences);
 
-	void SecondGroup(vector<int>& group_seqs, int m,const vector<vector<uint64_t>>& vec);
+	void SecondGroup(vector<int>& group_seqs, int m, const vector<vector<uint64_t>>& vec);
 
 	void SecondUpdate(vector<int>& group_seqs);
 };

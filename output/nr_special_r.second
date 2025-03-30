@@ -1,0 +1,18 @@
+==========Paramters==========
+Threads: 48
+K: 8
+M: 15
+R: 1
+Min_len: 50
+Similarity Threshold:0.9
+Input: ../../nr.fa
+==========End Paramters==========
+Start Building sketches!
+Sketching time: 1689
+Total number of seqs: 284763149
+Generated Map Size: 0
+Start grouping!
+ROUND 0
+ >>> Total groups in this round BEFORE second group: 61547829
+Groups larger than 100000 : 4
+Top 10 largest group size is: 225083 222136 219375 145122 
