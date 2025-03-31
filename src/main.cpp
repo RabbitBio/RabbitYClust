@@ -26,7 +26,7 @@ KSEQ_INIT(gzFile, gzread)
 std::mutex mtx1;
 std::mutex mtx2;
 std::atomic<int> num_seqs(0);
-
+unordered_map<int, string> id_to_name;
 vector<vector<uint64_t>> hashes;
 vector<uint64_t> seq_ids;
 // yy add for cluster
@@ -45,6 +45,7 @@ struct compare {
 void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, int min_len) {
     while (true) {
         std::string sequence;
+		std::string name;
         int seq_id;
 
 		{
@@ -53,7 +54,7 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 				if (length < 0) break;
 				if (length < min_len) continue;
 				sequence = ks->seq.s;//direct copy?
-				
+				name=ks->name.s;
 //				cout << ks->name.s << " " << seq_id << endl;
 		}
 
@@ -72,6 +73,7 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 		{
 				std::lock_guard<std::mutex> lock(mtx2);
 				seq_id = num_seqs.fetch_add(1);
+				id_to_name[seq_id] = name;
 				hashes.emplace_back(sketch.hashes);
 				seq_ids.emplace_back(seq_id);
 		}
@@ -81,6 +83,7 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, int min_len) {
     while (true) {
         std::string sequence;
+		std::string name;
         int seq_id;
 		{
 				std::lock_guard<std::mutex> lock(mtx1);
@@ -88,7 +91,7 @@ void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_
 				if (length < 0) break;
 				if (length < min_len) continue;
 				sequence = ks->seq.s;//direct copy?
-				
+				name=ks->name.s;
 	//			cout << ks->name.s << " " << seq_id << endl;
 		}
 
@@ -112,6 +115,7 @@ void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_
 		{
 				std::lock_guard<std::mutex> lock(mtx2);
 				seq_id = num_seqs.fetch_add(1);
+				id_to_name[seq_id] = name;
 				hashes.emplace_back(sketch.hashes);
 				seq_ids.emplace_back(seq_id);
 				fa_map.emplace(seq_id, sequence);
@@ -247,43 +251,49 @@ int main(int argc, char* argv[])
 	//输出每个seq和他的root
 	cout.rdbuf(origin_cout);
 // 打印代表序列
-//	int name_pos = filename.find('.');
-//	string rep_name = filename.substr(0, name_pos) + ".rep";
-//	ofstream rep_file(rep_name);
-//	vector<int> rep_ids;
+int name_pos = filename.find('.');
+string rep_name = filename.substr(0, name_pos) + ".rep";
+ofstream rep_file(rep_name);
+vector<int> rep_ids;
 
-	string folder_name = "test-output";
+string folder_name = "test-output";
 //	priority_queue<int, std::vector<int>, std::greater<int>> minHeap;
-	priority_queue<pair<int,int>, std::vector<pair<int, int>>, compare> minHeap;
-	int max_group_Size = 0;
-	for(const auto& pair : group_map) {
+priority_queue<pair<int,int>, std::vector<pair<int, int>>, compare> minHeap;
+int max_group_Size = 0;
+int count=0;
+ofstream result_file("result.txt");
+for(const auto& pair : group_map) {
 /**
- * 把含有多个序列的类输出用cdhit聚类
-		if(pair.second.size() > 1) {
-			string file_name = folder_name + "/" + to_string(pair.first) + ".fa";
-			ofstream out_file(file_name);
-			for(int id : pair.second) {
-				out_file << ">" << id << endl;
-				out_file << fa_map[id]  << endl;
-			}
-			out_file.close();
+* 把含有多个序列的类输出用cdhit聚类
+	if(pair.second.size() > 1) {
+		string file_name = folder_name + "/" + to_string(pair.first) + ".fa";
+		ofstream out_file(file_name);
+		for(int id : pair.second) {
+			out_file << ">" << id << endl;
+			out_file << fa_map[id]  << endl;
 		}
-**/
-		// 输出rep
-		//rep_ids.emplace_back(pair.first);
-        minHeap.push({pair.second.size(), pair.first});
-        if (minHeap.size() > 10) {
-            minHeap.pop(); // 保持堆的大小为 10
-        }
-//		打印id-rootid
-//		for(const auto& node : pair.second)
-//			cout << node << " " << pair.first << endl;
+		out_file.close();
 	}
-
+**/
+	// 输出rep
+	
+	result_file << ">Cluster " << count << endl;
+	rep_ids.emplace_back(pair.first);
+	minHeap.push({pair.second.size(), pair.first});
+	if (minHeap.size() > 10) {
+		minHeap.pop(); // 保持堆的大小为 10
+	}
+//		打印id-rootid
+	int index = 0;
+	for(const auto& node : pair.second)
+	result_file << index++ << "\t" << '>'<<id_to_name[node] << endl;  // 序号和序列 ID
+	count++;
+}
+result_file.close();
 //	输出代表序列
-//	std::copy(rep_ids.begin(), rep_ids.end(), std::ostream_iterator<int>(rep_file, "\n"));
+std::copy(rep_ids.begin(), rep_ids.end(), std::ostream_iterator<int>(rep_file, "\n"));
 
-	while(!minHeap.empty()){
+while(!minHeap.empty()){
 //		string file_name = "nr/" + to_string(minHeap.top().second) + ".fa";
 //		cout << "results output to: " << file_name << endl;
 //		ofstream ofile(file_name);
@@ -293,11 +303,11 @@ int main(int argc, char* argv[])
 //			ofile << fa_map[i] << endl;
 //		}
 //		ofile.close();
-		cerr << minHeap.top().first << endl;
-		minHeap.pop();
-	}
+	cerr << minHeap.top().first << endl;
+	minHeap.pop();
+}
 
-	cerr << "Total Group Nums: " << group_map.size() << endl;
-	return 0;
-	
+cerr << "Total Group Nums: " << group_map.size() << endl;
+return 0;
+
 }

@@ -432,7 +432,7 @@ void GroupStream::SecondGroup(vector<int>& group_seqs, int m, const vector<vecto
 		int id = group_seqs[i];
 		temp_hash_vec[i].id = id;
 		temp_hash_vec[i].value.resize(2);    // 因为你 copy 了 2 个元素 // 似乎这一句不需要
-		copy(hashes[seq_ids[i]].begin() + m, hashes[seq_ids[i]].begin() + m + 2, temp_hash_vec[i].value.begin());
+		copy(hashes[id].begin() + m, hashes[id].begin() + m + 2, temp_hash_vec[i].value.begin());
 	}
 	Sort(temp_hash_vec);
 	Unite(temp_hash_vec, uf);
