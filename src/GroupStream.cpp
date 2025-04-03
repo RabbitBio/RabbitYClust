@@ -64,15 +64,15 @@ void GroupStream::GroupByCol(vector<Data>& hash_vec, UnionFind& uf) {
 	Sort(hash_vec);
 	auto sort_end_time = chrono::high_resolution_clock::now();
 	auto sort_duration = chrono::duration_cast<chrono::seconds>(sort_end_time - sort_start_time).count();
-	cout << "sort time: "<< sort_duration << endl;
+	cerr << "sort time: "<< sort_duration << endl;
 	auto union_start_time = chrono::high_resolution_clock::now();
 	Unite(hash_vec, uf);
 	auto union_end_time = chrono::high_resolution_clock::now();
 	auto union_duration = chrono::duration_cast<chrono::seconds>(union_end_time - union_start_time).count();
-	cout << "union time: " << " is " << union_duration << endl;
+	cerr << "union time: " << " is " << union_duration << endl;
 
 	int groups_size = uf.countSetsSize();
-	cout << "Group Size is " << groups_size << endl;
+	cerr << "Group Size is " << groups_size << endl;
 #else
 	Sort(hash_vec);
 	Unite(hash_vec, uf);
@@ -210,7 +210,7 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 	if(slide) {
 		for(int m=0; m < M-R+1; m++){
 			cerr << "round "<<  m << endl;
-			fillHashVec(hashes, hash_vec, m * L);
+			fillHashVec(hashes, hash_vec, m);
 			GroupByCol(hash_vec, uf);
 			if(m == M - R) {
 				setClusterCondition(1);
@@ -220,14 +220,14 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 	}else{
 		for(int m=0; m < M / R; m++){
 			cerr << "round "<<  m << endl;
-			fillHashVec(hashes, hash_vec, m * R * L);
+			fillHashVec(hashes, hash_vec, m );
 			GroupByCol(hash_vec, uf);
 			countGroupSize(uf);
 		}
 		if(M % R != 0){
 			cerr << "round "<<  M / R;
 			setR(M % R);
-			fillHashVec(hashes, hash_vec, (M/R) * R * L );
+			fillHashVec(hashes, hash_vec, (M/R));
 			GroupByCol(hash_vec, uf);
 			countGroupSize(uf);
 		}
