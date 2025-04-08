@@ -186,9 +186,9 @@ int main(int argc, char* argv[])
 //	ostringstream seq_id_name;
 //	seq_id_name << "k" << k << "m" << m << "seq-id.txt";
 //	ofstream seq_id(seq_id_name.str());
-	ofstream seq_id("sequence-id.txt");
-	streambuf* origin_cout = cout.rdbuf();
-	cout.rdbuf(seq_id.rdbuf());
+//	ofstream seq_id("sequence-id.txt");
+//	streambuf* origin_cout = cout.rdbuf();
+//	cout.rdbuf(seq_id.rdbuf());
 
 
 	cerr << "Start Building sketches!" << endl;
@@ -226,6 +226,7 @@ int main(int argc, char* argv[])
 	GroupStream gs(num_seqs.load(), m, r, 1);
 	gs.setIDs(seq_ids);
 	gs.setNumThreads(num_threads);
+	gs.setRepOn();
 	if(cluster_on) {
 		gs.setClusterOn();
 	}
@@ -235,7 +236,7 @@ int main(int argc, char* argv[])
 	gs.Group(hashes, group_map);
 
 	//输出每个seq和他的root
-	cout.rdbuf(origin_cout);
+//	cout.rdbuf(origin_cout);
 // 打印代表序列
 //	int name_pos = filename.find('.');
 //	string rep_name = filename.substr(0, name_pos) + ".rep";

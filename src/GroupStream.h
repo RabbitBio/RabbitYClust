@@ -13,7 +13,7 @@ public:
 	int M;
 	int R = 1;
 	int L = 1;
-	int cluster_condition = 200;
+	int cluster_condition = 500;
 	int num_threads = 8;
 	bool slide = true;
 	bool cluster_on = false;
@@ -21,7 +21,7 @@ public:
 	vector<Data> hash_vec;
 	string folder_name = "nr-15/";
 
-//	vector<GroupNode> id_root_map;
+	//	vector<GroupNode> id_root_map;
 	vector<int> id_root_map;
 	// 存储seq-id到root-id的映射
 	vector<uint64_t> seq_ids; 
@@ -30,6 +30,7 @@ public:
 	cluster cluster_cdhit;
 
 	GroupStream(int n, int m, int r, int l) : uf(n), items(n), R(r), L(l), M(m) {
+		valid_items = n;
 		resize(items);
 	}
 
@@ -39,6 +40,16 @@ public:
 		this->seq_ids = seq_ids;
 	}
 	
+	int valid_items;
+	int total_clusters;
+	int redundant_seqs;
+	bool rep_on = false;
+	vector<bool> valid_seqs;
+	void setRepOn(){
+		rep_on = true;
+		valid_seqs = vector<bool>(items, true);
+	}
+	void setValidStatus(vector<int>& group_seqs);
 
 	void setClusterOn() { cluster_on = true; }
 	void setClusterCondition(int conditon) { cluster_condition = conditon; }
@@ -56,7 +67,7 @@ public:
 	void Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map);
 	// grouping sequences with m hash-functions
 
-	void Unite(vector<Data> dataList, UnionFind& uf);
+	void Unite(const vector<Data>& dataList, UnionFind& uf);
  	// use unionfind to unite group results by per column
 	void Sort(vector<Data>& dataList);
 	// sort hash-vec by value 1.used for fast unite; 2.used for constructing GroupResMap

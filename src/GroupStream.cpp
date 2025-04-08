@@ -70,17 +70,21 @@ void GroupStream::Sort(vector<Data>& dataList){
 //	sort(dataList.begin(), dataList.end(), [](const Data& a, const Data& b){
 //		return a.value < b.value;
 //		});
-	sort(dataList.begin(), dataList.end(), compareByHash);
+		//sort(dataList.begin(), dataList.end(), compareByHash);
+		//cerr << valid_items << "!!!" << endl;
+		sort(dataList.begin(), dataList.begin() + valid_items, compareByHash);
 #endif
 }
 
-void GroupStream::Unite(vector<Data> dataList, UnionFind& uf) {
+void GroupStream::Unite(const vector<Data>& dataList, UnionFind& uf) {
 #ifdef VERBOSE
 	int count = 1;
 #endif
 	vector<uint64_t> cur_value = dataList[0].value;
 	int cur_head = dataList[0].id;
-	for (const auto& data : dataList) {
+	//for (const auto& data : dataList) {
+	for (int i = 0; i < valid_items; i++) {
+		auto data = dataList[i];
 		if(data.value == cur_value) {
 			uf.unite(data.id, cur_head);
 		}else{
@@ -134,10 +138,23 @@ void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>&
 //        hash_vec[i].value = vec[i];
 //    }
 //	cerr << m << " " << m*L << " " << m * L + R << endl; 
-	for (int i = 0; i < items; i++) {
-		//hash_vec[i].id = i;
-		hash_vec[i].id = seq_ids[i];
-		copy(vec[i].begin() + m * L, vec[i].begin() + m * L + R * L, hash_vec[i].value.begin());
+	if(rep_on){
+		valid_items = 0;
+		for (int i = 0; i < items; i++) {
+			if(valid_seqs[i]){
+				hash_vec[valid_items].id = seq_ids[i];
+				copy(vec[i].begin() + m * L, vec[i].begin() + m * L + R * L, hash_vec[valid_items].value.begin());
+				valid_items++;
+			}
+		}
+		cerr << valid_items << " valid items in round " << m << endl;
+	}else{
+		for (int i = 0; i < items; i++) {
+			//hash_vec[i].id = i;
+			hash_vec[i].id = seq_ids[i];
+			copy(vec[i].begin() + m * L, vec[i].begin() + m * L + R * L, hash_vec[i].value.begin());
+		}
+		cerr << valid_items << " valid items in round " << m << endl;
 	}
 
 // 3. memory alignment and memcpy
@@ -168,8 +185,14 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 // FIXME:用map来统计还是排序后统计
 // 1.用map来统计分组结果 增加内存 只遍历一次
 	unordered_map<int, vector<int>> map;
-	for(int i = 0; i < items; i++) {
-		map[id_root_map[i]].push_back(i);
+	if(rep_on){
+		for(int i = 0; i < items; i++) {
+			map[id_root_map[i]].push_back(i);
+		}
+	}else{
+		for(int i = 0; i < items; i++) {
+			map[id_root_map[i]].push_back(i);
+		}
 	}
 
 	if(cluster_on) {
@@ -190,12 +213,21 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 		}
 		cerr << endl;
 
+		total_clusters = 0;
+		redundant_seqs = 0;
 		//#pragma omp parallel for num_threads(num_threads)
 		for(int i = 0; i < cluster_sequences.size(); i++) {
-			cerr << i << " is doing cluster " << cluster_sequences[i].size() << " sequences" << endl;
+			//cerr << i << " is doing cluster " << cluster_sequences[i].size() << " sequences" << endl;
 			clusterEachGroup(cluster_sequences[i]);
 		}
-		uf.updateParent(id_root_map);
+		if(rep_on){
+			//uf.updateValidParent(id_root_map, valid_seqs);
+			uf.updateParent(id_root_map);
+			cerr << "聚类了 " << total_clusters << " 个类" << endl;
+			cerr << "共去除了冗余序列 " << redundant_seqs - total_clusters << "条" << endl;
+		}else{
+			uf.updateParent(id_root_map);
+		}
 
 		unordered_map<int, vector<int>> map_after_cluster;
 		priority_queue<int, vector<int>, greater<int>> minHeap;
@@ -286,7 +318,7 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 	if(slide) {
 		for(int m=0; m < M-R+1; m++){
 			cerr << "round "<<  m << endl;
-			fillHashVec(hashes, hash_vec, m * L);
+			fillHashVec(hashes, hash_vec, m);
 			GroupByCol(hash_vec, uf);
 			if(m == M-R) {
 				temp_output_on = true;
@@ -296,14 +328,14 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 	}else{
 		for(int m=0; m < M / R; m++){
 			cerr << "round "<<  m << endl;
-			fillHashVec(hashes, hash_vec, m * R * L);
+			fillHashVec(hashes, hash_vec, m * R);
 			GroupByCol(hash_vec, uf);
 			countGroupSize(uf);
 		}
 		if(M % R != 0){
 			cerr << "round "<<  M / R;
 			setR(M % R);
-			fillHashVec(hashes, hash_vec, (M/R) * R * L );
+			fillHashVec(hashes, hash_vec, (M/R) * R);
 			GroupByCol(hash_vec, uf);
 			countGroupSize(uf);
 		}
@@ -321,9 +353,35 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 
 void GroupStream::clusterEachGroup(vector<int>& group_seqs){
 	vector<Sequence_new> sequences;
-	for(int i = 0; i < group_seqs.size(); i++) {
-		sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]].c_str());
+	if(rep_on){
+		for(int i = 0; i < group_seqs.size(); i++) {
+			if(valid_seqs[group_seqs[i]]){
+				sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]].c_str());
+			}
+		}
+	}else{
+		for(int i = 0; i < group_seqs.size(); i++) {
+			sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]].c_str());
+		}
 	}
 	//读取FAI获取data
 	cluster_cdhit.cdhit_cluster(sequences, id_root_map);
+
+	//从中挑选出代表序列作为以后分组和聚类的唯一代表
+	if(rep_on){
+		redundant_seqs += sequences.size();
+		setValidStatus(group_seqs);
+	}
+}
+
+void GroupStream::setValidStatus(vector<int>& group_seqs){
+	for(int seq : group_seqs){
+		if(!valid_seqs[seq]) continue;
+		if(seq != id_root_map[seq]){
+			valid_seqs[seq] = false;
+		}else{
+			total_clusters++;
+		}
+
+	}
 }
