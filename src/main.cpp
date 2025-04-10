@@ -30,7 +30,7 @@ std::atomic<int> num_seqs(0);
 vector<vector<uint64_t>> hashes;
 vector<uint64_t> seq_ids;
 // yy add for cluster
-bool cluster_on = false;
+//bool cluster_on = false;
 unordered_map<uint64_t, uint64_t> fai_map;
 unordered_map<uint64_t, string> fa_map;
 int64_t pos = 0;
@@ -70,6 +70,7 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 	
 		{
 				std::lock_guard<std::mutex> lock(mtx2);
+//				seq_id = num_seqs.fetch_add(1);
 				hashes.emplace_back(sketch.hashes);
 				seq_ids.emplace_back(seq_id);
 		}
@@ -109,12 +110,38 @@ void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_
 	
 		{
 				std::lock_guard<std::mutex> lock(mtx2);
+	//			seq_id = num_seqs.fetch_add(1);
 				hashes.emplace_back(sketch.hashes);
 				seq_ids.emplace_back(seq_id);
 				fa_map.emplace(seq_id, sequence);
 		}
 	}
 }
+
+void reorderRowsSwap(vector<vector<uint64_t>>& matrix, vector<uint64_t>& indices) {
+    size_t n = matrix.size();
+    if (n != indices.size() || n == 0) return;
+
+    for (size_t i = 0; i < n; ++i) {
+		if(i == indices[i]) continue;
+
+        uint64_t curr_pos = i;          // 当前行索引（uint64_t 类型）
+        uint64_t next_pos = indices[static_cast<size_t>(curr_pos)];  // 下一个位置
+
+        while (next_pos != curr_pos) {
+				// 交换 matrix 的行指针
+				swap(matrix[static_cast<size_t>(curr_pos)], matrix[static_cast<size_t>(next_pos)]);
+				uint64_t finised_pos = next_pos;
+				next_pos = indices[static_cast<size_t>(next_pos)];
+				indices[static_cast<size_t>(finised_pos)] = finised_pos;
+
+		}
+
+		indices[i] = i;
+	}
+}
+
+
 
 int main(int argc, char* argv[])
 {
@@ -147,8 +174,15 @@ int main(int argc, char* argv[])
 	auto option_block = app.add_flag("-b, --block-on", block_on, "If this flat is enabled, sort in block mode. eg. m cols unites m / r times");
 	option_block->needs("-r");
 
-	cluster_on = false;
+	bool cluster_on = false;
 	auto option_cluster = app.add_flag("-c, --cluster", cluster_on, "If this flat is enabled, clustering during the grouping");
+
+	bool rep_on = false;
+	auto option_rep = app.add_flag("--rep-on, --choose-representative", rep_on, "If this flat is enabled, only use representative sequences during the grouping and clustering");
+
+	bool reorder_on = false;
+	auto option_reorder = app.add_flag("--reorder-on, --reorderSequences", reorder_on, "If this flat is enabled, reorder sketch vector by the sequence index read order");
+
 
 	CLI11_PARSE(app, argc, argv);
 
@@ -209,6 +243,9 @@ int main(int argc, char* argv[])
         t.join();
     }
     
+	if(reorder_on){
+		reorderRowsSwap(hashes, seq_ids);
+	}
 
 	auto generation_end = chrono::high_resolution_clock::now();
 	auto generation_duration = chrono::duration_cast<chrono::seconds>(generation_end - generation_start).count();
@@ -226,7 +263,9 @@ int main(int argc, char* argv[])
 	GroupStream gs(num_seqs.load(), m, r, 1);
 	gs.setIDs(seq_ids);
 	gs.setNumThreads(num_threads);
-	gs.setRepOn();
+	if(rep_on) {
+		gs.setRepOn();
+	}
 	if(cluster_on) {
 		gs.setClusterOn();
 	}

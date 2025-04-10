@@ -71,7 +71,6 @@ void GroupStream::Sort(vector<Data>& dataList){
 //		return a.value < b.value;
 //		});
 		//sort(dataList.begin(), dataList.end(), compareByHash);
-		//cerr << valid_items << "!!!" << endl;
 		sort(dataList.begin(), dataList.begin() + valid_items, compareByHash);
 #endif
 }
@@ -82,7 +81,6 @@ void GroupStream::Unite(const vector<Data>& dataList, UnionFind& uf) {
 #endif
 	vector<uint64_t> cur_value = dataList[0].value;
 	int cur_head = dataList[0].id;
-	//for (const auto& data : dataList) {
 	for (int i = 0; i < valid_items; i++) {
 		auto data = dataList[i];
 		if(data.value == cur_value) {
@@ -137,11 +135,10 @@ void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>&
 //        hash_vec[i].id = i;
 //        hash_vec[i].value = vec[i];
 //    }
-//	cerr << m << " " << m*L << " " << m * L + R << endl; 
 	if(rep_on){
 		valid_items = 0;
 		for (int i = 0; i < items; i++) {
-			if(valid_seqs[i]){
+			if(valid_seqs[seq_ids[i]]){
 				hash_vec[valid_items].id = seq_ids[i];
 				copy(vec[i].begin() + m * L, vec[i].begin() + m * L + R * L, hash_vec[valid_items].value.begin());
 				valid_items++;
@@ -196,6 +193,7 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 	}
 
 	if(cluster_on) {
+		int seqs_count = 0;
 		vector<vector<int>> cluster_sequences;
 		for(auto &[key, seqs] : map){
 			if(seqs.size() > cluster_condition) {
@@ -246,6 +244,7 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 			if (minHeap.size() > 10){
 				 minHeap.pop();
 			}
+
 		}
 		cerr << "After clustering, clusters size large than " << cluster_condition << " : "<< largethan1w << endl;
 		while(!minHeap.empty()){
@@ -376,7 +375,10 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs){
 
 void GroupStream::setValidStatus(vector<int>& group_seqs){
 	for(int seq : group_seqs){
-		if(!valid_seqs[seq]) continue;
+		if(!valid_seqs[seq]){
+			continue;
+		}
+
 		if(seq != id_root_map[seq]){
 			valid_seqs[seq] = false;
 		}else{
