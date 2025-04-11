@@ -3,7 +3,7 @@
 Options options;
 //SequenceDB seq_db;
 
-void cluster::cdhit_cluster(std::vector<Sequence_new>& seq, std::vector<int>& parent)
+void cluster::cdhit_cluster(std::vector<Sequence_new>& seq, std::vector<int>& parent,int need_thread)
 {
 
 //	Options options;
@@ -28,8 +28,13 @@ void cluster::cdhit_cluster(std::vector<Sequence_new>& seq, std::vector<int>& pa
     seq_db.Readvector(seq, options);
 
     seq_db.SortDivide(options);
-
-    seq_db.DoClustering(options);
+    if(need_thread==1){
+        seq_db.DoClustering(options);
+    }
+    else{
+        seq_db.DoClustering(need_thread,options);
+    }
+   
 
 	seq_db.updateParent(parent);
 }

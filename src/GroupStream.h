@@ -14,8 +14,8 @@ public:
 	int M;
 	int R = 1;
 	int L = 1;
-	int cluster_condition = 200;
-	int second_condition = 100000;
+	int cluster_condition = 1000;
+	int second_condition = 10000;
 	int num_threads = 8;
 	bool slide = true;
 	bool cluster_on = false;
@@ -23,7 +23,30 @@ public:
 	bool second_group = false;
 	vector<Data> hash_vec;
 	string folder_name = "nr-15/";
+	struct Task {
+		std::vector<std::vector<int>> task_cluster;
+		int required_threads;
+		Task() = default;
+		Task(const std::vector<std::vector<int>>& _cluster, int _threads)
+		: task_cluster(_cluster), required_threads(_threads) {}
+	
 
+	};
+	// struct Task {
+	// 	std::vector<std::vector<int>> task_cluster;
+	// 	int total_required_threads;
+	// 	int block_required_threads;
+	// 	int cdhit_required_threads;
+	// 	Task() = default;
+	// 	Task(const std::vector<std::vector<int>> &_cluster,
+	// 		int _total, int _block, int _cdhit)
+	// 	   : task_cluster(_cluster),
+	// 		 total_required_threads(_total),
+	// 		 block_required_threads(_block),
+	// 		 cdhit_required_threads(_cdhit) {}
+	
+
+	// };
 	//	vector<GroupNode> id_root_map;
 	vector<int> id_root_map;
 	vector<int> temp_id_root_map;
@@ -74,11 +97,10 @@ public:
 	void fillHashVec_R2(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m);
 	void countGroupSize(UnionFind& uf, int m, vector<vector<uint64_t>>& hashes);
 	void countGroupSizeBySort(UnionFind& uf);
-
 	void getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& group_map);
 	//unordered_map<int, vector<int>> getGroupMap();
 
-	void clusterEachGroup(vector<int>& seq_ids);
+	void clusterEachGroup(vector<int>& seq_ids,int need_thread);
 
 	void tempOutput(vector<vector<int>>& cluster_sequences);
 

@@ -3896,11 +3896,11 @@ void SequenceDB::DoClustering(const Options& options)
 #endif
 
 // yy add multi-thread for huge clusters
-	if (sequences.size() > 100000) {
-		DoClustering(4, options);
-		temp_files.Clear();
-		return;
-	}
+	// if (sequences.size() > 100000) {
+	// 	DoClustering(4, options);
+	// 	temp_files.Clear();
+	// 	return;
+	// }
 //	if (options.threads > 1) {
 //		DoClustering(options.threads, options);
 //		temp_files.Clear();

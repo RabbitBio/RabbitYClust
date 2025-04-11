@@ -338,7 +338,7 @@ struct Options
 		NAA_top_limit = 5;
 		cluster_thd = 0.9;
 		distance_thd = 0.0;
-		max_memory = 800000000;
+		max_memory = 0;
 		min_length = 10;
 		cluster_best = false;
 		global_identity = true;

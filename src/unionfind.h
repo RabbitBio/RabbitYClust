@@ -8,7 +8,20 @@
 #include <numeric> //iota
 #include <algorithm>
 #include <variant>
-
+#include <queue>
+#include <thread>
+#include <atomic>
+#include <mutex>
+#include <condition_variable>
+#include <functional>
+#include <semaphore.h>
+#include <omp.h>
+#include <stdio.h>
+#include <atomic>
+#include <vector>
+#include <thread>
+#include <chrono>
+#include<sys/time.h>
 using namespace std;
 
 struct Data {

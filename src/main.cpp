@@ -92,7 +92,10 @@ void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_
 				if (length < min_len) continue;
 				sequence = ks->seq.s;//direct copy?
 				name=ks->name.s;
-	//			cout << ks->name.s << " " << seq_id << endl;
+				// cout << ks->name.s << endl;
+				// cout << ks->seq.s << endl;
+				// if(seq_id==100000)
+				// exit(0);
 		}
 
 		// FIXME: store char* for simply using cdhit to cluster
