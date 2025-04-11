@@ -16,12 +16,20 @@ if(USE_TIMING)
 	set(CMAKE_CXX_FLAGS "-D TIMING ${CMAKE_CXX_FLAGS}")
 endif() 
 
+
 find_package(OpenMP REQUIRED)
 
 aux_source_directory(src DIR_SRCS)
 aux_source_directory(src/aahash DIR_SRCS)
 
 add_executable(yclust ${DIR_SRCS})
+
+# 启用线程池
+option(ENABLE_THREAD_POOL "Enable thread pool support" OFF)
+if(ENABLE_THREAD_POOL)
+	message(STATUS "Thread pool enabled")
+	target_compile_definitions(yclust PRIVATE THREAD_POOL)
+endif()
 
 # 将 OpenMP 链接到目标
 if(OpenMP_CXX_FOUND)

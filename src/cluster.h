@@ -12,5 +12,6 @@ public:
 	}
 
 	void cdhit_cluster(std::vector<Sequence_new>& seq, std::vector<int>& parent);
+	void cdhit_cluster(std::vector<Sequence_new>& seq, std::vector<int>& parent, int neededThread);
 };
 #endif

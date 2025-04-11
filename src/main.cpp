@@ -183,6 +183,8 @@ int main(int argc, char* argv[])
 	bool reorder_on = false;
 	auto option_reorder = app.add_flag("--reorder-on, --reorderSequences", reorder_on, "If this flat is enabled, reorder sketch vector by the sequence index read order");
 
+	bool threadPool_on = false;
+	auto option_thead_pool = app.add_flag("--thread-pool, --open-thread-pool", threadPool_on, "If this flat is enabled, use thread pool to allocate threads");
 
 	CLI11_PARSE(app, argc, argv);
 
@@ -265,6 +267,9 @@ int main(int argc, char* argv[])
 	gs.setNumThreads(num_threads);
 	if(rep_on) {
 		gs.setRepOn();
+	}
+	if(threadPool_on) {
+		gs.setThreadPool();
 	}
 	if(cluster_on) {
 		gs.setClusterOn();

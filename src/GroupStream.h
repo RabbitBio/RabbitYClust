@@ -6,6 +6,13 @@
 
 extern unordered_map<uint64_t, string> fa_map;
 
+struct Task {
+	vector<vector<int>> task_cluster;
+	int required_threads;
+	Task() = default;
+	Task(const vector<vector<int>>& _cluster, int _threads)
+ 		: task_cluster(_cluster), required_threads(_threads) {}
+};
 class GroupStream {
 public:
 	UnionFind uf;
@@ -13,10 +20,11 @@ public:
 	int M;
 	int R = 1;
 	int L = 1;
-	int cluster_condition = 500;
+	int cluster_condition = 2000;
 	int num_threads = 8;
 	bool slide = true;
 	bool cluster_on = false;
+	bool threadPool_on = false;
 	bool temp_output_on = false;
 	vector<Data> hash_vec;
 	string folder_name = "nr-15/";
@@ -51,6 +59,7 @@ public:
 	}
 	void setValidStatus(vector<int>& group_seqs);
 
+	void setThreadPool() { threadPool_on = true; }
 	void setClusterOn() { cluster_on = true; }
 	void setClusterCondition(int conditon) { cluster_condition = conditon; }
 	void setSlideOff(){ slide = false; }
@@ -84,6 +93,7 @@ public:
 	//unordered_map<int, vector<int>> getGroupMap();
 
 	void clusterEachGroup(vector<int>& seq_ids);
+	void clusterEachGroup(vector<int>& seq_ids, int neededThread);
 
 	void tempOutput(vector<vector<int>>& cluster_sequences);
 };

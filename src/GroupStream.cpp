@@ -3,6 +3,7 @@
 #include <omp.h>
 #include <thread>
 #include <algorithm>
+#include <atomic>
 
 struct minheapcompare {
 	bool operator()(const pair<int, int> &a, const pair<int, int> &b) {
@@ -182,14 +183,9 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 // FIXME:用map来统计还是排序后统计
 // 1.用map来统计分组结果 增加内存 只遍历一次
 	unordered_map<int, vector<int>> map;
-	if(rep_on){
-		for(int i = 0; i < items; i++) {
-			map[id_root_map[i]].push_back(i);
-		}
-	}else{
-		for(int i = 0; i < items; i++) {
-			map[id_root_map[i]].push_back(i);
-		}
+
+	for(int i = 0; i < items; i++) {
+		map[id_root_map[i]].push_back(i);
 	}
 
 	if(cluster_on) {
@@ -213,10 +209,109 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 
 		total_clusters = 0;
 		redundant_seqs = 0;
-		//#pragma omp parallel for num_threads(num_threads)
-		for(int i = 0; i < cluster_sequences.size(); i++) {
-			//cerr << i << " is doing cluster " << cluster_sequences[i].size() << " sequences" << endl;
-			clusterEachGroup(cluster_sequences[i]);
+
+		if(threadPool_on){
+			std::atomic<int> thread_pool;
+		 	int TOTAL_THREADS;
+		 	#pragma omp parallel 
+		 	#pragma omp single
+		 	TOTAL_THREADS=num_threads;
+		    thread_pool = TOTAL_THREADS;
+		 	omp_set_num_threads(TOTAL_THREADS);
+		 	omp_set_nested(1);
+		 	vector<Task> tasks;
+		
+	
+			vector<vector<int>> temp_cluster_sequences;
+	 		vector<int>temp_temp_cluster_sequences;
+	 		int count=0;
+	 		for(int i=0;i<cluster_sequences.size();i++){
+	 			if (cluster_sequences[i].size()>1000000)
+				{
+					tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]},16);
+				}
+				else
+				{
+					if(cluster_sequences[i].size()<100000){
+						temp_temp_cluster_sequences.insert(
+								temp_temp_cluster_sequences.end(),
+								cluster_sequences[i].begin(),
+								cluster_sequences[i].end()
+								);
+						if(temp_temp_cluster_sequences.size()>=100000){
+							temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
+							temp_temp_cluster_sequences.clear();
+							count++;
+							if(count >=1){
+								tasks.emplace_back(temp_cluster_sequences,1);
+								count=0;
+								temp_cluster_sequences.clear();
+							}
+						}
+					} else{
+						temp_cluster_sequences.emplace_back(cluster_sequences[i]);
+						count++;
+						if(count >=1){
+								tasks.emplace_back(temp_cluster_sequences,1);
+								count=0;
+								temp_cluster_sequences.clear();
+						}
+					}
+				}
+	
+			}
+			if(!temp_temp_cluster_sequences.empty()){
+				temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
+			}
+			if (!temp_cluster_sequences.empty())
+			{
+				tasks.emplace_back(temp_cluster_sequences, 1);
+			}
+			cerr<<"--------------------------"<<endl;
+			cerr<<"task size      "<<tasks.size()<<endl;
+#pragma omp parallel
+{
+#pragma omp single
+{
+			for (auto& task : tasks) {
+#pragma omp task firstprivate(task)
+{
+				// // 等待足够的线程资源
+				while (true) {
+					int available = thread_pool.load(std::memory_order_relaxed);
+					if (available >= task.required_threads) {
+						int prev = thread_pool.fetch_sub(task.required_threads, std::memory_order_acquire);
+						if (prev >= task.required_threads) break;
+						thread_pool.fetch_add(task.required_threads, std::memory_order_release);
+					}
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				}
+	
+				// 执行任务
+	
+				for(int i=0;i<task.task_cluster.size();i++){
+					clusterEachGroup(task.task_cluster[i],task.required_threads);
+	
+				}
+				// 释放线程资源
+				thread_pool.fetch_add(task.required_threads, std::memory_order_release);
+				// cerr<<"thread_pool     "<<thread_pool<<endl;
+}
+			}
+	
+#pragma omp taskwait
+			printf("All tasks complete.\n");
+}
+}
+//		double t1=Gettime_ms();
+//		cerr<<"Total time   "<<t1-t0<<endl;
+
+		}else{
+			//#pragma omp parallel for num_threads(num_threads)
+			for(int i = 0; i < cluster_sequences.size(); i++) {
+					//cerr << i << " is doing cluster " << cluster_sequences[i].size() << " sequences" << endl;
+					clusterEachGroup(cluster_sequences[i]);
+			}
 		}
 		if(rep_on){
 			//uf.updateValidParent(id_root_map, valid_seqs);
@@ -230,9 +325,6 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 		unordered_map<int, vector<int>> map_after_cluster;
 		priority_queue<int, vector<int>, greater<int>> minHeap;
 
-//		if(temp_output_on) {
-//			thread output_thread(temp_output_on, ref(cluster_sequences));
-//		}
 		for(int i = 0; i < items; i++) {
 			map_after_cluster[id_root_map[i]].push_back(i);
 		}
@@ -367,6 +459,27 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs){
 	cluster_cdhit.cdhit_cluster(sequences, id_root_map);
 
 	//从中挑选出代表序列作为以后分组和聚类的唯一代表
+	if(rep_on){
+		redundant_seqs += sequences.size();
+		setValidStatus(group_seqs);
+	}
+}
+void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
+	vector<Sequence_new> sequences;
+	if(rep_on){
+		for(int i = 0; i < group_seqs.size(); i++) {
+			if(valid_seqs[group_seqs[i]]){
+				sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]].c_str());
+			}
+		}
+	}else{
+		for(int i = 0; i < group_seqs.size(); i++) {
+			sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]].c_str());
+		}
+	}
+
+	//读取FAI获取data
+	cluster_cdhit.cdhit_cluster(sequences, id_root_map, neededThread);
 	if(rep_on){
 		redundant_seqs += sequences.size();
 		setValidStatus(group_seqs);
