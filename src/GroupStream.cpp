@@ -238,7 +238,7 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 								cluster_sequences[i].begin(),
 								cluster_sequences[i].end()
 								);
-						if(temp_temp_cluster_sequences.size()>=100000){
+						if(temp_temp_cluster_sequences.size()>=1000){
 							temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
 							temp_temp_cluster_sequences.clear();
 							count++;
@@ -313,14 +313,11 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 					clusterEachGroup(cluster_sequences[i]);
 			}
 		}
-		if(rep_on){
-			//uf.updateValidParent(id_root_map, valid_seqs);
+//		if(rep_on){
+//			cerr << "聚类了 " << total_clusters << " 个类" << endl;
+//			cerr << "共去除了冗余序列 " << redundant_seqs - total_clusters << "条" << endl;
+//		}
 			uf.updateParent(id_root_map);
-			cerr << "聚类了 " << total_clusters << " 个类" << endl;
-			cerr << "共去除了冗余序列 " << redundant_seqs - total_clusters << "条" << endl;
-		}else{
-			uf.updateParent(id_root_map);
-		}
 
 		unordered_map<int, vector<int>> map_after_cluster;
 		priority_queue<int, vector<int>, greater<int>> minHeap;
@@ -440,6 +437,9 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 #else
 	getGroupMap(uf, group_map);
 #endif
+	if(output_on) {
+		outputClstr();
+	}
 }
 
 void GroupStream::clusterEachGroup(vector<int>& group_seqs){
@@ -494,9 +494,22 @@ void GroupStream::setValidStatus(vector<int>& group_seqs){
 
 		if(seq != id_root_map[seq]){
 			valid_seqs[seq] = false;
-		}else{
-			total_clusters++;
 		}
+//		}else{
+//			total_clusters++;
+//		}
 
 	}
+}
+
+void GroupStream::outputClstr() {
+	ofstream seq_id("yclust-res.txt");
+	streambuf* origin_cout = cout.rdbuf();
+	cout.rdbuf(seq_id.rdbuf());
+
+	uf.findRoot(id_root_map);
+	for(int i = 0; i < items; i++) {
+		cout << ">" << names[i] << " " << ">" << names[id_root_map[i]] << endl;
+	}
+	cout.rdbuf(origin_cout);
 }

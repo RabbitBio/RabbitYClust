@@ -29,6 +29,7 @@ std::atomic<int> num_seqs(0);
 
 vector<vector<uint64_t>> hashes;
 vector<uint64_t> seq_ids;
+vector<string> names;
 // yy add for cluster
 //bool cluster_on = false;
 unordered_map<uint64_t, uint64_t> fai_map;
@@ -81,6 +82,7 @@ void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_
     while (true) {
         std::string sequence;
         int seq_id;
+		string name;
 		{
 				std::lock_guard<std::mutex> lock(mtx1);
 				int length = kseq_read(ks);
@@ -88,6 +90,7 @@ void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_
 				if (length < min_len) continue;
 				sequence = ks->seq.s;//direct copy?
 				seq_id = num_seqs.fetch_add(1);
+				name = ks->name.s;
 	//			cout << ks->name.s << " " << seq_id << endl;
 		}
 
@@ -114,6 +117,7 @@ void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_
 				hashes.emplace_back(sketch.hashes);
 				seq_ids.emplace_back(seq_id);
 				fa_map.emplace(seq_id, sequence);
+				names.emplace_back(name);
 		}
 	}
 }
@@ -185,6 +189,9 @@ int main(int argc, char* argv[])
 
 	bool threadPool_on = false;
 	auto option_thead_pool = app.add_flag("--thread-pool, --open-thread-pool", threadPool_on, "If this flat is enabled, use thread pool to allocate threads");
+
+	bool output_on = false;
+	auto option_output_on = app.add_flag("-o, --output", output_on, "If this flat is enabled, the top 10 largest clusters suquences content will be written into the output files");
 
 	CLI11_PARSE(app, argc, argv);
 
@@ -274,6 +281,9 @@ int main(int argc, char* argv[])
 	if(cluster_on) {
 		gs.setClusterOn();
 	}
+	if(output_on) {
+		gs.setOutputOn();
+	}
 	if(block_on) 
 		gs.setSlideOff();
 	unordered_map<int, vector<int>> group_map;
@@ -319,15 +329,17 @@ int main(int argc, char* argv[])
 //	std::copy(rep_ids.begin(), rep_ids.end(), std::ostream_iterator<int>(rep_file, "\n"));
 
 	while(!minHeap.empty()){
-//		string file_name = "nr/" + to_string(minHeap.top().second) + ".fa";
-//		cout << "results output to: " << file_name << endl;
-//		ofstream ofile(file_name);
-//		int rootid = minHeap.top().second;
-//		for(int i : group_map[rootid]) {
-//			ofile << ">" << i << endl;
-//			ofile << fa_map[i] << endl;
-//		}
-//		ofile.close();
+		if(output_on) {
+			string file_name = "output/" + to_string(minHeap.top().second) + ".fa";
+			cerr << "results output to: " << file_name << endl;
+			ofstream ofile(file_name);
+			int rootid = minHeap.top().second;
+			for(int i : group_map[rootid]) {
+				ofile << ">" << names[i] << endl;
+				ofile << fa_map[i] << endl;
+			}
+			ofile.close();
+		}
 		cerr << minHeap.top().first << endl;
 		minHeap.pop();
 	}

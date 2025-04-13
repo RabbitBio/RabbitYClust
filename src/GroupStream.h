@@ -5,6 +5,7 @@
 #include "cluster.h"
 
 extern unordered_map<uint64_t, string> fa_map;
+extern vector<string> names;
 
 struct Task {
 	vector<vector<int>> task_cluster;
@@ -20,12 +21,13 @@ public:
 	int M;
 	int R = 1;
 	int L = 1;
-	int cluster_condition = 2000;
+	int cluster_condition = 500;
 	int num_threads = 8;
 	bool slide = true;
 	bool cluster_on = false;
 	bool threadPool_on = false;
 	bool temp_output_on = false;
+	bool output_on = false;
 	vector<Data> hash_vec;
 	string folder_name = "nr-15/";
 
@@ -59,6 +61,7 @@ public:
 	}
 	void setValidStatus(vector<int>& group_seqs);
 
+	void setOutputOn() { output_on = true; }
 	void setThreadPool() { threadPool_on = true; }
 	void setClusterOn() { cluster_on = true; }
 	void setClusterCondition(int conditon) { cluster_condition = conditon; }
@@ -96,5 +99,7 @@ public:
 	void clusterEachGroup(vector<int>& seq_ids, int neededThread);
 
 	void tempOutput(vector<vector<int>>& cluster_sequences);
+
+	void outputClstr();
 };
 #endif
