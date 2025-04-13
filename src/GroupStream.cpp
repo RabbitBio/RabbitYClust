@@ -238,7 +238,7 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 								cluster_sequences[i].begin(),
 								cluster_sequences[i].end()
 								);
-						if(temp_temp_cluster_sequences.size()>=1000){
+						if(temp_temp_cluster_sequences.size()>=100000){
 							temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
 							temp_temp_cluster_sequences.clear();
 							count++;
@@ -503,7 +503,7 @@ void GroupStream::setValidStatus(vector<int>& group_seqs){
 }
 
 void GroupStream::outputClstr() {
-	ofstream seq_id("yclust-res.txt");
+	ofstream seq_id(res_file);
 	streambuf* origin_cout = cout.rdbuf();
 	cout.rdbuf(seq_id.rdbuf());
 

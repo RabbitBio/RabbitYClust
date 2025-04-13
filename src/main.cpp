@@ -190,8 +190,8 @@ int main(int argc, char* argv[])
 	bool threadPool_on = false;
 	auto option_thead_pool = app.add_flag("--thread-pool, --open-thread-pool", threadPool_on, "If this flat is enabled, use thread pool to allocate threads");
 
-	bool output_on = false;
-	auto option_output_on = app.add_flag("-o, --output", output_on, "If this flat is enabled, the top 10 largest clusters suquences content will be written into the output files");
+	bool top10_on = false;
+	auto option_output = app.add_option("-o, --output", res_file, "If this flat is enabled, the top 10 largest clusters suquences content will be written into the output files");
 
 	CLI11_PARSE(app, argc, argv);
 
@@ -281,8 +281,9 @@ int main(int argc, char* argv[])
 	if(cluster_on) {
 		gs.setClusterOn();
 	}
-	if(output_on) {
-		gs.setOutputOn();
+	if(res_file != "") {
+		gs.setOutput(res_file);
+		top10_on = true;
 	}
 	if(block_on) 
 		gs.setSlideOff();
@@ -329,7 +330,7 @@ int main(int argc, char* argv[])
 //	std::copy(rep_ids.begin(), rep_ids.end(), std::ostream_iterator<int>(rep_file, "\n"));
 
 	while(!minHeap.empty()){
-		if(output_on) {
+		if(top10_on) {
 			string file_name = "output/" + to_string(minHeap.top().second) + ".fa";
 			cerr << "results output to: " << file_name << endl;
 			ofstream ofile(file_name);

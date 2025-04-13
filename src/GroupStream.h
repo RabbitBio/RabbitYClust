@@ -28,6 +28,7 @@ public:
 	bool threadPool_on = false;
 	bool temp_output_on = false;
 	bool output_on = false;
+	string res_file = "";
 	vector<Data> hash_vec;
 	string folder_name = "nr-15/";
 
@@ -61,7 +62,10 @@ public:
 	}
 	void setValidStatus(vector<int>& group_seqs);
 
-	void setOutputOn() { output_on = true; }
+	void setOutput(string res_file_name) {
+		output_on = true; 
+		res_file = res_file_name;
+}
 	void setThreadPool() { threadPool_on = true; }
 	void setClusterOn() { cluster_on = true; }
 	void setClusterCondition(int conditon) { cluster_condition = conditon; }
