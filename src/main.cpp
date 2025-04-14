@@ -32,6 +32,7 @@ vector<uint64_t> seq_ids;
 // yy add for cluster
 bool cluster_on = false;
 bool second_group = false;
+bool thread_pool = false;
 unordered_map<uint64_t, uint64_t> fai_map;
 unordered_map<uint64_t, string> fa_map;
 int64_t pos = 0;
@@ -148,6 +149,7 @@ int main(int argc, char* argv[])
 	auto option_input = app.add_option("-i, --input", filename, "input file name, fasta or gziped fasta formats");
 	auto option_r = app.add_option("-r, --r-size", r, "set the number of block");
 
+
 	option_input->required();
 
 	bool xxhash_flag = false;
@@ -163,6 +165,8 @@ int main(int argc, char* argv[])
 	second_group = false;
 	auto option_second = app.add_flag("-S, --second", second_group, "If this flat is enabled, second grouping during the grouping");
 
+	thread_pool = false;
+	auto option_thread_pool = app.add_flag("-T, --thread_pool", thread_pool,"If this flat is enabled, open thread pool grouping during the grouping");
 
 	CLI11_PARSE(app, argc, argv);
 
@@ -247,6 +251,9 @@ int main(int argc, char* argv[])
 		gs.setSlideOff();
 	if (second_group) {
 		gs.setSecondGroup();
+	}
+	if (thread_pool) {
+		gs.setthreadpool();
 	}
 	unordered_map<int, vector<int>> group_map;
 	gs.Group(hashes, group_map);

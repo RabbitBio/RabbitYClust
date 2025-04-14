@@ -14,11 +14,12 @@ public:
 	int M;
 	int R = 1;
 	int L = 1;
-	int cluster_condition = 1000;
+	int cluster_condition = 200;
 	int second_condition = 10000;
 	int num_threads = 8;
 	bool slide = true;
 	bool cluster_on = false;
+	bool thread_pool = false;
 	bool temp_output_on = false;
 	bool second_group = false;
 	vector<Data> hash_vec;
@@ -71,6 +72,7 @@ public:
 	void setClusterCondition(int conditon) { cluster_condition = conditon; }
 	void setSlideOff() { slide = false; }
 	void setSecondGroup() { second_group = true; }
+	void setthreadpool() { thread_pool = true; }
 	void setM(int m) { M = m; }
 	void setR(int r) { R = r; }
 	void setL(int l) { L = l; }
@@ -101,11 +103,12 @@ public:
 	//unordered_map<int, vector<int>> getGroupMap();
 
 	void clusterEachGroup(vector<int>& seq_ids,int need_thread);
+	void no_thread_clusterEachGroup(vector<int>& seq_ids);
 
 	void tempOutput(vector<vector<int>>& cluster_sequences);
 
 	void SecondGroup(vector<int>& group_seqs, int m, const vector<vector<uint64_t>>& vec);
-
+	void use_thread_pool(vector<vector<int>>& cluster_sequences);
 	void SecondUpdate(vector<int>& group_seqs);
 };
 #endif
