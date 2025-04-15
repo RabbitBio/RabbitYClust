@@ -213,8 +213,6 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 		if(threadPool_on){
 			std::atomic<int> thread_pool;
 		 	int TOTAL_THREADS;
-		 	#pragma omp parallel 
-		 	#pragma omp single
 		 	TOTAL_THREADS=num_threads;
 		    thread_pool = TOTAL_THREADS;
 		 	omp_set_num_threads(TOTAL_THREADS);
@@ -408,8 +406,9 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 			cerr << "round "<<  m << endl;
 			fillHashVec(hashes, hash_vec, m);
 			GroupByCol(hash_vec, uf);
-			if(m == M-R) {
-				temp_output_on = true;
+			if(m == M-R && final_cluster_on) {
+				cluster_condition = 1;
+				rep_on = false;
 			}
 			countGroupSize(uf);
 		}
@@ -444,7 +443,7 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 
 void GroupStream::clusterEachGroup(vector<int>& group_seqs){
 	vector<Sequence_new> sequences;
-	if(rep_on){
+	if(rep_on && group_seqs.size() > cluster_condition ){
 		for(int i = 0; i < group_seqs.size(); i++) {
 			if(valid_seqs[group_seqs[i]]){
 				sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]].c_str());
@@ -466,7 +465,7 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs){
 }
 void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
 	vector<Sequence_new> sequences;
-	if(rep_on){
+	if(rep_on && group_seqs.size() > cluster_condition){
 		for(int i = 0; i < group_seqs.size(); i++) {
 			if(valid_seqs[group_seqs[i]]){
 				sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]].c_str());
@@ -481,7 +480,7 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
 	//读取FAI获取data
 	cluster_cdhit.cdhit_cluster(sequences, id_root_map, neededThread);
 	if(rep_on){
-		redundant_seqs += sequences.size();
+//		redundant_seqs += sequences.size();
 		setValidStatus(group_seqs);
 	}
 }

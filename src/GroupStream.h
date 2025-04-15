@@ -21,13 +21,15 @@ public:
 	int M;
 	int R = 1;
 	int L = 1;
-	int cluster_condition = 500;
+	int cluster_condition = 2000;
 	int num_threads = 8;
 	bool slide = true;
 	bool cluster_on = false;
 	bool threadPool_on = false;
 	bool temp_output_on = false;
 	bool output_on = false;
+	bool final_cluster_on = false;
+	bool small_data_merge_cluster_on = false;
 	string res_file = "";
 	vector<Data> hash_vec;
 	string folder_name = "nr-15/";
@@ -65,7 +67,10 @@ public:
 	void setOutput(string res_file_name) {
 		output_on = true; 
 		res_file = res_file_name;
-}
+	}
+
+	void setSmallDataMergeClusterOn() { small_data_merge_cluster_on = true; }
+	void setFinalClusterOn() { final_cluster_on = true; }
 	void setThreadPool() { threadPool_on = true; }
 	void setClusterOn() { cluster_on = true; }
 	void setClusterCondition(int conditon) { cluster_condition = conditon; }
