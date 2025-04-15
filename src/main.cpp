@@ -135,6 +135,7 @@ void reorderRowsSwap(vector<vector<uint64_t>>& matrix, vector<uint64_t>& indices
         while (next_pos != curr_pos) {
 				// 交换 matrix 的行指针
 				swap(matrix[static_cast<size_t>(curr_pos)], matrix[static_cast<size_t>(next_pos)]);
+				swap(names[static_cast<size_t>(curr_pos)], names[static_cast<size_t>(next_pos)]);
 				uint64_t finised_pos = next_pos;
 				next_pos = indices[static_cast<size_t>(next_pos)];
 				indices[static_cast<size_t>(finised_pos)] = finised_pos;
@@ -184,8 +185,8 @@ int main(int argc, char* argv[])
 	bool rep_on = false;
 	auto option_rep = app.add_flag("--rep-on, --choose-representative", rep_on, "If this flat is enabled, only use representative sequences during the grouping and clustering");
 
-	bool reorder_on = false;
-	auto option_reorder = app.add_flag("--reorder-on, --reorderSequences", reorder_on, "If this flat is enabled, reorder sketch vector by the sequence index read order");
+	bool reorder_off = true;
+	auto option_reorder = app.add_flag("--reorder-on, --reorderSequences", reorder_off, "If this flat is enabled, reorder sketch vector by the sequence index read order");
 
 	bool threadPool_on = false;
 	auto option_thead_pool = app.add_flag("--thread-pool, --open-thread-pool", threadPool_on, "If this flat is enabled, use thread pool to allocate threads");
@@ -252,7 +253,7 @@ int main(int argc, char* argv[])
         t.join();
     }
     
-	if(reorder_on){
+	if(!reorder_off){
 		reorderRowsSwap(hashes, seq_ids);
 	}
 
