@@ -183,8 +183,14 @@ void GroupStream::use_thread_pool(vector<vector<int>>& cluster_sequences){
 		for(int i=0;i<cluster_sequences.size();i++){
 			if (cluster_sequences[i].size()>100000)
 			{
-				if(cluster_sequences[i].size()>1000000){
+				if(cluster_sequences[i].size()>=1000000){
 					tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]},16);
+				}
+				else if(cluster_sequences[i].size()>=500000&&cluster_sequences[i].size()<1000000){
+					tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]},8);
+				}
+				else if(cluster_sequences[i].size()>=500000&&cluster_sequences[i].size()<10000000){
+					tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]},32);
 				}
 				else{
 					tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]},4);
@@ -194,14 +200,14 @@ void GroupStream::use_thread_pool(vector<vector<int>>& cluster_sequences){
 			// else if(cluster_sequences[i].size()<1000)
 			else
 			{
-					if(cluster_sequences[i].size()<10000){
+					if(cluster_sequences[i].size()<50000){
 						temp_temp_cluster_sequences.insert(
 							temp_temp_cluster_sequences.end(),
 							cluster_sequences[i].begin(),
 							cluster_sequences[i].end()
 						);
 						// cerr<<"temp_temp_cluster_sequences size    "<<temp_temp_cluster_sequences.size()<<endl;
-						if(temp_temp_cluster_sequences.size()>=10000){
+						if(temp_temp_cluster_sequences.size()>=50000){
 							temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
 							temp_temp_cluster_sequences.clear();
 							count++;

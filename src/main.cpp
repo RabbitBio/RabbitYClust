@@ -13,7 +13,7 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
-
+#include<sys/time.h>
 #include "GroupStream.h"
 
 #define BUFFER_SIZE (1<<20 * sizeof(char))
@@ -107,7 +107,7 @@ void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_
 		KHFMinHash mh;
 		mh.setK(k);
 		mh.setM(m);
-
+		
 		if (xxhash_flag)
 				mh.buildSketch(sequence.c_str());
 		else
