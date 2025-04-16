@@ -115,8 +115,12 @@ void GroupStream::GroupByCol(vector<Data>& hash_vec, UnionFind& uf) {
 	int groups_size = uf.countSetsSize();
 	cout << "Group Size is " << groups_size << endl;
 #else
+	auto timestart = chrono::high_resolution_clock::now();
 	Sort(hash_vec);
 	Unite(hash_vec, uf);
+	auto timeend = chrono::high_resolution_clock::now();
+	auto duration = chrono::duration_cast<chrono::seconds>(timeend - timestart).count();
+	cerr << "sort and unite time: " << duration << endl;
 #endif
 #ifdef VERBOSE
 	int groups_size = uf.countSetsSize();
@@ -267,6 +271,7 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 			}
 			cerr<<"--------------------------"<<endl;
 			cerr<<"task size      "<<tasks.size()<<endl;
+			auto timestart = chrono::high_resolution_clock::now();
 #pragma omp parallel
 {
 #pragma omp single
@@ -301,6 +306,9 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 			printf("All tasks complete.\n");
 }
 }
+			auto timeend = chrono::high_resolution_clock::now();
+			auto duration = chrono::duration_cast<chrono::seconds>(timeend - timestart).count();
+			cerr << "cdhit cluster time: " << duration << endl;
 //		double t1=Gettime_ms();
 //		cerr<<"Total time   "<<t1-t0<<endl;
 
