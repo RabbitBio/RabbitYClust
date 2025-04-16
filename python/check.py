@@ -49,6 +49,20 @@ def read_yclust_res(filepath):
 #    return dict(result),reversed_result 
     return reversed_result
 
+# 读取linclust分组结果
+from collections import defaultdict
+def read_linclust_res(filepath):
+    reversed_result = {}
+#    result = defaultdict(list)  # 自动初始化空列表作为值
+    with open(filepath, 'r') as file:
+        for line in file.readlines():
+            line = line.strip().split()
+            if line:
+                reversed_result[line[1]] = line[0]
+    print(f'read {len(reversed_result)} sequences from linclust results', file=sys.stderr)
+#    return dict(result),reversed_result 
+    return reversed_result
+
 from collections import defaultdict
 def parse_yclust_res(filepath):
     result = defaultdict(list)  # 自动初始化空列表作为值
@@ -59,8 +73,19 @@ def parse_yclust_res(filepath):
                 result[line[1][1:]].append(line[0][1:])  # 自动处理键不存在的情况
     parse_clust_res(result)
 
+from collections import defaultdict
+def parse_linclust_res(filepath):
+    result = defaultdict(list)  # 自动初始化空列表作为值
+    with open(filepath, 'r') as file:
+        for line in file.readlines():
+            line = line.strip().split()
+            if line:
+                result[line[0]].append(line[1])  # 自动处理键不存在的情况
+    parse_clust_res(result)
+
+
 def parse_clust_res(result):
-    print(f'read {len(dict(result))} clusters from yclust results')
+    print(f'read {len(dict(result))} clusters from results')
     lt1w=0
     lt2k=0
     lt1k=0
@@ -148,10 +173,13 @@ if num_arguments==1 :
     parse_yclust_res(yclust_path)
 else:
     cdhit_path = sys.argv[1]
-    yclust_path = sys.argv[2]
+    clust_path = sys.argv[2]
+    if clust_path.endswith(".tsv"):
+        clust_dict = read_linclust_res(clust_path)
+    else:
+        clust_dict = read_yclust_res(clust_path)
     cdhit_dict = read_clstr(cdhit_path)
-    yclust_dict = read_yclust_res(yclust_path)
-    find_different_groups(cdhit_dict, yclust_dict)
+    find_different_groups(cdhit_dict, clust_dict)
 
 
 
