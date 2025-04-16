@@ -50,6 +50,49 @@ def read_yclust_res(filepath):
     return reversed_result
 
 from collections import defaultdict
+def parse_yclust_res(filepath):
+    result = defaultdict(list)  # 自动初始化空列表作为值
+    with open(filepath, 'r') as file:
+        for line in file.readlines():
+            line = line.strip().split()
+            if line:
+                result[line[1][1:]].append(line[0][1:])  # 自动处理键不存在的情况
+    parse_clust_res(result)
+
+def parse_clust_res(result):
+    print(f'read {len(dict(result))} clusters from yclust results')
+    lt1w=0
+    lt2k=0
+    lt1k=0
+    lt100=0
+    lt10=0
+    lt1=0
+    only1=0
+    for rep, seqs in dict(result).items():
+        length = len(seqs)
+        if length > 10000:
+            lt1w+=1
+        elif length > 2000:
+            lt2k+=1
+        elif length > 1000:
+            lt1k+=1
+        elif length > 100:
+            lt100+=1
+        elif length > 10:
+            lt10+=1
+        elif length > 1:
+            lt1+=1
+        else:
+            only1+=1
+    print(f'large than 10000 {lt1w}')
+    print(f'large than 2000 {lt2k}')
+    print(f'large than 1000 {lt1k}')
+    print(f'large than 100 {lt100}')
+    print(f'large than 10 {lt10}')
+    print(f'large than 1 {lt1}')
+    print(f'only 1 {only1}')
+
+from collections import defaultdict
 # 求被拆开分到不同组的类的个数
 def cross_group_consistency(dictA, dictB):
     commons = set(dictA.keys()).intersection(dictB.keys())
@@ -84,6 +127,7 @@ def identify_disjoint_elements(dictA, dictB):
 def find_different_groups(dictA, dictB):
     different_res = 0
     commons = set(dictA.keys()).intersection(dictB.keys())
+    print(f'common seqs: {len(commons)}')
     for seq, rep in dictA.items():
         if seq not in commons or rep not in commons:
             continue
@@ -98,11 +142,16 @@ def get_list_from_dict(dict):
 
 import sys
 import struct
-cdhit_path = sys.argv[1]
-yclust_path = sys.argv[2]
-cdhit_dict = read_clstr(cdhit_path)
-yclust_dict = read_yclust_res(yclust_path)
-find_different_groups(cdhit_dict, yclust_dict)
+num_arguments=len(sys.argv)-1
+if num_arguments==1 :
+    yclust_path = sys.argv[1]
+    parse_yclust_res(yclust_path)
+else:
+    cdhit_path = sys.argv[1]
+    yclust_path = sys.argv[2]
+    cdhit_dict = read_clstr(cdhit_path)
+    yclust_dict = read_yclust_res(yclust_path)
+    find_different_groups(cdhit_dict, yclust_dict)
 
 
 
