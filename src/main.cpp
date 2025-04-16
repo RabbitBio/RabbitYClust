@@ -182,19 +182,23 @@ int main(int argc, char* argv[])
 	bool cluster_on = false;
 	auto option_cluster = app.add_flag("-c, --cluster", cluster_on, "If this flat is enabled, clustering during the grouping");
 
-	bool rep_on = false;
-	auto option_rep = app.add_flag("--rep-on, --choose-representative", rep_on, "If this flat is enabled, only use representative sequences during the grouping and clustering");
+	bool rep_group_on = false;
+	auto option_rep_group = app.add_flag("--rep-g, --use-representatives-grouping", rep_group_on, "If this flag is enabled, only use representative sequences during the grouping");
 
-	bool reorder_off = true;
-	auto option_reorder = app.add_flag("--reorder-on, --reorderSequences", reorder_off, "If this flat is enabled, reorder sketch vector by the sequence index read order");
+	bool rep_cluster_on = false;
+	auto option_rep_cluster = app.add_flag("--rep-c, --use-representatives-clustering", rep_cluster_on, "If this flag is enabled, only use representative sequences during the grouping and clustering");
+	option_rep_cluster->needs("--rep-g");
 
-	bool threadPool_on = false;
-	auto option_thead_pool = app.add_flag("--thread-pool, --open-thread-pool", threadPool_on, "If this flat is enabled, use thread pool to allocate threads");
+	bool reorder_off = false;
+	auto option_reorder = app.add_flag("--reorder-off, --reorderSequences", reorder_off, "If this flat is enabled, reorder sketch vector by the sequence index read order");
+
+	bool threadPool_off = false;
+	auto option_thead_pool = app.add_flag("--threadpool-off, --open-thread-pool", threadPool_off, "If this flat is enabled, disable thread pool to allocate threads");
 
 	bool final_cluster_on = false;
 	auto option_final_cluster = app.add_flag("-f, --enable-final-cluster", final_cluster_on, "If this flat is enabled, cluster all sequences at the last grouping");
 
-	bool top10_on = false;
+	bool top_on = false;
 	auto option_output = app.add_option("-o, --output", res_file, "If this flat is enabled, the top 10 largest clusters suquences content will be written into the output files");
 
 	CLI11_PARSE(app, argc, argv);
@@ -213,6 +217,26 @@ int main(int argc, char* argv[])
 	cerr << "Min_len: " << min_len << endl;
 	cerr << "Similarity Threshold:" << similarity << endl;
 	cerr << "Input: " << filename << endl;
+	if(rep_group_on) {
+		if(rep_cluster_on) {
+			//cerr << "only use representatives in clustering and grouping" << endl;
+			cerr << "分组和聚类阶段均只考虑代表序列" << endl;
+		}else{
+			//cerr << "only use representatives in grouping" << endl;
+			cerr << "分组阶段只考虑代表序列" << endl;
+		}
+	}
+	if(reorder_off) {
+		cerr << "关闭了重新排序" << endl;
+	}else{
+		cerr << "对所有序列按照输入顺序排序" << endl;
+	}
+	if(!threadPool_off) {
+		cerr << "use thread pool when clustering" << endl;
+	}
+	if(final_cluster_on) {
+		cerr << "Clustering all groups in the last round" << endl;
+	}
 	cerr << "==========End Paramters==========" << endl;
 
 
@@ -276,10 +300,14 @@ int main(int argc, char* argv[])
 	GroupStream gs(num_seqs.load(), m, r, 1);
 	gs.setIDs(seq_ids);
 	gs.setNumThreads(num_threads);
-	if(rep_on) {
-		gs.setRepOn();
+	if(rep_group_on) {
+		if(rep_cluster_on) {
+			gs.setRepGroupAndClusterOn();
+		}else{
+			gs.setRepGroupOn();
+		}
 	}
-	if(threadPool_on) {
+	if(!threadPool_off) {
 		gs.setThreadPool();
 	}
 	if(cluster_on) {
@@ -287,7 +315,7 @@ int main(int argc, char* argv[])
 	}
 	if(res_file != "") {
 		gs.setOutput(res_file);
-		top10_on = true;
+		top_on = true;
 	}
 	if(final_cluster_on) {
 		gs.setFinalClusterOn();
@@ -325,8 +353,8 @@ int main(int argc, char* argv[])
 		// 输出rep
 		//rep_ids.emplace_back(pair.first);
         minHeap.push({pair.second.size(), pair.first});
-        if (minHeap.size() > 10) {
-            minHeap.pop(); // 保持堆的大小为 10
+        if (minHeap.size() > 2) {
+            minHeap.pop(); // 保持堆的大小为 2
         }
 //		打印id-rootid
 //		for(const auto& node : pair.second)
@@ -337,7 +365,7 @@ int main(int argc, char* argv[])
 //	std::copy(rep_ids.begin(), rep_ids.end(), std::ostream_iterator<int>(rep_file, "\n"));
 
 	while(!minHeap.empty()){
-		if(top10_on) {
+		if(top_on) {
 			string file_name = "output/" + to_string(minHeap.top().second) + ".fa";
 			cerr << "results output to: " << file_name << endl;
 			ofstream ofile(file_name);

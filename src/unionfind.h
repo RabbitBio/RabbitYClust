@@ -35,9 +35,9 @@ public:
 
     UnionFind(int n) {
         parent.resize(n);
-		rank.resize(n);
+		rank.resize(n, 0);
         iota(parent.begin(), parent.end(), 0); // 初始化为自身
-        iota(rank.begin(), rank.end(), 0); 
+        //iota(rank.begin(), rank.end(), 0); 
 		//cout << "unionfind generation ends." << endl;
     }
 

@@ -136,7 +136,7 @@ void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>&
 //        hash_vec[i].id = i;
 //        hash_vec[i].value = vec[i];
 //    }
-	if(rep_on){
+	if(rep_only_group){
 		valid_items = 0;
 		for (int i = 0; i < items; i++) {
 			if(valid_seqs[seq_ids[i]]){
@@ -315,7 +315,7 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 //			cerr << "聚类了 " << total_clusters << " 个类" << endl;
 //			cerr << "共去除了冗余序列 " << redundant_seqs - total_clusters << "条" << endl;
 //		}
-			uf.updateParent(id_root_map);
+		uf.updateParent(id_root_map);
 
 		unordered_map<int, vector<int>> map_after_cluster;
 		priority_queue<int, vector<int>, greater<int>> minHeap;
@@ -401,6 +401,13 @@ void GroupStream::countGroupSizeBySort(UnionFind& uf) {
 }
 
 void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map) {
+	cerr << "==========Group Parameters==========" << endl;
+	cerr << "cluster:" << cluster_on << endl;
+	cerr << "cluster-condition: " << cluster_condition << endl;
+	cerr << "only use reps in grouping: " << rep_only_group << endl;
+	cerr << "only use reps in clustering: " << rep_only_cluster << endl;
+	cerr << "clustering all sequences in last round: " << final_cluster_on << endl;
+	cerr << "==========Group Parameters==========" << endl;
 	if(slide) {
 		for(int m=0; m < M-R+1; m++){
 			cerr << "round "<<  m << endl;
@@ -408,7 +415,7 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 			GroupByCol(hash_vec, uf);
 			if(m == M-R && final_cluster_on) {
 				cluster_condition = 1;
-				rep_on = false;
+				rep_only_cluster = false;
 			}
 			countGroupSize(uf);
 		}
@@ -443,7 +450,7 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 
 void GroupStream::clusterEachGroup(vector<int>& group_seqs){
 	vector<Sequence_new> sequences;
-	if(rep_on && group_seqs.size() > cluster_condition ){
+	if(rep_only_cluster && group_seqs.size() > cluster_condition ){
 		for(int i = 0; i < group_seqs.size(); i++) {
 			if(valid_seqs[group_seqs[i]]){
 				sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]].c_str());
@@ -458,14 +465,14 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs){
 	cluster_cdhit.cdhit_cluster(sequences, id_root_map);
 
 	//从中挑选出代表序列作为以后分组和聚类的唯一代表
-	if(rep_on){
+	if(rep_only_group){
 		redundant_seqs += sequences.size();
 		setValidStatus(group_seqs);
 	}
 }
 void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
 	vector<Sequence_new> sequences;
-	if(rep_on && group_seqs.size() > cluster_condition){
+	if(rep_only_cluster && group_seqs.size() > cluster_condition){
 		for(int i = 0; i < group_seqs.size(); i++) {
 			if(valid_seqs[group_seqs[i]]){
 				sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]].c_str());
@@ -479,29 +486,28 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
 
 	//读取FAI获取data
 	cluster_cdhit.cdhit_cluster(sequences, id_root_map, neededThread);
-	if(rep_on){
+
+	if(rep_only_group){
 //		redundant_seqs += sequences.size();
 		setValidStatus(group_seqs);
 	}
+
 }
 
 void GroupStream::setValidStatus(vector<int>& group_seqs){
 	for(int seq : group_seqs){
-		if(!valid_seqs[seq]){
-			continue;
-		}
-
 		if(seq != id_root_map[seq]){
 			valid_seqs[seq] = false;
-		}
-//		}else{
+		}else{
+			valid_seqs[seq] = true;
 //			total_clusters++;
-//		}
+		}
 
 	}
 }
 
 void GroupStream::outputClstr() {
+	cerr << "cluster result stored: " << res_file << endl;
 	ofstream seq_id(res_file);
 	streambuf* origin_cout = cout.rdbuf();
 	cout.rdbuf(seq_id.rdbuf());

@@ -28,8 +28,7 @@ public:
 	bool threadPool_on = false;
 	bool temp_output_on = false;
 	bool output_on = false;
-	bool final_cluster_on = false;
-	bool small_data_merge_cluster_on = false;
+	bool small_data_merge_cluster_on = true;
 	string res_file = "";
 	vector<Data> hash_vec;
 	string folder_name = "nr-15/";
@@ -56,10 +55,20 @@ public:
 	int valid_items;
 	int total_clusters;
 	int redundant_seqs;
-	bool rep_on = false;
+	bool rep_only_group = false;
+	// 分组时只考虑代表序列
+	bool rep_only_cluster = false;
+	// 聚类时只考虑代表序列
+	bool final_cluster_on = false;
+	// 最后一轮全聚类,cluster-condition=1
 	vector<bool> valid_seqs;
-	void setRepOn(){
-		rep_on = true;
+	void setRepGroupOn(){
+		rep_only_group = true;
+		valid_seqs = vector<bool>(items, true);
+	}
+	void setRepGroupAndClusterOn(){
+		rep_only_group = true;
+		rep_only_cluster = true;
 		valid_seqs = vector<bool>(items, true);
 	}
 	void setValidStatus(vector<int>& group_seqs);
@@ -69,7 +78,7 @@ public:
 		res_file = res_file_name;
 	}
 
-	void setSmallDataMergeClusterOn() { small_data_merge_cluster_on = true; }
+	void setSmallDataMergeClusterOff() { small_data_merge_cluster_on = false; }
 	void setFinalClusterOn() { final_cluster_on = true; }
 	void setThreadPool() { threadPool_on = true; }
 	void setClusterOn() { cluster_on = true; }
