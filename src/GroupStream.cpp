@@ -180,6 +180,145 @@ void GroupStream::getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& gr
 	}
 }
 
+void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
+	std::atomic<int> thread_pool;
+ 	int TOTAL_THREADS;
+ 	TOTAL_THREADS=num_threads;
+    thread_pool = TOTAL_THREADS;
+ 	omp_set_num_threads(TOTAL_THREADS);
+ 	omp_set_nested(1);
+ 	vector<Task> tasks;
+
+
+	vector<vector<int>> temp_cluster_sequences;
+	vector<int>temp_temp_cluster_sequences;
+	int count=0;
+	for(int i=0;i<cluster_sequences.size();i++){
+	if (cluster_sequences[i].size()>100000)
+	{
+		if(cluster_sequences[i].size() >= 1000000){
+			tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 16);
+		} else if(cluster_sequences[i].size() >= 500000 && cluster_sequences[i].size() < 1000000){
+			tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 8);
+		} else if(cluster_sequences[i].size() >= 500000 && cluster_sequences[i].size() < 10000000){
+			tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 32);
+		} else{
+			tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 4);
+		}
+		
+	} else {
+		if(cluster_sequences[i].size()<50000){
+			temp_temp_cluster_sequences.insert(
+				temp_temp_cluster_sequences.end(),
+				cluster_sequences[i].begin(),
+				cluster_sequences[i].end()
+			);
+			// cerr<<"temp_temp_cluster_sequences size    "<<temp_temp_cluster_sequences.size()<<endl;
+			if(temp_temp_cluster_sequences.size()>=50000){
+				temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
+				temp_temp_cluster_sequences.clear();
+				count++;
+				if(count >=1){
+					tasks.emplace_back(temp_cluster_sequences,1);
+					count=0;
+					temp_cluster_sequences.clear();
+				}
+			}
+		}else{
+			temp_cluster_sequences.emplace_back(cluster_sequences[i]);
+			count++;
+			if(count >=1){
+				tasks.emplace_back(temp_cluster_sequences,1);
+				count=0;
+				temp_cluster_sequences.clear();
+			}
+		}
+	}
+/**
+ * gyj old version
+		if (cluster_sequences[i].size()>100000)
+		{
+			tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]},16);
+		}
+		else
+		{
+			if(cluster_sequences[i].size()<100000){
+				temp_temp_cluster_sequences.insert(
+						temp_temp_cluster_sequences.end(),
+						cluster_sequences[i].begin(),
+						cluster_sequences[i].end()
+						);
+				if(temp_temp_cluster_sequences.size()>=100000){
+					temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
+					temp_temp_cluster_sequences.clear();
+					count++;
+					if(count >=1){
+						tasks.emplace_back(temp_cluster_sequences,1);
+						count=0;
+						temp_cluster_sequences.clear();
+					}
+				}
+			} else{
+				temp_cluster_sequences.emplace_back(cluster_sequences[i]);
+				count++;
+				if(count >=1){
+						tasks.emplace_back(temp_cluster_sequences,1);
+						count=0;
+						temp_cluster_sequences.clear();
+				}
+			}
+		}
+**/
+	}
+	if(!temp_temp_cluster_sequences.empty()){
+		temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
+	}
+	if (!temp_cluster_sequences.empty())
+	{
+		tasks.emplace_back(temp_cluster_sequences, 1);
+	}
+	cerr<<"--------------------------"<<endl;
+	cerr<<"task size      "<<tasks.size()<<endl;
+	auto timestart = chrono::high_resolution_clock::now();
+#pragma omp parallel
+{
+#pragma omp single
+{
+	for (auto& task : tasks) {
+#pragma omp task firstprivate(task)
+{
+		// // 等待足够的线程资源
+		while (true) {
+			int available = thread_pool.load(std::memory_order_relaxed);
+			if (available >= task.required_threads) {
+				int prev = thread_pool.fetch_sub(task.required_threads, std::memory_order_acquire);
+				if (prev >= task.required_threads) break;
+				thread_pool.fetch_add(task.required_threads, std::memory_order_release);
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		}
+
+		// 执行任务
+
+		for(int i=0;i<task.task_cluster.size();i++){
+			clusterEachGroup(task.task_cluster[i],task.required_threads);
+
+		}
+		// 释放线程资源
+		thread_pool.fetch_add(task.required_threads, std::memory_order_release);
+		// cerr<<"thread_pool     "<<thread_pool<<endl;
+}
+	}
+	
+#pragma omp taskwait
+	printf("All tasks complete.\n");
+}
+}
+	auto timeend = chrono::high_resolution_clock::now();
+	auto duration = chrono::duration_cast<chrono::seconds>(timeend - timestart).count();
+	cerr << "cdhit cluster time: " << duration << endl;
+}
+
 void GroupStream::countGroupSize(UnionFind& uf) {
 // FIXME:用结构体GroupNode存储id-root的映射还是用hash_vec继续存
 // 用GroupNode增加内存但是如果排序的话要搬移的数据少
@@ -215,103 +354,7 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 		redundant_seqs = 0;
 
 		if(threadPool_on){
-			std::atomic<int> thread_pool;
-		 	int TOTAL_THREADS;
-		 	TOTAL_THREADS=num_threads;
-		    thread_pool = TOTAL_THREADS;
-		 	omp_set_num_threads(TOTAL_THREADS);
-		 	omp_set_nested(1);
-		 	vector<Task> tasks;
-		
-	
-			vector<vector<int>> temp_cluster_sequences;
-	 		vector<int>temp_temp_cluster_sequences;
-	 		int count=0;
-	 		for(int i=0;i<cluster_sequences.size();i++){
-	 			if (cluster_sequences[i].size()>1000000)
-				{
-					tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]},16);
-				}
-				else
-				{
-					if(cluster_sequences[i].size()<100000){
-						temp_temp_cluster_sequences.insert(
-								temp_temp_cluster_sequences.end(),
-								cluster_sequences[i].begin(),
-								cluster_sequences[i].end()
-								);
-						if(temp_temp_cluster_sequences.size()>=100000){
-							temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
-							temp_temp_cluster_sequences.clear();
-							count++;
-							if(count >=1){
-								tasks.emplace_back(temp_cluster_sequences,1);
-								count=0;
-								temp_cluster_sequences.clear();
-							}
-						}
-					} else{
-						temp_cluster_sequences.emplace_back(cluster_sequences[i]);
-						count++;
-						if(count >=1){
-								tasks.emplace_back(temp_cluster_sequences,1);
-								count=0;
-								temp_cluster_sequences.clear();
-						}
-					}
-				}
-	
-			}
-			if(!temp_temp_cluster_sequences.empty()){
-				temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
-			}
-			if (!temp_cluster_sequences.empty())
-			{
-				tasks.emplace_back(temp_cluster_sequences, 1);
-			}
-			cerr<<"--------------------------"<<endl;
-			cerr<<"task size      "<<tasks.size()<<endl;
-			auto timestart = chrono::high_resolution_clock::now();
-#pragma omp parallel
-{
-#pragma omp single
-{
-			for (auto& task : tasks) {
-#pragma omp task firstprivate(task)
-{
-				// // 等待足够的线程资源
-				while (true) {
-					int available = thread_pool.load(std::memory_order_relaxed);
-					if (available >= task.required_threads) {
-						int prev = thread_pool.fetch_sub(task.required_threads, std::memory_order_acquire);
-						if (prev >= task.required_threads) break;
-						thread_pool.fetch_add(task.required_threads, std::memory_order_release);
-					}
-					std::this_thread::sleep_for(std::chrono::milliseconds(1));
-				}
-	
-				// 执行任务
-	
-				for(int i=0;i<task.task_cluster.size();i++){
-					clusterEachGroup(task.task_cluster[i],task.required_threads);
-	
-				}
-				// 释放线程资源
-				thread_pool.fetch_add(task.required_threads, std::memory_order_release);
-				// cerr<<"thread_pool     "<<thread_pool<<endl;
-}
-			}
-	
-#pragma omp taskwait
-			printf("All tasks complete.\n");
-}
-}
-			auto timeend = chrono::high_resolution_clock::now();
-			auto duration = chrono::duration_cast<chrono::seconds>(timeend - timestart).count();
-			cerr << "cdhit cluster time: " << duration << endl;
-//		double t1=Gettime_ms();
-//		cerr<<"Total time   "<<t1-t0<<endl;
-
+			Cluster(cluster_sequences);
 		}else{
 			//#pragma omp parallel for num_threads(num_threads)
 			for(int i = 0; i < cluster_sequences.size(); i++) {

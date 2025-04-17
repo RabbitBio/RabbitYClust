@@ -21,7 +21,7 @@ public:
 	int M;
 	int R = 1;
 	int L = 1;
-	int cluster_condition = 2000;
+	int cluster_condition = 500;
 	int num_threads = 8;
 	bool slide = true;
 	bool cluster_on = false;
@@ -61,6 +61,8 @@ public:
 	// 聚类时只考虑代表序列
 	bool final_cluster_on = false;
 	// 最后一轮全聚类,cluster-condition=1
+	bool second_group = false;
+	
 	vector<bool> valid_seqs;
 	void setRepGroupOn(){
 		rep_only_group = true;
@@ -78,6 +80,11 @@ public:
 		res_file = res_file_name;
 	}
 
+	void setSecondGroup() {
+		if(R == 1){
+			second_group = true;
+		}
+	}
 	void setSmallDataMergeClusterOff() { small_data_merge_cluster_on = false; }
 	void setFinalClusterOn() { final_cluster_on = true; }
 	void setThreadPool() { threadPool_on = true; }
@@ -115,6 +122,8 @@ public:
 
 	void clusterEachGroup(vector<int>& seq_ids);
 	void clusterEachGroup(vector<int>& seq_ids, int neededThread);
+
+	void Cluster(vector<vector<int>>& cluster_sequences);
 
 	void tempOutput(vector<vector<int>>& cluster_sequences);
 
