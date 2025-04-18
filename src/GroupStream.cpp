@@ -180,7 +180,7 @@ void GroupStream::getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& gr
 	}
 }
 
-void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
+void GroupStream::Cluster(int m, vector<vector<int>>& cluster_sequences) {
 	std::atomic<int> thread_pool;
  	int TOTAL_THREADS;
  	TOTAL_THREADS=num_threads;
@@ -193,30 +193,39 @@ void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
 	vector<vector<int>> temp_cluster_sequences;
 	vector<int>temp_temp_cluster_sequences;
 	int count=0;
+	if(m == M-R){
 	for(int i=0;i<cluster_sequences.size();i++){
-	if (cluster_sequences[i].size()>100000)
-	{
-		if(cluster_sequences[i].size() >= 1000000){
-			tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 16);
-		} else if(cluster_sequences[i].size() >= 500000 && cluster_sequences[i].size() < 1000000){
-			tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 8);
-		} else if(cluster_sequences[i].size() >= 500000 && cluster_sequences[i].size() < 10000000){
-			tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 32);
-		} else{
-			tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 4);
-		}
-		
-	} else {
-		if(cluster_sequences[i].size()<50000){
-			temp_temp_cluster_sequences.insert(
-				temp_temp_cluster_sequences.end(),
-				cluster_sequences[i].begin(),
-				cluster_sequences[i].end()
-			);
-			// cerr<<"temp_temp_cluster_sequences size    "<<temp_temp_cluster_sequences.size()<<endl;
-			if(temp_temp_cluster_sequences.size()>=50000){
-				temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
-				temp_temp_cluster_sequences.clear();
+		if (cluster_sequences[i].size()>=100000)
+		{
+			if(cluster_sequences[i].size() >= 1000000){
+				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 16);
+			} else if(cluster_sequences[i].size() >= 500000 && cluster_sequences[i].size() < 1000000){
+				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 8);
+			} else if(cluster_sequences[i].size() >= 500000 && cluster_sequences[i].size() < 10000000){
+				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 32);
+			} else{
+				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 4);
+			}
+			
+		} else {
+			if(cluster_sequences[i].size()<10000){
+				temp_temp_cluster_sequences.insert(
+					temp_temp_cluster_sequences.end(),
+					cluster_sequences[i].begin(),
+					cluster_sequences[i].end()
+				);
+				if(temp_temp_cluster_sequences.size()>=10000){
+					temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
+					temp_temp_cluster_sequences.clear();
+					count++;
+					if(count >=1){
+						tasks.emplace_back(temp_cluster_sequences,1);
+						count=0;
+						temp_cluster_sequences.clear();
+					}
+				}
+			}else{
+				temp_cluster_sequences.emplace_back(cluster_sequences[i]);
 				count++;
 				if(count >=1){
 					tasks.emplace_back(temp_cluster_sequences,1);
@@ -224,15 +233,26 @@ void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
 					temp_cluster_sequences.clear();
 				}
 			}
-		}else{
-			temp_cluster_sequences.emplace_back(cluster_sequences[i]);
-			count++;
-			if(count >=1){
-				tasks.emplace_back(temp_cluster_sequences,1);
-				count=0;
-				temp_cluster_sequences.clear();
-			}
 		}
+	}
+	}else{
+	for(int i=0;i<cluster_sequences.size();i++){
+		if (cluster_sequences[i].size()>=100000)
+		{
+			if(cluster_sequences[i].size() >= 1000000){
+				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 16);
+			} else if(cluster_sequences[i].size() >= 500000 && cluster_sequences[i].size() < 1000000){
+				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 8);
+			} else if(cluster_sequences[i].size() >= 500000 && cluster_sequences[i].size() < 10000000){
+				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 32);
+			} else{
+				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 4);
+			}
+			
+		} else {
+			tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 1);
+		}
+	}
 	}
 /**
  * gyj old version
@@ -269,7 +289,6 @@ void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
 			}
 		}
 **/
-	}
 	if(!temp_temp_cluster_sequences.empty()){
 		temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
 	}
@@ -319,7 +338,7 @@ void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
 	cerr << "cdhit cluster time: " << duration << endl;
 }
 
-void GroupStream::countGroupSize(UnionFind& uf) {
+void GroupStream::countGroupSize(int m, UnionFind& uf) {
 // FIXME:用结构体GroupNode存储id-root的映射还是用hash_vec继续存
 // 用GroupNode增加内存但是如果排序的话要搬移的数据少
 	uf.findRoot(id_root_map);
@@ -354,7 +373,7 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 		redundant_seqs = 0;
 
 		if(threadPool_on){
-			Cluster(cluster_sequences);
+			Cluster(m, cluster_sequences);
 		}else{
 			//#pragma omp parallel for num_threads(num_threads)
 			for(int i = 0; i < cluster_sequences.size(); i++) {
@@ -468,21 +487,21 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 				cluster_condition = 1;
 				rep_only_cluster = false;
 			}
-			countGroupSize(uf);
+			countGroupSize(m, uf);
 		}
 	}else{
 		for(int m=0; m < M / R; m++){
 			cerr << "round "<<  m << endl;
 			fillHashVec(hashes, hash_vec, m * R);
 			GroupByCol(hash_vec, uf);
-			countGroupSize(uf);
+			countGroupSize(m, uf);
 		}
 		if(M % R != 0){
 			cerr << "round "<<  M / R;
 			setR(M % R);
 			fillHashVec(hashes, hash_vec, (M/R) * R);
 			GroupByCol(hash_vec, uf);
-			countGroupSize(uf);
+			countGroupSize(M, uf);
 		}
 	}
 #ifdef TIMING

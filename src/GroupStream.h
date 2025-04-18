@@ -21,7 +21,7 @@ public:
 	int M;
 	int R = 1;
 	int L = 1;
-	int cluster_condition = 500;
+	int cluster_condition = 5000;
 	int num_threads = 8;
 	bool slide = true;
 	bool cluster_on = false;
@@ -114,7 +114,7 @@ public:
 	void fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m);
 	// construct a sorted struct Data(hash-vec) for a column of hash-funtions(vec)
 
-	void countGroupSize(UnionFind& uf);
+	void countGroupSize(int m, UnionFind& uf);
 	void countGroupSizeBySort(UnionFind& uf);
 	
 	void getGroupMap(UnionFind& uf,unordered_map<int, vector<int>>& group_map);
@@ -123,7 +123,7 @@ public:
 	void clusterEachGroup(vector<int>& seq_ids);
 	void clusterEachGroup(vector<int>& seq_ids, int neededThread);
 
-	void Cluster(vector<vector<int>>& cluster_sequences);
+	void Cluster(int m, vector<vector<int>>& cluster_sequences);
 
 	void tempOutput(vector<vector<int>>& cluster_sequences);
 
