@@ -195,8 +195,8 @@ int main(int argc, char* argv[])
 	bool threadPool_off = false;
 	auto option_thead_pool = app.add_flag("--threadpool-off, --open-thread-pool", threadPool_off, "If this flat is enabled, disable thread pool to allocate threads");
 
-	bool final_cluster_on = false;
-	auto option_final_cluster = app.add_flag("-f, --enable-final-cluster", final_cluster_on, "If this flat is enabled, cluster all sequences at the last grouping");
+	bool final_cluster_off = false;
+	auto option_final_cluster = app.add_flag("-f, --disable-final-cluster", final_cluster_off, "If this flat is disabled, cluster all sequences at the last grouping");
 
 	bool top_on = false;
 	auto option_output = app.add_option("-o, --output", res_file, "If this flat is enabled, the top 10 largest clusters suquences content will be written into the output files");
@@ -234,7 +234,7 @@ int main(int argc, char* argv[])
 	if(!threadPool_off) {
 		cerr << "use thread pool when clustering" << endl;
 	}
-	if(final_cluster_on) {
+	if(!final_cluster_off) {
 		cerr << "Clustering all groups in the last round" << endl;
 	}
 	cerr << "==========End Paramters==========" << endl;
@@ -317,7 +317,7 @@ int main(int argc, char* argv[])
 		gs.setOutput(res_file);
 		top_on = true;
 	}
-	if(final_cluster_on) {
+	if(!final_cluster_off) {
 		gs.setFinalClusterOn();
 	}
 	if(block_on) 
