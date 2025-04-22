@@ -21,7 +21,7 @@ public:
 	int M;
 	int R = 1;
 	int L = 1;
-	int cluster_condition = 5000;
+	int cluster_condition = 500;
 	int num_threads = 8;
 	bool slide = true;
 	bool cluster_on = false;
