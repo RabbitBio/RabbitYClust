@@ -6,6 +6,7 @@
 
 extern unordered_map<uint64_t, string> fa_map;
 extern vector<string> names;
+extern void initOptions();
 
 struct Task {
 	vector<vector<int>> task_cluster;
@@ -21,7 +22,7 @@ public:
 	int M;
 	int R = 1;
 	int L = 1;
-	int cluster_condition = 5000;
+	int cluster_condition = 2000;
 	int num_threads = 8;
 	bool slide = true;
 	bool cluster_on = false;
@@ -39,14 +40,15 @@ public:
 	vector<uint64_t> seq_ids; 
 	// 存储序列在hash-vec里的顺序和读入顺序的映射
 
-	cluster cluster_cdhit;
-
 	GroupStream(int n, int m, int r, int l) : uf(n), items(n), R(r), L(l), M(m) {
 		valid_items = n;
 		resize(items);
+		initOptions();
 	}
 
-	GroupStream(int n) : uf(n), items(n) { resize(items); }
+	GroupStream(int n) : uf(n), items(n) { resize(items);
+		initOptions();
+       	}
 
 	void setIDs(const vector<uint64_t>& seq_ids) {
 		this->seq_ids = seq_ids;

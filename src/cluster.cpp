@@ -1,7 +1,11 @@
 #include "cluster.h"
-
-Options options;
 //SequenceDB seq_db;
+Options options;
+void initOptions(){
+	options = Options();
+    options.SetOptionsInputVector();
+    options.Validate();
+}
 
 void cluster::cdhit_cluster(std::vector<Sequence_new>& seq, std::vector<int>& parent)
 {
@@ -15,8 +19,6 @@ void cluster::cdhit_cluster(std::vector<Sequence_new>& seq, std::vector<int>& pa
         return;
     }
 
-    options.SetOptionsInputVector();
-    options.Validate();
 
     db_out = options.output;
     InitNAA(MAX_UAA);
@@ -44,8 +46,6 @@ void cluster::cdhit_cluster(std::vector<Sequence_new>& seq, std::vector<int>& pa
         return;
     }
 
-    options.SetOptionsInputVector();
-    options.Validate();
 
     db_out = options.output;
     InitNAA(MAX_UAA);

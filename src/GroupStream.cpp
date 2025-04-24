@@ -532,6 +532,8 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs){
 		}
 	}
 	//读取FAI获取data
+
+	cluster cluster_cdhit;
 	cluster_cdhit.cdhit_cluster(sequences, id_root_map);
 
 	//从中挑选出代表序列作为以后分组和聚类的唯一代表
@@ -555,6 +557,8 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
 	}
 
 	//读取FAI获取data
+
+	cluster cluster_cdhit;
 	cluster_cdhit.cdhit_cluster(sequences, id_root_map, neededThread);
 
 	if(rep_only_group){
