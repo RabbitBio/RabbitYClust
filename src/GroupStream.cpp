@@ -193,67 +193,67 @@ void GroupStream::Cluster(int m, vector<vector<int>>& cluster_sequences) {
 	vector<vector<int>> temp_cluster_sequences;
 	vector<int>temp_temp_cluster_sequences;
 	int count=0;
-	if(m == M-R){
+//	if(m == M-R){
+//	for(int i=0;i<cluster_sequences.size();i++){
+//		if (cluster_sequences[i].size()>=100000)
+//		{
+//			if(cluster_sequences[i].size() >= 10000000){
+//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 60);
+//			} else if(cluster_sequences[i].size() >= 1000000) {
+//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 32);
+//			} else if(cluster_sequences[i].size() >= 500000){
+//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 16;
+//			} else{
+//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 8);
+//			}
+//			
+//		} else {
+//			if(cluster_sequences[i].size()<10000){
+//				temp_temp_cluster_sequences.insert(
+//					temp_temp_cluster_sequences.end(),
+//					cluster_sequences[i].begin(),
+//					cluster_sequences[i].end()
+//				);
+//				if(temp_temp_cluster_sequences.size()>=10000){
+//					temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
+//					temp_temp_cluster_sequences.clear();
+//					count++;
+//					if(count >=1){
+//						tasks.emplace_back(temp_cluster_sequences,1);
+//						count=0;
+//						temp_cluster_sequences.clear();
+//					}
+//				}
+//			}else{
+//				temp_cluster_sequences.emplace_back(cluster_sequences[i]);
+//				count++;
+//				if(count >=1){
+//					tasks.emplace_back(temp_cluster_sequences,1);
+//					count=0;
+//					temp_cluster_sequences.clear();
+//				}
+//			}
+//		}
+//	}
+//	}else{
 	for(int i=0;i<cluster_sequences.size();i++){
 		if (cluster_sequences[i].size()>=100000)
 		{
-			if(cluster_sequences[i].size() >= 1000000){
-				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 16);
-			} else if(cluster_sequences[i].size() >= 500000 && cluster_sequences[i].size() < 1000000){
-				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 8);
-			} else if(cluster_sequences[i].size() >= 500000 && cluster_sequences[i].size() < 10000000){
+			if(cluster_sequences[i].size() >= 10000000){
+				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 60);
+			} else if(cluster_sequences[i].size() >= 1000000) {
 				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 32);
-			} else{
-				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 4);
-			}
-			
-		} else {
-			if(cluster_sequences[i].size()<10000){
-				temp_temp_cluster_sequences.insert(
-					temp_temp_cluster_sequences.end(),
-					cluster_sequences[i].begin(),
-					cluster_sequences[i].end()
-				);
-				if(temp_temp_cluster_sequences.size()>=10000){
-					temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
-					temp_temp_cluster_sequences.clear();
-					count++;
-					if(count >=1){
-						tasks.emplace_back(temp_cluster_sequences,1);
-						count=0;
-						temp_cluster_sequences.clear();
-					}
-				}
-			}else{
-				temp_cluster_sequences.emplace_back(cluster_sequences[i]);
-				count++;
-				if(count >=1){
-					tasks.emplace_back(temp_cluster_sequences,1);
-					count=0;
-					temp_cluster_sequences.clear();
-				}
-			}
-		}
-	}
-	}else{
-	for(int i=0;i<cluster_sequences.size();i++){
-		if (cluster_sequences[i].size()>=100000)
-		{
-			if(cluster_sequences[i].size() >= 1000000){
+			} else if(cluster_sequences[i].size() >= 500000){
 				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 16);
-			} else if(cluster_sequences[i].size() >= 500000 && cluster_sequences[i].size() < 1000000){
-				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 8);
-			} else if(cluster_sequences[i].size() >= 500000 && cluster_sequences[i].size() < 10000000){
-				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 32);
 			} else{
-				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 4);
+				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 8);
 			}
-			
+
 		} else {
 			tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 1);
 		}
 	}
-	}
+//	}
 /**
  * gyj old version
 		if (cluster_sequences[i].size()>100000)
