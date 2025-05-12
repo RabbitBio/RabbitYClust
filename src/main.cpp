@@ -158,6 +158,7 @@ int main(int argc, char* argv[])
 	int m = 15;
 	int r = 1;
 	float similarity = 0.9;
+	float cluster_thd = 0.9;
 	string filename = "";
 	string res_file = "";
 	string fa_output_name = "";
@@ -169,6 +170,7 @@ int main(int argc, char* argv[])
 	auto option_m_size = app.add_option("-m, --m-size", m, "set the number of hash functions will be used, default 15");
 	auto option_input = app.add_option("-i, --input", filename, "input file name, fasta or gziped fasta formats");
 	auto option_r = app.add_option("-r, --r-size", r, "set the number of block");
+	auto option_cluster_thd = app.add_option("--c-thd, --cluser-threshold", cluster_thd, "cluster threshold in cdhit");
 
 	option_input->required();
 
@@ -312,6 +314,7 @@ int main(int argc, char* argv[])
 	}
 	if(cluster_on) {
 		gs.setClusterOn();
+		gs.setClusterThd(cluster_thd);
 	}
 	if(res_file != "") {
 		gs.setOutput(res_file);

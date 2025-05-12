@@ -7,6 +7,12 @@ void initOptions(){
     options.Validate();
 }
 
+void setOptionsClusterThd(float cluster_thd){
+	options.setClusterThd(cluster_thd);
+	std::cerr << "Cluster-Threshold of cdhit is: " << options.cluster_thd << std::endl;
+    options.Validate();
+}
+
 void cluster::cdhit_cluster(std::vector<Sequence_new>& seq, std::vector<int>& parent)
 {
 	SequenceDB seq_db;

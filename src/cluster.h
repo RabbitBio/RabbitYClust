@@ -3,13 +3,10 @@
 #include "cdhit-common.h"
 #include "input_sequence.h"
 
-extern Options options;
 class cluster{
 public:
 	vector<int> parent;
 	cluster() {
-		options = Options();
-    		options.SetOptionsInputVector();
 	}
 
 	void cdhit_cluster(std::vector<Sequence_new>& seq, std::vector<int>& parent);

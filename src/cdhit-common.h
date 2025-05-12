@@ -388,6 +388,8 @@ struct Options
 	void ComputeTableLimits(int min_len, int max_len, int typical_len, size_t mem_need);
 
 	void Print();
+
+	void setClusterThd(float input_cluster_thd) { cluster_thd = input_cluster_thd; }
 };
 
 void bomb_error(const char* message);

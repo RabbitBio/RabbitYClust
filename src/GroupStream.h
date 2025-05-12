@@ -7,6 +7,7 @@
 extern unordered_map<uint64_t, string> fa_map;
 extern vector<string> names;
 extern void initOptions();
+extern void setOptionsClusterThd(float cluster_thd);
 
 struct Task {
 	vector<vector<int>> task_cluster;
@@ -46,10 +47,14 @@ public:
 		initOptions();
 	}
 
-	GroupStream(int n) : uf(n), items(n) { resize(items);
+	GroupStream(int n) : uf(n), items(n) {
+		resize(items);
 		initOptions();
-       	}
+    }
 
+	void setClusterThd(float cluster_thd) {
+		setOptionsClusterThd(cluster_thd);
+	}
 	void setIDs(const vector<uint64_t>& seq_ids) {
 		this->seq_ids = seq_ids;
 	}
