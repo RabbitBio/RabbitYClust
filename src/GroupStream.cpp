@@ -76,10 +76,15 @@ void GroupStream::Sort(vector<Data>& dataList){
 #endif
 }
 
+/*
+bool GroupStream::checkJaccard(int node1, int node2)
+{
+	// get sketch of node1 and node2
+	// stimulate the shared k-mers between sketch1 and sketch2
+	// compare the
+}
+*/
 void GroupStream::Unite(const vector<Data>& dataList, UnionFind& uf) {
-#ifdef VERBOSE
-	int count = 1;
-#endif
 	vector<uint64_t> cur_value = dataList[0].value;
 	int cur_head = dataList[0].id;
 	for (int i = 0; i < valid_items; i++) {
@@ -87,16 +92,10 @@ void GroupStream::Unite(const vector<Data>& dataList, UnionFind& uf) {
 		if(data.value == cur_value) {
 			uf.unite(data.id, cur_head);
 		}else{
-#ifdef VERBOSE
-			count++;
-#endif
 			cur_value = data.value;
 			cur_head = data.id;
 		}
 	}
-#ifdef VERBOSE
-	cerr << "groups number in this col is: " << count << endl;
-#endif
 }
 
 void GroupStream::GroupByCol(vector<Data>& hash_vec, UnionFind& uf) {
@@ -181,6 +180,7 @@ void GroupStream::getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& gr
 }
 
 void GroupStream::Cluster(int m, vector<vector<int>>& cluster_sequences) {
+    init_cnt();
 	std::atomic<int> thread_pool;
  	int TOTAL_THREADS;
  	TOTAL_THREADS=num_threads;
@@ -194,53 +194,11 @@ void GroupStream::Cluster(int m, vector<vector<int>>& cluster_sequences) {
 	vector<int>temp_temp_cluster_sequences;
 	int count=0;
 //	if(m == M-R){
-//	for(int i=0;i<cluster_sequences.size();i++){
-//		if (cluster_sequences[i].size()>=100000)
-//		{
-//			if(cluster_sequences[i].size() >= 10000000){
-//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 60);
-//			} else if(cluster_sequences[i].size() >= 1000000) {
-//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 32);
-//			} else if(cluster_sequences[i].size() >= 500000){
-//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 16;
-//			} else{
-//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 8);
-//			}
-//			
-//		} else {
-//			if(cluster_sequences[i].size()<10000){
-//				temp_temp_cluster_sequences.insert(
-//					temp_temp_cluster_sequences.end(),
-//					cluster_sequences[i].begin(),
-//					cluster_sequences[i].end()
-//				);
-//				if(temp_temp_cluster_sequences.size()>=10000){
-//					temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
-//					temp_temp_cluster_sequences.clear();
-//					count++;
-//					if(count >=1){
-//						tasks.emplace_back(temp_cluster_sequences,1);
-//						count=0;
-//						temp_cluster_sequences.clear();
-//					}
-//				}
-//			}else{
-//				temp_cluster_sequences.emplace_back(cluster_sequences[i]);
-//				count++;
-//				if(count >=1){
-//					tasks.emplace_back(temp_cluster_sequences,1);
-//					count=0;
-//					temp_cluster_sequences.clear();
-//				}
-//			}
-//		}
-//	}
-//	}else{
 	for(int i=0;i<cluster_sequences.size();i++){
 		if (cluster_sequences[i].size()>=100000)
 		{
 			if(cluster_sequences[i].size() >= 10000000){
-				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 60);
+				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 40);
 			} else if(cluster_sequences[i].size() >= 1000000) {
 				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 32);
 			} else if(cluster_sequences[i].size() >= 500000){
@@ -248,11 +206,53 @@ void GroupStream::Cluster(int m, vector<vector<int>>& cluster_sequences) {
 			} else{
 				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 8);
 			}
-
+			
 		} else {
-			tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 1);
+			if(cluster_sequences[i].size()<10000){
+				temp_temp_cluster_sequences.insert(
+					temp_temp_cluster_sequences.end(),
+					cluster_sequences[i].begin(),
+					cluster_sequences[i].end()
+				);
+				if(temp_temp_cluster_sequences.size()>=10000){
+					temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
+					temp_temp_cluster_sequences.clear();
+					count++;
+					if(count >=1){
+						tasks.emplace_back(temp_cluster_sequences,1);
+						count=0;
+						temp_cluster_sequences.clear();
+					}
+				}
+			}else{
+				temp_cluster_sequences.emplace_back(cluster_sequences[i]);
+				count++;
+				if(count >=1){
+					tasks.emplace_back(temp_cluster_sequences,1);
+					count=0;
+					temp_cluster_sequences.clear();
+				}
+			}
 		}
 	}
+//	}else{
+//	for(int i=0;i<cluster_sequences.size();i++){
+//		if (cluster_sequences[i].size()>=100000)
+//		{
+//			if(cluster_sequences[i].size() >= 10000000){
+//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 40);
+//			} else if(cluster_sequences[i].size() >= 1000000) {
+//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 32);
+//			} else if(cluster_sequences[i].size() >= 500000){
+//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 16);
+//			} else{
+//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 8);
+//			}
+//
+//		} else {
+//			tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 1);
+//		}
+//	}
 //	}
 /**
  * gyj old version
@@ -296,6 +296,9 @@ void GroupStream::Cluster(int m, vector<vector<int>>& cluster_sequences) {
 	{
 		tasks.emplace_back(temp_cluster_sequences, 1);
 	}
+    std::sort(tasks.begin(), tasks.end(), [](const Task& a, const Task& b) {
+                return a.required_threads > b.required_threads;
+                    });
 	cerr<<"--------------------------"<<endl;
 	cerr<<"task size      "<<tasks.size()<<endl;
 	auto timestart = chrono::high_resolution_clock::now();
@@ -336,6 +339,84 @@ void GroupStream::Cluster(int m, vector<vector<int>>& cluster_sequences) {
 	auto timeend = chrono::high_resolution_clock::now();
 	auto duration = chrono::duration_cast<chrono::seconds>(timeend - timestart).count();
 	cerr << "cdhit cluster time: " << duration << endl;
+    // 打印时间
+    if(tasks_cnt[10000000] > 0){
+        int x = 10000000;
+        cerr << "大于10,000,000: " ;
+        cerr << "任务个数: " << tasks_cnt[x] << endl;
+        cerr << "聚类总时间: " << cdhit_cnt[x] << " ";
+        cerr << "聚类平均时间: " << (cdhit_cnt[x] / tasks_cnt[x]) << endl;
+        cerr << "聚类前准备总时间: " << build_cnt[x] << " ";
+        cerr << "聚类前准备平均时间: " << (build_cnt[x] / tasks_cnt[x]) << endl;
+        cerr << "聚类后更新总时间: " << update_cnt[x] << " ";
+        cerr << "聚类后平均时间: " << (update_cnt[x] / tasks_cnt[x]) << endl;
+    }
+    if(tasks_cnt[5000000] > 0){
+        int x = 5000000;
+        cerr << "大于5,000,000: " ;
+        cerr << "任务个数: " << tasks_cnt[x] << endl;
+        cerr << "聚类总时间: " << cdhit_cnt[x] << " ";
+        cerr << "聚类平均时间: " << (cdhit_cnt[x] / tasks_cnt[x]) << endl;
+        cerr << "聚类前准备总时间: " << build_cnt[x] << " ";
+        cerr << "聚类前准备平均时间: " << (build_cnt[x] / tasks_cnt[x]) << endl;
+        cerr << "聚类后更新总时间: " << update_cnt[x] << " ";
+        cerr << "聚类后平均时间: " << (update_cnt[x] / tasks_cnt[x]) << endl;
+    }
+    if(tasks_cnt[1000000] > 0){
+        int x = 1000000;
+        cerr << "大于1,000,000: " ;
+        cerr << "任务个数: " << tasks_cnt[x] << endl;
+        cerr << "聚类总时间: " << cdhit_cnt[x] << " ";
+        cerr << "聚类平均时间: " << (cdhit_cnt[x] / tasks_cnt[x]) << endl;
+        cerr << "聚类前准备总时间: " << build_cnt[x] << " ";
+        cerr << "聚类前准备平均时间: " << (build_cnt[x] / tasks_cnt[x]) << endl;
+        cerr << "聚类后更新总时间: " << update_cnt[x] << " ";
+        cerr << "聚类后平均时间: " << (update_cnt[x] / tasks_cnt[x]) << endl;
+    }
+    if(tasks_cnt[500000] > 0){
+        int x = 500000;
+        cerr << "大于500,000: " ;
+        cerr << "任务个数: " << tasks_cnt[x] << endl;
+        cerr << "聚类总时间: " << cdhit_cnt[x] << " ";
+        cerr << "聚类平均时间: " << (cdhit_cnt[x] / tasks_cnt[x]) << endl;
+        cerr << "聚类前准备总时间: " << build_cnt[x] << " ";
+        cerr << "聚类前准备平均时间: " << (build_cnt[x] / tasks_cnt[x]) << endl;
+        cerr << "聚类后更新总时间: " << update_cnt[x] << " ";
+        cerr << "聚类后平均时间: " << (update_cnt[x] / tasks_cnt[x]) << endl;
+    }
+    if(tasks_cnt[100000] > 0){
+        int x = 100000;
+        cerr << "大于100,000: " ;
+        cerr << "任务个数: " << tasks_cnt[x] << endl;
+        cerr << "聚类总时间: " << cdhit_cnt[x] << " ";
+        cerr << "聚类平均时间: " << (cdhit_cnt[x] / tasks_cnt[x]) << endl;
+        cerr << "聚类前准备总时间: " << build_cnt[x] << " ";
+        cerr << "聚类前准备平均时间: " << (build_cnt[x] / tasks_cnt[x]) << endl;
+        cerr << "聚类后更新总时间: " << update_cnt[x] << " ";
+        cerr << "聚类后平均时间: " << (update_cnt[x] / tasks_cnt[x]) << endl;
+    }
+    if(tasks_cnt[50000] > 0){
+        int x = 50000;
+        cerr << "大于50,000: " ;
+        cerr << "任务个数: " << tasks_cnt[x] << endl;
+        cerr << "聚类总时间: " << cdhit_cnt[x] << " ";
+        cerr << "聚类平均时间: " << (cdhit_cnt[x] / tasks_cnt[x]) << endl;
+        cerr << "聚类前准备总时间: " << build_cnt[x] << " ";
+        cerr << "聚类前准备平均时间: " << (build_cnt[x] / tasks_cnt[x]) << endl;
+        cerr << "聚类后更新总时间: " << update_cnt[x] << " ";
+        cerr << "聚类后平均时间: " << (update_cnt[x] / tasks_cnt[x]) << endl;
+    }
+    if(tasks_cnt[10000] > 0){
+        int x = 10000;
+        cerr << "大于10,000: " ;
+        cerr << "任务个数: " << tasks_cnt[x] << endl;
+        cerr << "聚类总时间: " << cdhit_cnt[x] << " ";
+        cerr << "聚类平均时间: " << (cdhit_cnt[x] / tasks_cnt[x]) << endl;
+        cerr << "聚类前准备总时间: " << build_cnt[x] << " ";
+        cerr << "聚类前准备平均时间: " << (build_cnt[x] / tasks_cnt[x]) << endl;
+        cerr << "聚类后更新总时间: " << update_cnt[x] << " ";
+        cerr << "聚类后平均时间: " << (update_cnt[x] / tasks_cnt[x]) << endl;
+    }
 }
 
 void GroupStream::countGroupSize(int m, UnionFind& uf) {
@@ -543,6 +624,7 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs){
 	}
 }
 void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
+	auto start_time_build = chrono::high_resolution_clock::now();
 	vector<Sequence_new> sequences;
 	if(rep_only_cluster && group_seqs.size() > cluster_condition){
 		for(int i = 0; i < group_seqs.size(); i++) {
@@ -555,17 +637,62 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
 			sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]].c_str());
 		}
 	}
+	auto end_time_build = chrono::high_resolution_clock::now();
+    auto duration_build = chrono::duration_cast<chrono::seconds>(end_time_build - start_time_build).count();
 
 	//读取FAI获取data
 
+	auto start_time = chrono::high_resolution_clock::now();
 	cluster cluster_cdhit;
 	cluster_cdhit.cdhit_cluster(sequences, id_root_map, neededThread);
+	auto end_time = chrono::high_resolution_clock::now();
+	auto duration_cdhit = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
 
+	auto start_time_update = chrono::high_resolution_clock::now();
 	if(rep_only_group){
 //		redundant_seqs += sequences.size();
 		setValidStatus(group_seqs);
 	}
-
+	auto end_time_update = chrono::high_resolution_clock::now();
+    auto duration_update = chrono::duration_cast<chrono::seconds>(end_time_update - start_time_update).count();
+    if(group_seqs.size() >= 10000000){ // > 10,000,000
+        tasks_cnt[10000000]++;
+        build_cnt[10000000]+=duration_build;
+        cdhit_cnt[10000000]+=duration_cdhit;
+        update_cnt[10000000]+=duration_update;
+    }else if(group_seqs.size() >= 5000000){ // >5,000,000
+        tasks_cnt[5000000]++;
+        build_cnt[5000000]+=duration_build;
+        cdhit_cnt[5000000]+=duration_cdhit;
+       update_cnt[5000000]+=duration_update;
+    }else if(group_seqs.size() >= 1000000){ // >1,000,000
+        tasks_cnt[1000000]++;
+        build_cnt[1000000]+=duration_build;
+        cdhit_cnt[1000000]+=duration_cdhit;
+       update_cnt[1000000]+=duration_update;
+    }else if(group_seqs.size() >= 5000000){ // > 500,000
+        tasks_cnt[500000]++;
+        build_cnt[500000]+=duration_build;
+        cdhit_cnt[500000]+=duration_cdhit;
+       update_cnt[500000]+=duration_update;
+    }else if(group_seqs.size() >= 100000){ // > 100,000
+        tasks_cnt[100000]++;
+        build_cnt[100000]+=duration_build;
+        cdhit_cnt[100000]+=duration_cdhit;
+       update_cnt[100000]+=duration_update;
+    }else if(group_seqs.size() >= 50000){ // > 50,000
+        tasks_cnt[50000]++;
+        build_cnt[50000]+=duration_build;
+        cdhit_cnt[50000]+=duration_cdhit;
+       update_cnt[50000]+=duration_update;
+    }else if(group_seqs.size() >= 10000){ // > 10,000
+        tasks_cnt[10000]++;
+        build_cnt[10000]+=duration_build;
+        cdhit_cnt[10000]+=duration_cdhit;
+       update_cnt[10000]+=duration_update;
+    }else{
+        cerr << "<10,000" << endl;
+    }
 }
 
 void GroupStream::setValidStatus(vector<int>& group_seqs){

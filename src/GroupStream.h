@@ -3,6 +3,7 @@
 
 #include "unionfind.h"
 #include "cluster.h"
+#include <math.h>
 
 extern unordered_map<uint64_t, string> fa_map;
 extern vector<string> names;
@@ -20,10 +21,11 @@ class GroupStream {
 public:
 	UnionFind uf;
 	int items;
-	int M;
+	int M = 15;
 	int R = 1;
 	int L = 1;
-	int cluster_condition = 2000;
+	int K = 8; 
+	int cluster_condition = 10000;
 	int num_threads = 8;
 	bool slide = true;
 	bool cluster_on = false;
@@ -35,6 +37,60 @@ public:
 	vector<Data> hash_vec;
 	string folder_name = "nr-15/";
 
+	// count time
+	unordered_map<int, int> cdhit_cnt;
+	unordered_map<int, int> build_cnt;
+	unordered_map<int, int> update_cnt;
+	unordered_map<int, int> tasks_cnt;
+	void init_cnt(){
+		tasks_cnt[10000]=0;
+		tasks_cnt[50000]=0;
+		tasks_cnt[100000]=0;
+		tasks_cnt[500000]=0;
+		tasks_cnt[1000000]=0;
+		tasks_cnt[5000000]=0;
+		tasks_cnt[10000000]=0;
+
+		cdhit_cnt[10000]=0;
+		cdhit_cnt[50000]=0;
+		cdhit_cnt[100000]=0;
+		cdhit_cnt[500000]=0;
+		cdhit_cnt[1000000]=0;
+		cdhit_cnt[5000000]=0;
+		cdhit_cnt[10000000]=0;
+
+		build_cnt[10000]=0;
+		build_cnt[50000]=0;
+		build_cnt[100000]=0;
+		build_cnt[500000]=0;
+		build_cnt[1000000]=0;
+		build_cnt[5000000]=0;
+		build_cnt[10000000]=0;
+
+		update_cnt[10000]=0;
+		update_cnt[50000]=0;
+		update_cnt[100000]=0;
+		update_cnt[500000]=0;
+		update_cnt[1000000]=0;
+		update_cnt[5000000]=0;
+		update_cnt[10000000]=0;
+	}
+
+	// 利用jaccard相似度来进一步筛选
+	float S = 0.9;
+	float distance = 1 - S;
+	int sharedKmersThd = 2;
+/*
+	void computeSharedKmersThd() {
+	    float exp_neg_kd = std::exp(-k * d);
+	    sharedKmersThd = static_cast<int>(M * exp_neg_kd);
+    	// // 根据公式：j = e^(-k * d) / (2 - e^(-k * d))
+	    // float jaccard = exp_neg_kd / (2 - exp_neg_kd);
+	    // // 然后计算共享 k-mers: w = j * (2n) / (1 + j)
+	    // sharedKmersThd = jaccard * (2.0 * n) / (1.0 + jaccard);
+	}
+*/
+	bool checkJaccard(int node1, int node2);
 	//	vector<GroupNode> id_root_map;
 	vector<int> id_root_map;
 	// 存储seq-id到root-id的映射
@@ -51,6 +107,11 @@ public:
 		resize(items);
 		initOptions();
     }
+
+	void setSimilarityThd(float similarity_thd) {
+		S = similarity_thd;
+		distance = 1 - S;
+	}
 
 	void setClusterThd(float cluster_thd) {
 		setOptionsClusterThd(cluster_thd);
@@ -108,6 +169,7 @@ public:
 		for(auto& data : hash_vec)
 			data.value.resize(L * R);
 	}
+	// 这个hashes还是得改成全局的
 	void Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map);
 	// grouping sequences with m hash-functions
 
