@@ -169,8 +169,12 @@ import sys
 import struct
 num_arguments=len(sys.argv)-1
 if num_arguments==1 :
-    yclust_path = sys.argv[1]
-    parse_yclust_res(yclust_path)
+    clust_path = sys.argv[1]
+    if clust_path.endswith(".tsv"):
+        parse_linclust_res(clust_path)
+    else:
+        parse_yclust_res(clust_path)
+
 else:
     cdhit_path = sys.argv[1]
     clust_path = sys.argv[2]
