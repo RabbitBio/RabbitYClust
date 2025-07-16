@@ -5,6 +5,9 @@
 #include <algorithm>
 #include <atomic>
 
+// 静态成员变量的定义
+vector<int> GroupStream::GroupSizeCnt;
+
 struct minheapcompare {
 	bool operator()(const pair<int, int> &a, const pair<int, int> &b) {
 		return a.first > b.first;
@@ -14,6 +17,12 @@ struct minheapcompare {
 bool compareByHash(const Data &a, const Data &b) {
 	return a.value < b.value;
 }
+
+//bool compareByHashAndGroupSize(const Data &a, const Data &b) {
+//    if(a.value != b.value)
+//	    return a.value < b.value;
+//    return GroupSizeCnt[a.id] < GroupSizeCnt[b.id];
+//}
 
 void GroupStream::tempOutput(vector<vector<int>>& cluster_sequences) {	
 	unordered_map<int, vector<int>> map_after_cluster;
@@ -51,8 +60,8 @@ void GroupStream::Sort(vector<Data>& dataList){
 	size_t n = dataList.size();
 	int num_threads = omp_get_max_threads();
 	size_t chunk_size = n / num_threads;
-	cout << num_threads << " threads are working" << endl;
-	
+	cout << num_threads << " threads are used in sorting" << endl;
+
 #pragma omp parallel num_threads(num_threads)
     {
         int tid = omp_get_thread_num();
@@ -72,7 +81,7 @@ void GroupStream::Sort(vector<Data>& dataList){
 //		return a.value < b.value;
 //		});
 		//sort(dataList.begin(), dataList.end(), compareByHash);
-		sort(dataList.begin(), dataList.begin() + valid_items, compareByHash);
+		sort(dataList.begin(), dataList.begin() + valid_items, compareByHashAndGroupSize);
 #endif
 }
 
@@ -85,17 +94,34 @@ bool GroupStream::checkJaccard(int node1, int node2)
 }
 */
 void GroupStream::Unite(const vector<Data>& dataList, UnionFind& uf) {
+    // 合并前先保留上一轮的结果
+    uf.lastround = uf.parent;
 	vector<uint64_t> cur_value = dataList[0].value;
 	int cur_head = dataList[0].id;
-	for (int i = 0; i < valid_items; i++) {
-		auto data = dataList[i];
-		if(data.value == cur_value) {
-			uf.unite(data.id, cur_head);
-		}else{
-			cur_value = data.value;
-			cur_head = data.id;
+	for (int i = 1; i < valid_items; i++) {
+		auto thisone = dataList[i];
+        auto lastone = dataList[i-1];
+		if(thisone.value == lastone.value) {
+		    uf.unite(thisone.id, lastone.id);
 		}
 	}
+}
+
+// 粗暴版 先unite，不合适直接拆
+void GroupStream::checkUnite(unordered_map<int, vector<int>>& map, UnionFind& uf)
+{
+    int ltSizeCnt = 0;
+    for(auto& [group_id, groups] : map){
+        if(groups.size() > unite_condition){
+            ltSizeCnt++;
+            // 按照lastround吧group中的全部还原回去
+            for(int id : groups) {
+                id_root_map[id] = uf.lastround[id];
+            }
+        }
+    }
+    cerr << "groups size large than 1,000,000: " << ltSizeCnt << endl;
+    uf.updateParent(id_root_map);
 }
 
 void GroupStream::GroupByCol(vector<Data>& hash_vec, UnionFind& uf) {
@@ -117,10 +143,20 @@ void GroupStream::GroupByCol(vector<Data>& hash_vec, UnionFind& uf) {
 	auto timestart = chrono::high_resolution_clock::now();
 	Sort(hash_vec);
 	Unite(hash_vec, uf);
+
 	auto timeend = chrono::high_resolution_clock::now();
 	auto duration = chrono::duration_cast<chrono::seconds>(timeend - timestart).count();
 	cerr << "sort and unite time: " << duration << endl;
 #endif
+    // directly break union
+	//uf.findRoot(id_root_map);
+	//unordered_map<int, vector<int>> map;
+	//for(int i = 0; i < items; i++) {
+	//	map[id_root_map[i]].push_back(i);
+	//}
+    //cerr << "Group Size of First Unite : " <<map.size() << endl;
+    //checkUnite(map, uf);
+
 #ifdef VERBOSE
 	int groups_size = uf.countSetsSize();
 	cerr << "Group Size is " << groups_size << endl;
@@ -297,7 +333,7 @@ void GroupStream::Cluster(int m, vector<vector<int>>& cluster_sequences) {
 		tasks.emplace_back(temp_cluster_sequences, 1);
 	}
     std::sort(tasks.begin(), tasks.end(), [](const Task& a, const Task& b) {
-                return a.required_threads > b.required_threads;
+                return a.required_threads < b.required_threads;
                     });
 	cerr<<"--------------------------"<<endl;
 	cerr<<"task size      "<<tasks.size()<<endl;
@@ -468,12 +504,16 @@ void GroupStream::countGroupSize(int m, UnionFind& uf) {
 //		}
 		uf.updateParent(id_root_map);
 
-		unordered_map<int, vector<int>> map_after_cluster;
+		unordered_map<int, vector<int>> map_after_cluster; // rootid:[seq0, seq1...]
 		priority_queue<int, vector<int>, greater<int>> minHeap;
 
 		for(int i = 0; i < items; i++) {
 			map_after_cluster[id_root_map[i]].push_back(i);
 		}
+
+		uf.updateGroupSizeCnt(map_after_cluster);
+        uf.countGroupsSizeofSeqs(GroupSizeCnt);
+
 		int largethan1w = 0;
 		for(auto &[root_id, seqs] : map_after_cluster){
 			if(seqs.size() > cluster_condition)

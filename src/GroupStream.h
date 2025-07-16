@@ -25,7 +25,8 @@ public:
 	int R = 1;
 	int L = 1;
 	int K = 8; 
-	int cluster_condition = 10000;
+	int cluster_condition = 2000;
+	int unite_condition = 10000000;
 	int num_threads = 8;
 	bool slide = true;
 	bool cluster_on = false;
@@ -96,6 +97,7 @@ public:
 	// 存储seq-id到root-id的映射
 	vector<uint64_t> seq_ids; 
 	// 存储序列在hash-vec里的顺序和读入顺序的映射
+	static vector<int> GroupSizeCnt;
 
 	GroupStream(int n, int m, int r, int l) : uf(n), items(n), R(r), L(l), M(m) {
 		valid_items = n;
@@ -166,6 +168,7 @@ public:
 	void resize(int n) {
 		hash_vec.resize(items);
 		id_root_map.resize(items, -1);
+		GroupSizeCnt.resize(items, 1);
 		for(auto& data : hash_vec)
 			data.value.resize(L * R);
 	}
@@ -197,5 +200,12 @@ public:
 	void tempOutput(vector<vector<int>>& cluster_sequences);
 
 	void outputClstr();
+	void checkUnite(unordered_map<int, vector<int>>& map, UnionFind& uf);
+    
+    static bool compareByHashAndGroupSize(const Data &a, const Data &b) {
+        if(a.value != b.value)
+    	    return a.value < b.value;
+        return GroupSizeCnt[a.id] < GroupSizeCnt[b.id];
+    }
 };
 #endif
