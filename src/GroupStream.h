@@ -34,6 +34,8 @@ public:
 	bool temp_output_on = false;
 	bool output_on = false;
 	bool small_data_merge_cluster_on = true;
+    bool break_unite = true;
+    bool break_directly = true;
 	string res_file = "";
 	vector<Data> hash_vec;
 	string folder_name = "nr-15/";

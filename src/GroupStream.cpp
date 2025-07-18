@@ -81,7 +81,11 @@ void GroupStream::Sort(vector<Data>& dataList){
 //		return a.value < b.value;
 //		});
 		//sort(dataList.begin(), dataList.end(), compareByHash);
-		sort(dataList.begin(), dataList.begin() + valid_items, compareByHashAndGroupSize);
+        if(break_unite && break_directly){
+		  sort(dataList.begin(), dataList.begin() + valid_items, compareByHashAndGroupSize);
+        }else{
+		    sort(dataList.begin(), dataList.begin() + valid_items, compareByHash);
+        }
 #endif
 }
 
@@ -95,16 +99,27 @@ bool GroupStream::checkJaccard(int node1, int node2)
 */
 void GroupStream::Unite(const vector<Data>& dataList, UnionFind& uf) {
     // 合并前先保留上一轮的结果
-    uf.lastround = uf.parent;
+    if(break_directly) uf.lastround = uf.parent;
+
 	vector<uint64_t> cur_value = dataList[0].value;
 	int cur_head = dataList[0].id;
-	for (int i = 1; i < valid_items; i++) {
-		auto thisone = dataList[i];
-        auto lastone = dataList[i-1];
-		if(thisone.value == lastone.value) {
-		    uf.unite(thisone.id, lastone.id);
-		}
-	}
+    if(break_unite && !break_directly){
+	    for (int i = 1; i < valid_items; i++) {
+	    	auto thisone = dataList[i];
+            auto lastone = dataList[i-1];
+	    	if(thisone.value == lastone.value) {
+	    	    uf.uniteandcheck(thisone.id, lastone.id);
+	    	}
+	    }
+    }else{
+	    for (int i = 1; i < valid_items; i++) {
+	    	auto thisone = dataList[i];
+            auto lastone = dataList[i-1];
+	    	if(thisone.value == lastone.value) {
+	    	    uf.unite(thisone.id, lastone.id);
+	    	}
+	    }
+    }
 }
 
 // 粗暴版 先unite，不合适直接拆
@@ -149,13 +164,15 @@ void GroupStream::GroupByCol(vector<Data>& hash_vec, UnionFind& uf) {
 	cerr << "sort and unite time: " << duration << endl;
 #endif
     // directly break union
-	//uf.findRoot(id_root_map);
-	//unordered_map<int, vector<int>> map;
-	//for(int i = 0; i < items; i++) {
-	//	map[id_root_map[i]].push_back(i);
-	//}
-    //cerr << "Group Size of First Unite : " <<map.size() << endl;
-    //checkUnite(map, uf);
+    if(break_directly){
+	    uf.findRoot(id_root_map);
+	    unordered_map<int, vector<int>> map;
+	    for(int i = 0; i < items; i++) {
+	    	map[id_root_map[i]].push_back(i);
+	    }
+        cerr << "Group Size of First Unite : " <<map.size() << endl;
+        checkUnite(map, uf);
+    }
 
 #ifdef VERBOSE
 	int groups_size = uf.countSetsSize();
@@ -511,8 +528,12 @@ void GroupStream::countGroupSize(int m, UnionFind& uf) {
 			map_after_cluster[id_root_map[i]].push_back(i);
 		}
 
-		uf.updateGroupSizeCnt(map_after_cluster);
-        uf.countGroupsSizeofSeqs(GroupSizeCnt);
+        if(break_unite && !break_directly){
+            std::cout << "更新unionfind的group cnt map" << std::endl;
+            // 更新unionfind和Groupstream里面的组的计数
+		    uf.updateGroupSizeCnt(map_after_cluster);
+            uf.countGroupsSizeofSeqs(GroupSizeCnt);
+        }
 
 		int largethan1w = 0;
 		for(auto &[root_id, seqs] : map_after_cluster){

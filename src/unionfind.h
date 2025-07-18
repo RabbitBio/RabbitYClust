@@ -56,7 +56,7 @@ public:
         return parent[x];
     }
 
-    void unite(int x, int y) {
+    void uniteandcheck(int x, int y) {
 	    int rootX = find(x);
 	    int rootY = find(y);
 	    if (rootX != rootY) {
@@ -81,6 +81,20 @@ public:
 	    }
 	}
 
+    void unite(int x, int y) {
+	    int rootX = find(x);
+	    int rootY = find(y);
+	    if (rootX != rootY) {
+	        if (rank[rootX] > rank[rootY]) {
+	            parent[rootY] = rootX;
+	        } else if (rank[rootX] < rank[rootY]) {
+	            parent[rootX] = rootY;
+	        } else {
+	            parent[rootY] = rootX;
+	            rank[rootX]++;
+	        }
+	    }
+	}
     // 感觉应该在聚类完成后
     // 因为聚类还要更新一次groups_cnt
     void countGroupsSizeofSeqs(vector<int>& seqs) {
@@ -92,11 +106,19 @@ public:
 
     void updateGroupSizeCnt(unordered_map<int, vector<int>>& map_after_cluster){
         // 遍历删掉不再存在的root
-        for(auto& [root, size] : groups_cnt){
-            if(!map_after_cluster.count(root)){
-                groups_cnt.erase(root);
+        // 记录要删除的 key
+        vector<int> to_delete;
+        for (const auto& [root, size] : groups_cnt) {
+            if (!map_after_cluster.count(root)) {
+                to_delete.push_back(root);
             }
         }
+
+        // 执行删除
+        for (int root : to_delete) {
+            groups_cnt.erase(root);
+        }
+
         // 增加新的root
         for(auto& [root, groups] : map_after_cluster){
             groups_cnt[root] = groups.size();
