@@ -4,9 +4,12 @@
 #include <thread>
 #include <algorithm>
 #include <atomic>
+#include <unordered_set>
 
 // 静态成员变量的定义
 vector<int> GroupStream::GroupSizeCnt;
+unordered_set<int> visited;
+int round_cnt=0;
 
 struct minheapcompare {
 	bool operator()(const pair<int, int> &a, const pair<int, int> &b) {
@@ -623,6 +626,7 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 	if(slide) {
 		for(int m=0; m < M-R+1; m++){
 			cerr << "round "<<  m << endl;
+            round_cnt++;
 			fillHashVec(hashes, hash_vec, m);
 			GroupByCol(hash_vec, uf);
 			if(m == M-R && final_cluster_on) {
@@ -716,6 +720,25 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
 	}
 	auto end_time_update = chrono::high_resolution_clock::now();
     auto duration_update = chrono::duration_cast<chrono::seconds>(end_time_update - start_time_update).count();
+
+    //序列输出ID...
+    if(group_seqs.size() >= 5000000) {
+        if(visited.find(group_seqs.size()) == visited.end()){
+            visited.insert(group_seqs.size());
+            ostringstream oss;
+            ofstream seqs("round"+round_cnt+ to_string(group_seqs.size()));
+            streambuf* origin_cout = cout.rdbuf();
+            cout.rdbuf(seqs.rdbuf());
+
+            uf.findRoot(id_root_map);
+            for (const auto& seq : group_seqs) {
+                oss << ">" << names[seq] << "\n";
+            }
+            cout << oss.str();
+            cout.rdbuf(origin_cout);
+        }
+    }
+
     if(group_seqs.size() >= 10000000){ // > 10,000,000
         tasks_cnt[10000000]++;
         build_cnt[10000000]+=duration_build;

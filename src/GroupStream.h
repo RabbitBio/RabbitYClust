@@ -35,7 +35,7 @@ public:
 	bool output_on = false;
 	bool small_data_merge_cluster_on = true;
     bool break_unite = true;
-    bool break_directly = true;
+    bool break_directly = false;
 	string res_file = "";
 	vector<Data> hash_vec;
 	string folder_name = "nr-15/";
@@ -168,6 +168,8 @@ public:
 	void setL(int l) { L = l; }
 	void setNumThreads(int threads) { num_threads = threads; }
 	void resize(int n) {
+        cerr << "break_unite: "<< break_unite << endl;
+        cerr << "break_directly: "<< break_directly << endl;
 		hash_vec.resize(items);
 		id_root_map.resize(items, -1);
 		GroupSizeCnt.resize(items, 1);
