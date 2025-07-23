@@ -8,8 +8,8 @@
 
 // 静态成员变量的定义
 vector<int> GroupStream::GroupSizeCnt;
-unordered_set<int> visited;
 int round_cnt=0;
+int max_size=0;
 
 struct minheapcompare {
 	bool operator()(const pair<int, int> &a, const pair<int, int> &b) {
@@ -84,7 +84,7 @@ void GroupStream::Sort(vector<Data>& dataList){
 //		return a.value < b.value;
 //		});
 		//sort(dataList.begin(), dataList.end(), compareByHash);
-        if(break_unite && break_directly){
+        if(break_unite && !break_directly){
 		  sort(dataList.begin(), dataList.begin() + valid_items, compareByHashAndGroupSize);
         }else{
 		    sort(dataList.begin(), dataList.begin() + valid_items, compareByHash);
@@ -253,6 +253,7 @@ void GroupStream::Cluster(int m, vector<vector<int>>& cluster_sequences) {
 	for(int i=0;i<cluster_sequences.size();i++){
 		if (cluster_sequences[i].size()>=100000)
 		{
+            max_size = cluster_sequences[i].size() > max_size ? cluster_sequences[i].size() : max_size;
 			if(cluster_sequences[i].size() >= 10000000){
 				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 40);
 			} else if(cluster_sequences[i].size() >= 1000000) {
@@ -389,7 +390,7 @@ void GroupStream::Cluster(int m, vector<vector<int>>& cluster_sequences) {
 	}
 	
 #pragma omp taskwait
-	printf("All tasks complete.\n");
+	//printf("All tasks complete.\n");
 }
 }
 	auto timeend = chrono::high_resolution_clock::now();
@@ -510,6 +511,7 @@ void GroupStream::countGroupSize(int m, UnionFind& uf) {
 		redundant_seqs = 0;
 
 		if(threadPool_on){
+            max_size=0;
 			Cluster(m, cluster_sequences);
 		}else{
 			//#pragma omp parallel for num_threads(num_threads)
@@ -722,11 +724,9 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
     auto duration_update = chrono::duration_cast<chrono::seconds>(end_time_update - start_time_update).count();
 
     //序列输出ID...
-    if(group_seqs.size() >= 5000000) {
-        if(visited.find(group_seqs.size()) == visited.end()){
-            visited.insert(group_seqs.size());
+    if(group_seqs.size() == max_size && group_seqs.size() > 10000000) {
             ostringstream oss;
-            ofstream seqs("round"+round_cnt+ to_string(group_seqs.size()));
+            ofstream seqs("max_group_seqs");
             streambuf* origin_cout = cout.rdbuf();
             cout.rdbuf(seqs.rdbuf());
 
@@ -736,7 +736,6 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
             }
             cout << oss.str();
             cout.rdbuf(origin_cout);
-        }
     }
 
     if(group_seqs.size() >= 10000000){ // > 10,000,000
