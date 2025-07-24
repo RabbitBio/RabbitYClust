@@ -4,6 +4,7 @@
 #include <zlib.h>
 
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <cstring>
 #include <fstream>
@@ -36,6 +37,8 @@ unordered_map<uint64_t, uint64_t> fai_map;
 unordered_map<uint64_t, string> fa_map;
 int64_t pos = 0;
 
+vector<vector<vector<uint64_t>>> all_hashes;
+vector<vector<uint64_t>> thr_seq_ids;
 struct compare {
 	bool operator()(const pair<int, int> &a, const pair<int, int> &b) {
 		return a.first > b.first;
@@ -43,6 +46,10 @@ struct compare {
 };
 
 void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, int min_len) {
+    // 每个线程有自己独立的按列存储的 vector<vector<uint64_t>> 用于存储该线程的结果
+	vector<vector<uint64_t>> local_hashes(m);  // 创建 m 列，每列存储一个哈希
+	vector<uint64_t> local_seq_ids;  // 创建 m 列，每列存储一个哈希
+		
     while (true) {
         std::string sequence;
         int seq_id;
@@ -54,7 +61,6 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 				if (length < min_len) continue;
 				sequence = ks->seq.s;//direct copy?
 				seq_id = num_seqs.fetch_add(1);
-//				cout << ks->name.s << " " << seq_id << endl;
 		}
 
 		KHFMinHash mh;
@@ -68,57 +74,18 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 
 		auto& sketch = mh.getSektch();
 		
-	
-		{
-				std::lock_guard<std::mutex> lock(mtx2);
-//				seq_id = num_seqs.fetch_add(1);
-				hashes.emplace_back(sketch.hashes);
-				seq_ids.emplace_back(seq_id);
+		local_seq_ids.emplace_back(seq_id);
+		for(int i=0; i<m; i++){
+			local_hashes[i].emplace_back(sketch.hashes[i]);
 		}
+
 	}
-}
 
-void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, int min_len) {
-    while (true) {
-        std::string sequence;
-        int seq_id;
-		string name;
-		{
-				std::lock_guard<std::mutex> lock(mtx1);
-				int length = kseq_read(ks);
-				if (length < 0) break;
-				if (length < min_len) continue;
-				sequence = ks->seq.s;//direct copy?
-				seq_id = num_seqs.fetch_add(1);
-				name = ks->name.s;
-	//			cout << ks->name.s << " " << seq_id << endl;
-		}
-
-		// FIXME: store char* for simply using cdhit to cluster
-		const char* cstr = sequence.c_str();
-//		char* buffer = (char*)malloc(sequence.size()+1);
-//		char* buffer = new char[sequence.size() + 1];
-//		strcpy(buffer, cstr);
-		KHFMinHash mh;
-		mh.setK(k);
-		mh.setM(m);
-
-		if (xxhash_flag)
-				mh.buildSketch(sequence.c_str());
-		else
-				mh.buildSketchByNoSeedAAHash(sequence.c_str());
-
-		auto& sketch = mh.getSektch();
-		
-	
-		{
-				std::lock_guard<std::mutex> lock(mtx2);
-	//			seq_id = num_seqs.fetch_add(1);
-				hashes.emplace_back(sketch.hashes);
-				seq_ids.emplace_back(seq_id);
-				fa_map.emplace(seq_id, sequence);
-				names.emplace_back(name);
-		}
+	    // 线程完成后汇总其结果
+	{
+		std::lock_guard<std::mutex> lock(mtx2);
+		all_hashes[tid] = std::move(local_hashes);  // 将线程的结果添加到全局容器
+		thr_seq_ids[tid] = std::move(local_seq_ids);
 	}
 }
 
@@ -146,7 +113,78 @@ void reorderRowsSwap(vector<vector<uint64_t>>& matrix, vector<uint64_t>& indices
 	}
 }
 
+void compactSeqIds(int threads)
+{
+	for(int i = 0;  i < threads; i++)
+	{
+		seq_ids.insert(seq_ids.end(), make_move_iterator(thr_seq_ids[i].begin()), make_move_iterator(thr_seq_ids[i].end()));
+	}
+	ostringstream oss;
+	for(int i = 0; i < seq_ids.size(); i++){
+		oss << seq_ids[i] << " ";
+	}
+	ofstream ofs("seq_ids");
+	if(!ofs){
+		cerr << "Error opening file!" << endl;
+		return;
+	}
+	ofs << oss.str();
+	ofs.close();
+}
+	
+void outputAllHashes(int m, int threads)
+{
+	for(int i = 0; i < m; i++){
+		ostringstream oss;
+		for(int t = 0; t < threads; t++){
+			for(int j = 0; j < all_hashes[t][i].size(); j++){
+				oss << all_hashes[t][i][j] << " ";
+			}
+			oss << "\n";
+		}
+		string sketch_file_name = "sketch"+ to_string(i);
+		ofstream ofs(sketch_file_name);
+		if(!ofs){
+			cerr << "Error opening file!" << endl;
+			return;
+		}
+		ofs << oss.str();
+		ofs.close();
+	}
+}
 
+void buildSketches(string filename, int num_threads, int k, int m, bool xxhash_flag, int min_len)
+{
+	
+	gzFile fp1;
+	kseq_t *ks1;
+
+	fp1 = gzopen(filename.c_str(),"r");
+
+	if(NULL == fp1){
+		cerr << "Fail to open file: " << filename << endl;
+		return ;
+	}
+
+	
+	ks1 = kseq_init(fp1);
+
+	all_hashes.resize(num_threads);
+	thr_seq_ids.resize(num_threads);
+    std::vector<std::thread> threads;
+    for (int i = 0; i < num_threads; ++i) {
+   	    threads.emplace_back(consumer, i, fp1, ks1, k, m, xxhash_flag, min_len);
+   	}
+
+    for (auto& t : threads) {
+        t.join();
+    }
+
+	compactSeqIds(num_threads);
+	outputAllHashes(m, num_threads);
+    gzclose(fp1);
+    kseq_destroy(ks1);
+}
 
 int main(int argc, char* argv[])
 {
@@ -242,60 +280,20 @@ int main(int argc, char* argv[])
 	cerr << "==========End Paramters==========" << endl;
 
 
-	gzFile fp1;
-	kseq_t *ks1;
-
-	fp1 = gzopen(filename.c_str(),"r");
-
-	if(NULL == fp1){
-		cerr << "Fail to open file: " << filename << endl;
-		return 0;
-	}
-
-	
-	ks1 = kseq_init(fp1);
-
-//  FIXME:临时的验证方式 为了把其他聚类软件的结果和seqid对应起来
-//	ostringstream seq_id_name;
-//	seq_id_name << "k" << k << "m" << m << "seq-id.txt";
-//	ofstream seq_id(seq_id_name.str());
-//	ofstream seq_id("sequence-id.txt");
-//	streambuf* origin_cout = cout.rdbuf();
-//	cout.rdbuf(seq_id.rdbuf());
-
-
 	cerr << "Start Building sketches!" << endl;
 	auto generation_start = chrono::high_resolution_clock::now();
 	
-    std::vector<std::thread> threads;
-	if(cluster_on) {
-    	for (int i = 0; i < num_threads; ++i) {
-    	    threads.emplace_back(consumer_cluster, i, fp1, ks1, k, m, xxhash_flag, min_len);
-    	}
-	}else {
-
-    	for (int i = 0; i < num_threads; ++i) {
-    	    threads.emplace_back(consumer, i, fp1, ks1, k, m, xxhash_flag, min_len);
-    	}
-	}
-    for (auto& t : threads) {
-        t.join();
-    }
-    
-	if(!reorder_off){
-		reorderRowsSwap(hashes, seq_ids);
-	}
+	buildSketches(filename, num_threads, k, m, xxhash_flag, min_len);
 
 	auto generation_end = chrono::high_resolution_clock::now();
 	auto generation_duration = chrono::duration_cast<chrono::seconds>(generation_end - generation_start).count();
+	return 0;
 
 	cerr << "Sketching time: " << generation_duration << endl;
 	cerr << "Total number of seqs: " << num_seqs.load() << endl;
 
-	cerr << "Generated Map Size: " << fa_map.size() << endl;
+	//cerr << "Generated Map Size: " << fa_map.size() << endl;
 
-    gzclose(fp1);
-    kseq_destroy(ks1);
 
 	//grouping
 	cerr << "Start grouping!" << endl;
