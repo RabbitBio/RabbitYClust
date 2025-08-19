@@ -100,10 +100,70 @@ bool GroupStream::checkJaccard(int node1, int node2)
 	// compare the
 }
 */
-void GroupStream::Unite(const vector<Data>& dataList, UnionFind& uf) {
-    // 合并前先保留上一轮的结果
-    if(break_directly) uf.lastround = uf.parent;
+void GroupStream::checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf) {
+	cur_uf.findRoot(id_root_map);
+	unordered_map<int, vector<int>> map;
 
+	for(int i = 0; i < items; i++) {
+		map[id_root_map[i]].push_back(i);
+	}
+
+	int seqs_count = 0;
+	vector<vector<int>> cluster_sequences;
+	for(auto &[key, seqs] : map){
+		if(seqs.size() > cluster_condition) {
+			cluster_sequences.emplace_back(seqs);
+		}
+	}
+	cerr << "Groups in " << round_cnt << " col: " << cluster_sequences.size() << endl;
+
+	sort(cluster_sequences.begin(), cluster_sequences.end(), [](const vector<int>& a, const vector<int>& b){
+	return a.size() > b.size();
+	});
+	cerr << "Top 10 largest group size in col " << round_cnt << " is: ";
+	for(int i = 0; i < std::min(10, (int)cluster_sequences.size()); i++){
+		cerr << cluster_sequences[i].size() << " ";
+	}
+	cerr << endl;
+
+	total_clusters = 0;
+	redundant_seqs = 0;
+
+	if(threadPool_on){
+        max_size=0;
+		Cluster(cluster_sequences);
+	}else{
+		//#pragma omp parallel for num_threads(num_threads)
+		for(int i = 0; i < cluster_sequences.size(); i++) {
+				clusterEachGroup(cluster_sequences[i]);
+		}
+	}
+	cur_uf.updateParent(id_root_map);
+
+	unordered_map<int, vector<int>> map_after_cluster; // rootid:[seq0, seq1...]
+	priority_queue<int, vector<int>, greater<int>> minHeap;
+
+	for(int i = 0; i < items; i++) {
+		map_after_cluster[id_root_map[i]].push_back(i);
+	}
+
+	for(auto &[root_id, seqs] : map_after_cluster){
+		minHeap.push(seqs.size());
+		if (minHeap.size() > 10){
+			 minHeap.pop();
+		}
+
+	}
+	cerr << "After break the bad edges, " << map_after_cluster.size() << " groups in col " << round_cnt << endl;
+	cerr << "top 10 groups: " << endl;
+	while(!minHeap.empty()){
+		cerr << minHeap.top() << " ";
+		minHeap.pop();
+}
+	cerr << endl;
+	
+}
+void GroupStream::Unite(const vector<Data>& dataList, UnionFind& local_uf) {
 	vector<uint64_t> cur_value = dataList[0].value;
 	int cur_head = dataList[0].id;
     if(break_unite && !break_directly){
@@ -111,7 +171,7 @@ void GroupStream::Unite(const vector<Data>& dataList, UnionFind& uf) {
 	    	auto thisone = dataList[i];
             auto lastone = dataList[i-1];
 	    	if(thisone.value == lastone.value) {
-	    	    uf.uniteandcheck(thisone.id, lastone.id);
+	    	    local_uf.uniteandcheck(thisone.id, lastone.id);
 	    	}
 	    }
     }else{
@@ -119,82 +179,45 @@ void GroupStream::Unite(const vector<Data>& dataList, UnionFind& uf) {
 	    	auto thisone = dataList[i];
             auto lastone = dataList[i-1];
 	    	if(thisone.value == lastone.value) {
-	    	    uf.unite(thisone.id, lastone.id);
+	    	    local_uf.unite(thisone.id, lastone.id);
 	    	}
 	    }
     }
 }
 
-// 粗暴版 先unite，不合适直接拆
-void GroupStream::checkUnite(unordered_map<int, vector<int>>& map, UnionFind& uf)
-{
-    int ltSizeCnt = 0;
-    for(auto& [group_id, groups] : map){
-        if(groups.size() > unite_condition){
-            ltSizeCnt++;
-            // 按照lastround吧group中的全部还原回去
-            for(int id : groups) {
-                id_root_map[id] = uf.lastround[id];
-            }
-        }
+void GroupStream::unite_by_edges(UnionFind& col_uf) {
+	vector<pair<int, int>> parent;
+	for(int i = 0; i < items; i++) {
+    	uf.unite(i, col_uf.find(i));
+		//parent.emplace_back(i, col_uf.find(i));
+	}
+	/*
+	sort(parent.begin(), parent.end(), [](const pair<int, int>& a, const pair<int, int>& b){
+		return a.second < b.second;
+	});
+    for (int i = 1; i < items; i++) {
+    	if(parent[i] == parent[i-1]) {
+    	    uf.unite(i, i-1);
+    	}
     }
-    cerr << "groups size large than 1,000,000: " << ltSizeCnt << endl;
-    uf.updateParent(id_root_map);
+	*/
 }
 
 void GroupStream::GroupByCol(vector<Data>& hash_vec, UnionFind& uf) {
-#ifdef TIMING
-	auto sort_start_time = chrono::high_resolution_clock::now();
 	Sort(hash_vec);
-	auto sort_end_time = chrono::high_resolution_clock::now();
-	auto sort_duration = chrono::duration_cast<chrono::seconds>(sort_end_time - sort_start_time).count();
-	cout << "sort time: "<< sort_duration << endl;
-	auto union_start_time = chrono::high_resolution_clock::now();
-	Unite(hash_vec, uf);
-	auto union_end_time = chrono::high_resolution_clock::now();
-	auto union_duration = chrono::duration_cast<chrono::seconds>(union_end_time - union_start_time).count();
-	cout << "union time: " << " is " << union_duration << endl;
-
-	int groups_size = uf.countSetsSize();
-	cout << "Group Size is " << groups_size << endl;
-#else
-	auto timestart = chrono::high_resolution_clock::now();
-	Sort(hash_vec);
-	Unite(hash_vec, uf);
-
-	auto timeend = chrono::high_resolution_clock::now();
-	auto duration = chrono::duration_cast<chrono::seconds>(timeend - timestart).count();
-	cerr << "sort and unite time: " << duration << endl;
-#endif
-    // directly break union
-    if(break_directly){
-	    uf.findRoot(id_root_map);
-	    unordered_map<int, vector<int>> map;
-	    for(int i = 0; i < items; i++) {
-	    	map[id_root_map[i]].push_back(i);
-	    }
-        cerr << "Group Size of First Unite : " <<map.size() << endl;
-        checkUnite(map, uf);
-    }
-
-#ifdef VERBOSE
+	if(round_cnt != 0){
+		UnionFind col_uf(items);
+		Unite(hash_vec, col_uf);
+		checkEdges(hash_vec, col_uf);
+		unite_by_edges(col_uf);
+	}else{
+		Unite(hash_vec, uf);
+	}
 	int groups_size = uf.countSetsSize();
 	cerr << "Group Size is " << groups_size << endl;
-#endif
 }
 
 void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m) {
-// 1. use std::transform
-//	int index = 0;
-//	transform(vec.begin(), vec.end(), hash_vec.begin(), 
-//		[&index](int value) {
-//		return Data{value, (index++)};
-//		});
-// 2. iteration to construct pair
-//    for (int i = 0; i < vec.size(); ++i) {
-//        hash_vec[i].id = i;
-//        hash_vec[i].value = vec[i];
-//    }
 	if(rep_only_group){
 		valid_items = 0;
 		for (int i = 0; i < items; i++) {
@@ -235,7 +258,7 @@ void GroupStream::getGroupMap(UnionFind& uf, unordered_map<int, vector<int>>& gr
 	}
 }
 
-void GroupStream::Cluster(int m, vector<vector<int>>& cluster_sequences) {
+void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
     init_cnt();
 	std::atomic<int> thread_pool;
  	int TOTAL_THREADS;
@@ -249,8 +272,8 @@ void GroupStream::Cluster(int m, vector<vector<int>>& cluster_sequences) {
 	vector<vector<int>> temp_cluster_sequences;
 	vector<int>temp_temp_cluster_sequences;
 	int count=0;
-//	if(m == M-R){
 	for(int i=0;i<cluster_sequences.size();i++){
+		//tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 1);
 		if (cluster_sequences[i].size()>=100000)
 		{
             max_size = cluster_sequences[i].size() > max_size ? cluster_sequences[i].size() : max_size;
@@ -292,60 +315,6 @@ void GroupStream::Cluster(int m, vector<vector<int>>& cluster_sequences) {
 			}
 		}
 	}
-//	}else{
-//	for(int i=0;i<cluster_sequences.size();i++){
-//		if (cluster_sequences[i].size()>=100000)
-//		{
-//			if(cluster_sequences[i].size() >= 10000000){
-//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 40);
-//			} else if(cluster_sequences[i].size() >= 1000000) {
-//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 32);
-//			} else if(cluster_sequences[i].size() >= 500000){
-//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 16);
-//			} else{
-//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 8);
-//			}
-//
-//		} else {
-//			tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 1);
-//		}
-//	}
-//	}
-/**
- * gyj old version
-		if (cluster_sequences[i].size()>100000)
-		{
-			tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]},16);
-		}
-		else
-		{
-			if(cluster_sequences[i].size()<100000){
-				temp_temp_cluster_sequences.insert(
-						temp_temp_cluster_sequences.end(),
-						cluster_sequences[i].begin(),
-						cluster_sequences[i].end()
-						);
-				if(temp_temp_cluster_sequences.size()>=100000){
-					temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
-					temp_temp_cluster_sequences.clear();
-					count++;
-					if(count >=1){
-						tasks.emplace_back(temp_cluster_sequences,1);
-						count=0;
-						temp_cluster_sequences.clear();
-					}
-				}
-			} else{
-				temp_cluster_sequences.emplace_back(cluster_sequences[i]);
-				count++;
-				if(count >=1){
-						tasks.emplace_back(temp_cluster_sequences,1);
-						count=0;
-						temp_cluster_sequences.clear();
-				}
-			}
-		}
-**/
 	if(!temp_temp_cluster_sequences.empty()){
 		temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
 	}
@@ -354,10 +323,10 @@ void GroupStream::Cluster(int m, vector<vector<int>>& cluster_sequences) {
 		tasks.emplace_back(temp_cluster_sequences, 1);
 	}
     std::sort(tasks.begin(), tasks.end(), [](const Task& a, const Task& b) {
-                return a.required_threads < b.required_threads;
+                return a.required_threads > b.required_threads;
                     });
-	cerr<<"--------------------------"<<endl;
-	cerr<<"task size      "<<tasks.size()<<endl;
+	//cerr<<"--------------------------"<<endl;
+	//cerr<<"task size      "<<tasks.size()<<endl;
 	auto timestart = chrono::high_resolution_clock::now();
 #pragma omp parallel
 {
@@ -476,12 +445,9 @@ void GroupStream::Cluster(int m, vector<vector<int>>& cluster_sequences) {
     }
 }
 
-void GroupStream::countGroupSize(int m, UnionFind& uf) {
+void GroupStream::countGroupSize(UnionFind& uf) {
 // FIXME:用结构体GroupNode存储id-root的映射还是用hash_vec继续存
-// 用GroupNode增加内存但是如果排序的话要搬移的数据少
 	uf.findRoot(id_root_map);
-// FIXME:用map来统计还是排序后统计
-// 1.用map来统计分组结果 增加内存 只遍历一次
 	unordered_map<int, vector<int>> map;
 
 	for(int i = 0; i < items; i++) {
@@ -512,18 +478,13 @@ void GroupStream::countGroupSize(int m, UnionFind& uf) {
 
 		if(threadPool_on){
             max_size=0;
-			Cluster(m, cluster_sequences);
+			Cluster(cluster_sequences);
 		}else{
 			//#pragma omp parallel for num_threads(num_threads)
 			for(int i = 0; i < cluster_sequences.size(); i++) {
-					//cerr << i << " is doing cluster " << cluster_sequences[i].size() << " sequences" << endl;
 					clusterEachGroup(cluster_sequences[i]);
 			}
 		}
-//		if(rep_on){
-//			cerr << "聚类了 " << total_clusters << " 个类" << endl;
-//			cerr << "共去除了冗余序列 " << redundant_seqs - total_clusters << "条" << endl;
-//		}
 		uf.updateParent(id_root_map);
 
 		unordered_map<int, vector<int>> map_after_cluster; // rootid:[seq0, seq1...]
@@ -540,35 +501,25 @@ void GroupStream::countGroupSize(int m, UnionFind& uf) {
             uf.countGroupsSizeofSeqs(GroupSizeCnt);
         }
 
-		int largethan1w = 0;
+		int largethan = 0;
 		for(auto &[root_id, seqs] : map_after_cluster){
-			if(seqs.size() > cluster_condition)
-				largethan1w++;
+			if(seqs.size() > 1)
+				largethan++;
 			minHeap.push(seqs.size());
 			if (minHeap.size() > 10){
 				 minHeap.pop();
 			}
 
 		}
-		cerr << "After clustering, clusters size large than " << cluster_condition << " : "<< largethan1w << endl;
+		if(round_cnt != M-R) cerr << "Groups large than " << cluster_condition << ", start rescure" << << endl;
+		cerr << "After clustering, clusters size large than " << cluster_condition << " : "<< largethan << endl;
 		while(!minHeap.empty()){
-//			if(temp_output_on){
-//				int rootid = minHeap.top().second;
-//				string filename = folder_name + to_string(rootid) + ".fa";
-//				ofstream ofile(filename);
-//				for(int id : map_after_cluster[rootid]){
-//					ofile << ">" << id << endl;
-//					ofile << fa_map[id] << endl;
-//				}
-//				ofile.close();
-//				cerr << "cluster: " << rootid << " contains " << minHeap.top().first << " seqs stored in: " << filename << endl; 
-//			}
 			cerr << minHeap.top() << " ";
 			minHeap.pop();
 		}
 		cerr << endl;
-
 	}else {
+		cerr << "Top 10 largest group size is: ";
 		priority_queue<int, vector<int>, greater<int>> minHeap;
 		for(auto &[root_id, seqs] : map){
 			minHeap.push(seqs.size());
@@ -628,28 +579,27 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 	if(slide) {
 		for(int m=0; m < M-R+1; m++){
 			cerr << "round "<<  m << endl;
-            round_cnt++;
 			fillHashVec(hashes, hash_vec, m);
 			GroupByCol(hash_vec, uf);
 			if(m == M-R && final_cluster_on) {
 				cluster_condition = 1;
-				rep_only_cluster = false;
 			}
-			countGroupSize(m, uf);
+			countGroupSize(uf);
+            round_cnt++;
 		}
 	}else{
 		for(int m=0; m < M / R; m++){
 			cerr << "round "<<  m << endl;
 			fillHashVec(hashes, hash_vec, m * R);
 			GroupByCol(hash_vec, uf);
-			countGroupSize(m, uf);
+			countGroupSize(uf);
 		}
 		if(M % R != 0){
 			cerr << "round "<<  M / R;
 			setR(M % R);
 			fillHashVec(hashes, hash_vec, (M/R) * R);
 			GroupByCol(hash_vec, uf);
-			countGroupSize(M, uf);
+			countGroupSize(uf);
 		}
 	}
 #ifdef TIMING
@@ -723,6 +673,7 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
 	auto end_time_update = chrono::high_resolution_clock::now();
     auto duration_update = chrono::duration_cast<chrono::seconds>(end_time_update - start_time_update).count();
 
+	/*
     //序列输出ID...
     if(group_seqs.size() == max_size && group_seqs.size() > 10000000) {
             ostringstream oss;
@@ -776,6 +727,7 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
     }else{
         cerr << "<10,000" << endl;
     }
+	*/
 }
 
 void GroupStream::setValidStatus(vector<int>& group_seqs){

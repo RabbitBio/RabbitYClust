@@ -32,16 +32,16 @@ private:
 
 public:	
 	vector<int> parent;
-    vector<int> lastround;
+    //vector<int> lastround;
     unordered_map<int, int> groups_cnt;
     int unite_condition = 10000000;
 
     UnionFind(int n) {
         parent.resize(n);
-        lastround.resize(n);
+        //lastround.resize(n);
 		rank.resize(n, 0);
         iota(parent.begin(), parent.end(), 0); // 初始化为自身
-        iota(lastround.begin(), lastround.end(), 0); // 初始化为自身
+        //iota(lastround.begin(), lastround.end(), 0); // 初始化为自身
         //iota(rank.begin(), rank.end(), 0); 
 		//cout << "unionfind generation ends." << endl;
         for(int i = 0; i < n; i++){

@@ -25,8 +25,7 @@ public:
 	int R = 1;
 	int L = 1;
 	int K = 8; 
-	int cluster_condition = 2000;
-	int unite_condition = 10000000;
+	int cluster_condition = 1000000;
 	int num_threads = 8;
 	bool slide = true;
 	bool cluster_on = false;
@@ -34,7 +33,7 @@ public:
 	bool temp_output_on = false;
 	bool output_on = false;
 	bool small_data_merge_cluster_on = true;
-    bool break_unite = true;
+    bool break_unite = false;
     bool break_directly = false;
 	string res_file = "";
 	vector<Data> hash_vec;
@@ -180,6 +179,8 @@ public:
 	void Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map);
 	// grouping sequences with m hash-functions
 
+	void checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf);
+	void unite_by_edges(UnionFind& col_uf);
 	void Unite(const vector<Data>& dataList, UnionFind& uf);
  	// use unionfind to unite group results by per column
 	void Sort(vector<Data>& dataList);
@@ -190,7 +191,7 @@ public:
 	void fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m);
 	// construct a sorted struct Data(hash-vec) for a column of hash-funtions(vec)
 
-	void countGroupSize(int m, UnionFind& uf);
+	void countGroupSize(UnionFind& uf);
 	void countGroupSizeBySort(UnionFind& uf);
 	
 	void getGroupMap(UnionFind& uf,unordered_map<int, vector<int>>& group_map);
@@ -199,7 +200,7 @@ public:
 	void clusterEachGroup(vector<int>& seq_ids);
 	void clusterEachGroup(vector<int>& seq_ids, int neededThread);
 
-	void Cluster(int m, vector<vector<int>>& cluster_sequences);
+	void Cluster(vector<vector<int>>& cluster_sequences);
 
 	void tempOutput(vector<vector<int>>& cluster_sequences);
 
