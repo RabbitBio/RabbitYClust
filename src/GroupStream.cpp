@@ -204,14 +204,14 @@ void GroupStream::unite_by_edges(UnionFind& col_uf) {
 
 void GroupStream::GroupByCol(vector<Data>& hash_vec, UnionFind& uf) {
 	Sort(hash_vec);
-	if(round_cnt != 0){
+	//if(round_cnt != 0){
 		UnionFind col_uf(items);
 		Unite(hash_vec, col_uf);
 		checkEdges(hash_vec, col_uf);
 		unite_by_edges(col_uf);
-	}else{
-		Unite(hash_vec, uf);
-	}
+	//}else{
+	//	Unite(hash_vec, uf);
+	//}
 	int groups_size = uf.countSetsSize();
 	cerr << "Group Size is " << groups_size << endl;
 }
@@ -462,11 +462,11 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 			}
 		}
 
-	if(cluster_on && (round_cnt == M-R || cluster_sequences.size() > 1)) {
+	if(cluster_on && (round_cnt == M-R || cluster_sequences.size() > 0)) {
 
 		if(round_cnt == M-R){
 			cerr << "Final Cluster: groups larger than" << cluster_condition << " : " << cluster_sequences.size() << endl;
-		}else if(cluster_sequences.size() > 1){
+		}else if(cluster_sequences.size() > 0){
 			cerr << "start rescure: groups larger than" << cluster_condition << " : " << cluster_sequences.size() << endl;
 		}
 
