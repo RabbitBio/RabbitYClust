@@ -108,10 +108,9 @@ void GroupStream::checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf) {
 		map[id_root_map[i]].push_back(i);
 	}
 
-	int seqs_count = 0;
 	vector<vector<int>> cluster_sequences;
 	for(auto &[key, seqs] : map){
-		if(seqs.size() > cluster_condition) {
+		if(seqs.size() > 1) {
 			cluster_sequences.emplace_back(seqs);
 		}
 	}
@@ -278,7 +277,7 @@ void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
 		{
             max_size = cluster_sequences[i].size() > max_size ? cluster_sequences[i].size() : max_size;
 			if(cluster_sequences[i].size() >= 10000000){
-				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 40);
+				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 68);
 			} else if(cluster_sequences[i].size() >= 1000000) {
 				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 32);
 			} else if(cluster_sequences[i].size() >= 500000){
@@ -366,6 +365,7 @@ void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
 	auto duration = chrono::duration_cast<chrono::seconds>(timeend - timestart).count();
 	cerr << "cdhit cluster time: " << duration << endl;
     // 打印时间
+	/*
     if(tasks_cnt[10000000] > 0){
         int x = 10000000;
         cerr << "大于10,000,000: " ;
@@ -443,6 +443,7 @@ void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
         cerr << "聚类后更新总时间: " << update_cnt[x] << " ";
         cerr << "聚类后平均时间: " << (update_cnt[x] / tasks_cnt[x]) << endl;
     }
+	*/
 }
 
 void GroupStream::countGroupSize(UnionFind& uf) {
@@ -453,21 +454,26 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 	for(int i = 0; i < items; i++) {
 		map[id_root_map[i]].push_back(i);
 	}
-
-	if(cluster_on) {
-		int seqs_count = 0;
+	//统计超过cluster—condition的组的个数
 		vector<vector<int>> cluster_sequences;
 		for(auto &[key, seqs] : map){
 			if(seqs.size() > cluster_condition) {
 				cluster_sequences.emplace_back(seqs);
 			}
 		}
-		cerr << "Groups larger than " << cluster_condition << " : " << cluster_sequences.size() << endl;
+
+	if(cluster_on && (round_cnt == M-R || cluster_sequences.size() > 1)) {
+
+		if(round_cnt == M-R){
+			cerr << "Final Cluster: groups larger than" << cluster_condition << " : " << cluster_sequences.size() << endl;
+		}else if(cluster_sequences.size() > 1){
+			cerr << "start rescure: groups larger than" << cluster_condition << " : " << cluster_sequences.size() << endl;
+		}
 
 		sort(cluster_sequences.begin(), cluster_sequences.end(), [](const vector<int>& a, const vector<int>& b){
-		return a.size() > b.size();
-		});
-		cerr << "Top 10 largest group size is: ";
+				return a.size() > b.size();
+			});
+		cerr << "Before clustering, Top 10 largest group size is: ";
 		for(int i = 0; i < std::min(10, (int)cluster_sequences.size()); i++){
 			cerr << cluster_sequences[i].size() << " ";
 		}
@@ -487,52 +493,32 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 		}
 		uf.updateParent(id_root_map);
 
-		unordered_map<int, vector<int>> map_after_cluster; // rootid:[seq0, seq1...]
-		priority_queue<int, vector<int>, greater<int>> minHeap;
+		map.clear();
 
 		for(int i = 0; i < items; i++) {
-			map_after_cluster[id_root_map[i]].push_back(i);
+			map[id_root_map[i]].push_back(i);
 		}
 
-        if(break_unite && !break_directly){
-            std::cout << "更新unionfind的group cnt map" << std::endl;
-            // 更新unionfind和Groupstream里面的组的计数
-		    uf.updateGroupSizeCnt(map_after_cluster);
-            uf.countGroupsSizeofSeqs(GroupSizeCnt);
-        }
-
-		int largethan = 0;
-		for(auto &[root_id, seqs] : map_after_cluster){
-			if(seqs.size() > 1)
-				largethan++;
-			minHeap.push(seqs.size());
-			if (minHeap.size() > 10){
-				 minHeap.pop();
-			}
-
-		}
-		if(round_cnt != M-R) cerr << "Groups large than " << cluster_condition << ", start rescure" << << endl;
-		cerr << "After clustering, clusters size large than " << cluster_condition << " : "<< largethan << endl;
-		while(!minHeap.empty()){
-			cerr << minHeap.top() << " ";
-			minHeap.pop();
-		}
-		cerr << endl;
-	}else {
-		cerr << "Top 10 largest group size is: ";
-		priority_queue<int, vector<int>, greater<int>> minHeap;
-		for(auto &[root_id, seqs] : map){
-			minHeap.push(seqs.size());
-			if (minHeap.size() > 10){
-				 minHeap.pop();
-			}
-		}
-		while(!minHeap.empty()){
-			cerr << minHeap.top() << " ";
-			minHeap.pop();
-		}
-		cerr << endl;
+        //if(break_unite && !break_directly){
+        //    std::cout << "更新unionfind的group cnt map" << std::endl;
+        //    // 更新unionfind和Groupstream里面的组的计数
+		//    uf.updateGroupSizeCnt(map);
+        //    uf.countGroupsSizeofSeqs(GroupSizeCnt);
+        //}
 	}
+	cerr << "Top 10 largest group size after merging is: ";
+	priority_queue<int, vector<int>, greater<int>> minHeap;
+	for(auto &[root_id, seqs] : map){
+		minHeap.push(seqs.size());
+		if (minHeap.size() > 10){
+			 minHeap.pop();
+		}
+	}
+	while(!minHeap.empty()){
+		cerr << minHeap.top() << " ";
+		minHeap.pop();
+	}
+	cerr << endl;
 }
 
 void GroupStream::countGroupSizeBySort(UnionFind& uf) {
