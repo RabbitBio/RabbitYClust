@@ -2,7 +2,7 @@
 #define __GROUPSTREAM_H__
 
 #include "unionfind.h"
-#include "cluster.h"
+#include "libcdhit/cdhit.h"
 #include <math.h>
 
 extern unordered_map<uint64_t, string> fa_map;

@@ -277,7 +277,7 @@ void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
 		{
             max_size = cluster_sequences[i].size() > max_size ? cluster_sequences[i].size() : max_size;
 			if(cluster_sequences[i].size() >= 10000000){
-				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 68);
+				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 40);
 			} else if(cluster_sequences[i].size() >= 1000000) {
 				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 32);
 			} else if(cluster_sequences[i].size() >= 500000){
@@ -647,7 +647,12 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
 
 	auto start_time = chrono::high_resolution_clock::now();
 	cluster cluster_cdhit;
-	cluster_cdhit.cdhit_cluster(sequences, id_root_map, neededThread);
+
+	if(round_cnt == M-R)
+		cluster_cdhit.cdhit_cluster(sequences, id_root_map, neededThread);
+	else
+		cluster_sequences(sequences, id_root_map, 5, 0.05, neededThread); 
+
 	auto end_time = chrono::high_resolution_clock::now();
 	auto duration_cdhit = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
 

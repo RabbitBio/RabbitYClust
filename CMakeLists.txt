@@ -21,6 +21,10 @@ find_package(OpenMP REQUIRED)
 
 aux_source_directory(src DIR_SRCS)
 aux_source_directory(src/aahash DIR_SRCS)
+list(REMOVE_ITEM DIR_SRCS cdhit-common.c++)
+list(REMOVE_ITEM DIR_SRCS cluster.cpp)
+list(REMOVE_ITEM DIR_SRCS cdhit-common.h)
+list(REMOVE_ITEM DIR_SRCS cluster.h)
 
 add_executable(yclust ${DIR_SRCS})
 
@@ -31,9 +35,26 @@ if(ENABLE_THREAD_POOL)
 	target_compile_definitions(yclust PRIVATE THREAD_POOL)
 endif()
 
+set(LIBCDHIT "${CMAKE_SOURCE_DIR}/libs/libcdhitlib.so")
+set(LIBCDHIT_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
+
+# 检查头文件路径
+if(NOT EXISTS ${LIBCDHIT_INCLUDE_DIR})
+    message(FATAL_ERROR "cdhit include directory not found: ${LIBCDHIT_INCLUDE_DIR}")
+endif()
+
+# 检查库文件
+if(NOT EXISTS ${LIBCDHIT})
+    message(FATAL_ERROR "cdhit library not found: ${LIBCDHIT}")
+endif()
+
+target_include_directories(yclust PRIVATE ${LIBCDHIT_INCLUDE_DIR})
+target_link_libraries(yclust PRIVATE ${LIBCDHIT})
+
 # 将 OpenMP 链接到目标
 if(OpenMP_CXX_FOUND)
     target_link_libraries(yclust PUBLIC z OpenMP::OpenMP_CXX)
 else()
 	target_link_libraries(yclust z)
 endif()
+
