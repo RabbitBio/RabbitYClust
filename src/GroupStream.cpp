@@ -114,28 +114,20 @@ void GroupStream::checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf) {
 			cluster_sequences.emplace_back(seqs);
 		}
 	}
-	cerr << "Groups in " << round_cnt << " col: " << cluster_sequences.size() << endl;
+	cerr << "First MinHash collisions in round  " << round_cnt << " , groups: " << cluster_sequences.size() << endl;
 
 	sort(cluster_sequences.begin(), cluster_sequences.end(), [](const vector<int>& a, const vector<int>& b){
-	return a.size() > b.size();
+		return a.size() > b.size();
 	});
-	cerr << "Top 10 largest group size in col " << round_cnt << " is: ";
+	cerr << "    Top 10 largest group size: " << round_cnt";
 	for(int i = 0; i < std::min(10, (int)cluster_sequences.size()); i++){
 		cerr << cluster_sequences[i].size() << " ";
 	}
 	cerr << endl;
 
-	total_clusters = 0;
-	redundant_seqs = 0;
-
-	if(threadPool_on){
-        max_size=0;
-		Cluster(cluster_sequences);
-	}else{
 		//#pragma omp parallel for num_threads(num_threads)
-		for(int i = 0; i < cluster_sequences.size(); i++) {
-				clusterEachGroup(cluster_sequences[i]);
-		}
+	for(int i = 0; i < cluster_sequences.size(); i++) {
+		clusterEachGroup(cluster_sequences[i]);
 	}
 	cur_uf.updateParent(id_root_map);
 
@@ -153,15 +145,15 @@ void GroupStream::checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf) {
 		}
 
 	}
-	cerr << "After break the bad edges, " << map_after_cluster.size() << " groups in col " << round_cnt << endl;
-	cerr << "top 10 groups: " << endl;
+	cerr << "    After break the bad edges,groups number are: " << map_after_cluster.size() << endl;
+	cerr << "    Top 10 largest group size: " << endl;
 	while(!minHeap.empty()){
 		cerr << minHeap.top() << " ";
 		minHeap.pop();
 }
 	cerr << endl;
-	
 }
+
 void GroupStream::Unite(const vector<Data>& dataList, UnionFind& local_uf) {
 	vector<uint64_t> cur_value = dataList[0].value;
 	int cur_head = dataList[0].id;
@@ -204,14 +196,10 @@ void GroupStream::unite_by_edges(UnionFind& col_uf) {
 
 void GroupStream::GroupByCol(vector<Data>& hash_vec, UnionFind& uf) {
 	Sort(hash_vec);
-	//if(round_cnt != 0){
-		UnionFind col_uf(items);
-		Unite(hash_vec, col_uf);
-		checkEdges(hash_vec, col_uf);
-		unite_by_edges(col_uf);
-	//}else{
-	//	Unite(hash_vec, uf);
-	//}
+	UnionFind col_uf(items);
+	Unite(hash_vec, col_uf);
+	checkEdges(hash_vec, col_uf);
+	unite_by_edges(col_uf);
 	int groups_size = uf.countSetsSize();
 	cerr << "Group Size is " << groups_size << endl;
 }
@@ -463,7 +451,6 @@ void GroupStream::countGroupSize(UnionFind& uf) {
 		}
 
 	if(cluster_on && (round_cnt == M-R || cluster_sequences.size() > 0)) {
-
 		if(round_cnt == M-R){
 			cerr << "Final Cluster: groups larger than" << cluster_condition << " : " << cluster_sequences.size() << endl;
 		}else if(cluster_sequences.size() > 0){
@@ -573,21 +560,22 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 			countGroupSize(uf);
             round_cnt++;
 		}
-	}else{
-		for(int m=0; m < M / R; m++){
-			cerr << "round "<<  m << endl;
-			fillHashVec(hashes, hash_vec, m * R);
-			GroupByCol(hash_vec, uf);
-			countGroupSize(uf);
-		}
-		if(M % R != 0){
-			cerr << "round "<<  M / R;
-			setR(M % R);
-			fillHashVec(hashes, hash_vec, (M/R) * R);
-			GroupByCol(hash_vec, uf);
-			countGroupSize(uf);
-		}
 	}
+	//else{
+	//	for(int m=0; m < M / R; m++){
+	//		cerr << "round "<<  m << endl;
+	//		fillHashVec(hashes, hash_vec, m * R);
+	//		GroupByCol(hash_vec, uf);
+	//		countGroupSize(uf);
+	//	}
+	//	if(M % R != 0){
+	//		cerr << "round "<<  M / R;
+	//		setR(M % R);
+	//		fillHashVec(hashes, hash_vec, (M/R) * R);
+	//		GroupByCol(hash_vec, uf);
+	//		countGroupSize(uf);
+	//	}
+	//}
 #ifdef TIMING
 	auto transpose_start_time = chrono::high_resolution_clock::now();
 	getGroupMap(uf, group_map);
@@ -617,8 +605,9 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs){
 	}
 	//读取FAI获取data
 
-	cluster cluster_cdhit;
-	cluster_cdhit.cdhit_cluster(sequences, id_root_map);
+	cluster_sequences(sequences, id_root_map, 5, 0.05, num_threads); 
+	//cluster cluster_cdhit;
+	//cluster_cdhit.cdhit_cluster(sequences, id_root_map);
 
 	//从中挑选出代表序列作为以后分组和聚类的唯一代表
 	if(rep_only_group){
