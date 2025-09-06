@@ -108,28 +108,55 @@ void GroupStream::checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf) {
 		map[id_root_map[i]].push_back(i);
 	}
 
+	int cnt_1000_100 = 0;
+	int cnt_100_10 = 0;
+	int cnt_10_1 = 0;
+
 	vector<vector<int>> cluster_sequences;
 	for(auto &[key, seqs] : map){
-		if(seqs.size() > 1) {
+		if(seqs.size() > 10) {
 			cluster_sequences.emplace_back(seqs);
+		}
+		int size = seqs.size();
+		if(size > 100){
+			cnt_1000_100++;
+		}else if (size > 10){
+			cnt_100_10++;
+		}else if (size > 1){
+			cnt_10_1++;
 		}
 	}
 	cerr << "First MinHash collisions in round  " << round_cnt << " , groups: " << cluster_sequences.size() << endl;
+	cerr << "    groups size count: " << endl;
+	cerr << "    	1000-100: " << cnt_1000_100 << endl;
+	cerr << "    	100-10: " << cnt_100_10 << endl;
+	cerr << "    	10-1: " << cnt_10_1 << endl;
 
 	sort(cluster_sequences.begin(), cluster_sequences.end(), [](const vector<int>& a, const vector<int>& b){
 		return a.size() > b.size();
 	});
-	cerr << "    Top 10 largest group size: " << round_cnt";
+	cerr << "    Top 10 largest group size: " ;
 	for(int i = 0; i < std::min(10, (int)cluster_sequences.size()); i++){
 		cerr << cluster_sequences[i].size() << " ";
 	}
 	cerr << endl;
 
-		//#pragma omp parallel for num_threads(num_threads)
-	for(int i = 0; i < cluster_sequences.size(); i++) {
-		clusterEachGroup(cluster_sequences[i]);
-	}
+	Cluster(cluster_sequences);
+	//auto start_time = chrono::high_resolution_clock::now();
+	//#pragma omp parallel for schedule(dynamic, 100)
+	//for(int i = 0; i < cluster_sequences.size(); i++) {
+	//	clusterEachGroup_st(cluster_sequences[i]);
+	//	if(i % 10000 == 0)
+	//		cout << "finished " << i << " groups" << endl;
+
+	//}
 	cur_uf.updateParent(id_root_map);
+
+	auto end_time = chrono::high_resolution_clock::now();
+	auto duration_cc = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
+	cerr << "Break the bad edges time(seconds): " << duration_cc  << endl;
+	//cout << duration_cc << endl;
+
 
 	unordered_map<int, vector<int>> map_after_cluster; // rootid:[seq0, seq1...]
 	priority_queue<int, vector<int>, greater<int>> minHeap;
@@ -258,7 +285,7 @@ void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
 
 	vector<vector<int>> temp_cluster_sequences;
 	vector<int>temp_temp_cluster_sequences;
-	int count=0;
+	int task_cnt=0;
 	for(int i=0;i<cluster_sequences.size();i++){
 		//tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 1);
 		if (cluster_sequences[i].size()>=100000)
@@ -274,33 +301,36 @@ void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
 				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 8);
 			}
 			
-		} else {
-			if(cluster_sequences[i].size()<10000){
-				temp_temp_cluster_sequences.insert(
-					temp_temp_cluster_sequences.end(),
-					cluster_sequences[i].begin(),
-					cluster_sequences[i].end()
-				);
-				if(temp_temp_cluster_sequences.size()>=10000){
-					temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
-					temp_temp_cluster_sequences.clear();
-					count++;
-					if(count >=1){
-						tasks.emplace_back(temp_cluster_sequences,1);
-						count=0;
-						temp_cluster_sequences.clear();
-					}
-				}
-			}else{
-				temp_cluster_sequences.emplace_back(cluster_sequences[i]);
-				count++;
-				if(count >=1){
-					tasks.emplace_back(temp_cluster_sequences,1);
-					count=0;
-					temp_cluster_sequences.clear();
-				}
-			}
+		}else {
+			tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 1);
 		}
+		//} else {
+		//	if(cluster_sequences[i].size()<10000){
+		//		temp_temp_cluster_sequences.insert(
+		//			temp_temp_cluster_sequences.end(),
+		//			cluster_sequences[i].begin(),
+		//			cluster_sequences[i].end()
+		//		);
+		//		if(temp_temp_cluster_sequences.size()>=10000){
+		//			temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
+		//			temp_temp_cluster_sequences.clear();
+		//			task_cnt++;
+		//			if(task_cnt >=1){
+		//				tasks.emplace_back(temp_cluster_sequences,1);
+		//				task_cnt=0;
+		//				temp_cluster_sequences.clear();
+		//			}
+		//		}
+		//	}else{
+		//		temp_cluster_sequences.emplace_back(cluster_sequences[i]);
+		//		task_cnt++;
+		//		if(task_cnt >=1){
+		//			tasks.emplace_back(temp_cluster_sequences,1);
+		//			task_cnt=0;
+		//			temp_cluster_sequences.clear();
+		//		}
+		//	}
+		//}
 	}
 	if(!temp_temp_cluster_sequences.empty()){
 		temp_cluster_sequences.emplace_back(temp_temp_cluster_sequences);
@@ -605,7 +635,7 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs){
 	}
 	//读取FAI获取data
 
-	cluster_sequences(sequences, id_root_map, 5, 0.05, num_threads); 
+	cluster_sequences(sequences, id_root_map, 5, 0.05, 1); 
 	//cluster cluster_cdhit;
 	//cluster_cdhit.cdhit_cluster(sequences, id_root_map);
 
@@ -615,6 +645,27 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs){
 		setValidStatus(group_seqs);
 	}
 }
+
+void GroupStream::clusterEachGroup_st(vector<int>& group_seqs){
+	vector<Sequence_new> sequences;
+
+	for(int i = 0; i < group_seqs.size(); i++) {
+		sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]].c_str());
+	}
+	//读取FAI获取data
+
+	// greedy increment
+	//cluster cluster_cdhit;
+	//cluster_cdhit.cdhit_cluster(sequences, id_root_map, 1);
+	cluster_sequences_st(sequences, id_root_map, 5, 0.05); 
+
+	//从中挑选出代表序列作为以后分组和聚类的唯一代表
+	if(rep_only_group){
+		redundant_seqs += sequences.size();
+		setValidStatus(group_seqs);
+	}
+}
+
 void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
 	auto start_time_build = chrono::high_resolution_clock::now();
 	vector<Sequence_new> sequences;
@@ -640,10 +691,18 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
 	if(round_cnt == M-R)
 		cluster_cdhit.cdhit_cluster(sequences, id_root_map, neededThread);
 	else
-		cluster_sequences(sequences, id_root_map, 5, 0.05, neededThread); 
+	{
+		if(neededThread == 1 && sequences.size() < 1000){
+			cluster_sequences_st(sequences, id_root_map, 5, 0.05); 
+		}else{
+			cluster_sequences(sequences, id_root_map, 5, 0.05, neededThread); 
+		}
+	}
+		//cluster_sequences(sequences, id_root_map, 5, 0.05, neededThread); 
 
 	auto end_time = chrono::high_resolution_clock::now();
-	auto duration_cdhit = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
+	auto duration_cdhit = chrono::duration_cast<chrono::milliseconds>(end_time - start_time).count();
+	//cout << duration_cdhit << endl;
 
 	auto start_time_update = chrono::high_resolution_clock::now();
 	if(rep_only_group){

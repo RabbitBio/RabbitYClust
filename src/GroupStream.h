@@ -199,6 +199,7 @@ public:
 
 	void clusterEachGroup(vector<int>& seq_ids);
 	void clusterEachGroup(vector<int>& seq_ids, int neededThread);
+	void clusterEachGroup_st(vector<int>& group_seqs);
 
 	void Cluster(vector<vector<int>>& cluster_sequences);
 
