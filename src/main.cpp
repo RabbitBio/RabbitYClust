@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
 
 	CLI::App app{"yclust v.0.0.1, extremely fast and scalable protein clustering"};
 	int num_threads = 1;
-	int min_len = 1;
+	int min_len = 11;
 	int k = 8;
 	int m = 15;
 	int r = 1;
@@ -137,20 +137,7 @@ int main(int argc, char* argv[])
 	cerr << "Min_len: " << min_len << endl;
 	cerr << "Similarity Threshold:" << similarity << endl;
 	cerr << "Input: " << filename << endl;
-	if(rep_group_on) {
-		if(rep_cluster_on) {
-			//cerr << "only use representatives in clustering and grouping" << endl;
-			cerr << "分组和聚类阶段均只考虑代表序列" << endl;
-		}else{
-			//cerr << "only use representatives in grouping" << endl;
-			cerr << "分组阶段只考虑代表序列" << endl;
-		}
-	}
-	if(reorder_off) {
-		cerr << "关闭了重新排序" << endl;
-	}else{
-		cerr << "对所有序列按照输入顺序排序" << endl;
-	}
+
 	if(!threadPool_off) {
 		cerr << "use thread pool when clustering" << endl;
 	}

@@ -112,8 +112,6 @@ public:
 	// 最后一轮全聚类,cluster-condition=1
 	bool second_group = false;
 	
-	void setValidStatus(vector<int>& group_seqs);
-
 	void setOutput(string res_file_name) {
 		output_on = true; 
 		res_file = res_file_name;

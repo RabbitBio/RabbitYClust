@@ -718,15 +718,15 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
 	*/
 }
 
-void GroupStream::setValidStatus(vector<int>& group_seqs){
-	for(int seq : group_seqs){
-		if(seq != id_root_map[seq]){
-			valid_seqs[seq] = false;
-		}else{
-			valid_seqs[seq] = true;
-		}
-	}
-}
+//void GroupStream::setValidStatus(vector<int>& group_seqs){
+//	for(int seq : group_seqs){
+//		if(seq != id_root_map[seq]){
+//			valid_seqs[seq] = false;
+//		}else{
+//			valid_seqs[seq] = true;
+//		}
+//	}
+//}
 
 void GroupStream::outputClstr() {
 	cerr << "cluster result stored: " << res_file << endl;
