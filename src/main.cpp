@@ -4,6 +4,7 @@
 #include <zlib.h>
 
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <cstring>
 #include <fstream>
@@ -26,134 +27,55 @@ KSEQ_INIT(gzFile, gzread)
 std::mutex mtx1;
 std::mutex mtx2;
 std::atomic<int> num_seqs(0);
+int cnt_seqs=0;
 
 vector<vector<uint64_t>> hashes;
 vector<uint64_t> seq_ids;
 vector<string> names;
 // yy add for cluster
 //bool cluster_on = false;
-unordered_map<uint64_t, uint64_t> fai_map;
 unordered_map<uint64_t, string> fa_map;
 int64_t pos = 0;
 
+vector<vector<vector<uint64_t>>> all_hashes;
+vector<vector<uint64_t>> thr_seq_ids;
 struct compare {
 	bool operator()(const pair<int, int> &a, const pair<int, int> &b) {
 		return a.first > b.first;
 	}
 };
 
-void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, int min_len) {
-    while (true) {
-        std::string sequence;
-        int seq_id;
-
-		{
-				std::lock_guard<std::mutex> lock(mtx1);
-				int length = kseq_read(ks);
-				if (length < 0) break;
-				if (length < min_len) continue;
-				sequence = ks->seq.s;//direct copy?
-				seq_id = num_seqs.fetch_add(1);
-//				cout << ks->name.s << " " << seq_id << endl;
-		}
-
-		KHFMinHash mh;
-		mh.setK(k);
-		mh.setM(m);
-
-		if (xxhash_flag)
-				mh.buildSketch(sequence.c_str());
-		else
-				mh.buildSketchByNoSeedAAHash(sequence.c_str());
-
-		auto& sketch = mh.getSektch();
-		
+void read_fa(string filename, int min_len)
+{
 	
-		{
-				std::lock_guard<std::mutex> lock(mtx2);
-//				seq_id = num_seqs.fetch_add(1);
-				hashes.emplace_back(sketch.hashes);
-				seq_ids.emplace_back(seq_id);
-		}
-	}
-}
+	gzFile fp1;
+	kseq_t *ks1;
 
-void consumer_cluster(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, int min_len) {
+	fp1 = gzopen(filename.c_str(),"r");
+	if(NULL == fp1){
+		cerr << "Fail to open file: " << filename << endl;
+		return ;
+	}
+	ks1 = kseq_init(fp1);
+
     while (true) {
-        std::string sequence;
-        int seq_id;
-		string name;
-		{
-				std::lock_guard<std::mutex> lock(mtx1);
-				int length = kseq_read(ks);
-				if (length < 0) break;
-				if (length < min_len) continue;
-				sequence = ks->seq.s;//direct copy?
-				seq_id = num_seqs.fetch_add(1);
-				name = ks->name.s;
-	//			cout << ks->name.s << " " << seq_id << endl;
-		}
-
-		// FIXME: store char* for simply using cdhit to cluster
-		const char* cstr = sequence.c_str();
-//		char* buffer = (char*)malloc(sequence.size()+1);
-//		char* buffer = new char[sequence.size() + 1];
-//		strcpy(buffer, cstr);
-		KHFMinHash mh;
-		mh.setK(k);
-		mh.setM(m);
-
-		if (xxhash_flag)
-				mh.buildSketch(sequence.c_str());
-		else
-				mh.buildSketchByNoSeedAAHash(sequence.c_str());
-
-		auto& sketch = mh.getSektch();
-		
-	
-		{
-				std::lock_guard<std::mutex> lock(mtx2);
-	//			seq_id = num_seqs.fetch_add(1);
-				hashes.emplace_back(sketch.hashes);
-				seq_ids.emplace_back(seq_id);
-				fa_map.emplace(seq_id, sequence);
-				names.emplace_back(name);
-		}
+		int len = kseq_read(ks1);
+		if(len < 0) break;
+		if(len < min_len) continue;
+		fa_map[cnt_seqs] = ks1->seq.s;
+		names.emplace_back(ks1->name.s);
+		cnt_seqs++;
 	}
+    gzclose(fp1);
+    kseq_destroy(ks1);
 }
-
-void reorderRowsSwap(vector<vector<uint64_t>>& matrix, vector<uint64_t>& indices) {
-    size_t n = matrix.size();
-    if (n != indices.size() || n == 0) return;
-
-    for (size_t i = 0; i < n; ++i) {
-		if(i == indices[i]) continue;
-
-        uint64_t curr_pos = i;          // 当前行索引（uint64_t 类型）
-        uint64_t next_pos = indices[static_cast<size_t>(curr_pos)];  // 下一个位置
-
-        while (next_pos != curr_pos) {
-				// 交换 matrix 的行指针
-				swap(matrix[static_cast<size_t>(curr_pos)], matrix[static_cast<size_t>(next_pos)]);
-				swap(names[static_cast<size_t>(curr_pos)], names[static_cast<size_t>(next_pos)]);
-				uint64_t finised_pos = next_pos;
-				next_pos = indices[static_cast<size_t>(next_pos)];
-				indices[static_cast<size_t>(finised_pos)] = finised_pos;
-
-		}
-
-		indices[i] = i;
-	}
-}
-
-
 
 int main(int argc, char* argv[])
 {
 
 	CLI::App app{"yclust v.0.0.1, extremely fast and scalable protein clustering"};
 	int num_threads = 1;
-	int min_len = 50;
+	int min_len = 1;
 	int k = 8;
 	int m = 15;
 	int r = 1;
@@ -162,6 +84,7 @@ int main(int argc, char* argv[])
 	string filename = "";
 	string res_file = "";
 	string fa_output_name = "";
+	string sketch_file_name = "";
 
 	auto option_threads = app.add_option("-t, --threads", num_threads,  "set the thread number, default 1 thread");
 	auto option_min_len = app.add_option("--min-length", min_len, "set the filter minimum length (minLen), protein length less than minLen will be ignore, default 50");
@@ -171,8 +94,10 @@ int main(int argc, char* argv[])
 	auto option_input = app.add_option("-i, --input", filename, "input file name, fasta or gziped fasta formats");
 	auto option_r = app.add_option("-r, --r-size", r, "set the number of block");
 	auto option_cluster_thd = app.add_option("--c-thd, --cluser-threshold", cluster_thd, "cluster threshold in cdhit");
+	auto option_sketch = app.add_option("-S, --sketch-file", sketch_file_name, "sketch file name, needed");
 
 	option_input->required();
+	option_sketch->required();
 
 	bool xxhash_flag = false;
 	auto option_xxhash = app.add_flag("-x, --xxhash", xxhash_flag, "Default hash is aahash, if this flag is enabled, use xxhash");
@@ -183,13 +108,6 @@ int main(int argc, char* argv[])
 
 	bool cluster_on = false;
 	auto option_cluster = app.add_flag("-c, --cluster", cluster_on, "If this flat is enabled, clustering during the grouping");
-
-	bool rep_group_on = false;
-	auto option_rep_group = app.add_flag("--rep-g, --use-representatives-grouping", rep_group_on, "If this flag is enabled, only use representative sequences during the grouping");
-
-	bool rep_cluster_on = false;
-	auto option_rep_cluster = app.add_flag("--rep-c, --use-representatives-clustering", rep_cluster_on, "If this flag is enabled, only use representative sequences during the grouping and clustering");
-	option_rep_cluster->needs("--rep-g");
 
 	bool reorder_off = false;
 	auto option_reorder = app.add_flag("--reorder-off, --reorderSequences", reorder_off, "If this flat is enabled, reorder sketch vector by the sequence index read order");
@@ -242,73 +160,21 @@ int main(int argc, char* argv[])
 	cerr << "==========End Paramters==========" << endl;
 
 
-	gzFile fp1;
-	kseq_t *ks1;
+	cerr << "Start reading FA files!" << endl;
+	auto read_fa_start = chrono::high_resolution_clock::now();
+	read_fa(filename, min_len);
+	auto read_fa_end = chrono::high_resolution_clock::now();
+	auto read_fa_duration = chrono::duration_cast<chrono::seconds>(read_fa_end - read_fa_start).count();
 
-	fp1 = gzopen(filename.c_str(),"r");
+	cerr << "Reading time: " << read_fa_duration << endl;
+	cerr << "Total number of seqs: " << cnt_seqs << endl;
 
-	if(NULL == fp1){
-		cerr << "Fail to open file: " << filename << endl;
-		return 0;
-	}
-
-	
-	ks1 = kseq_init(fp1);
-
-//  FIXME:临时的验证方式 为了把其他聚类软件的结果和seqid对应起来
-//	ostringstream seq_id_name;
-//	seq_id_name << "k" << k << "m" << m << "seq-id.txt";
-//	ofstream seq_id(seq_id_name.str());
-//	ofstream seq_id("sequence-id.txt");
-//	streambuf* origin_cout = cout.rdbuf();
-//	cout.rdbuf(seq_id.rdbuf());
-
-
-	cerr << "Start Building sketches!" << endl;
-	auto generation_start = chrono::high_resolution_clock::now();
-	
-    std::vector<std::thread> threads;
-	if(cluster_on) {
-    	for (int i = 0; i < num_threads; ++i) {
-    	    threads.emplace_back(consumer_cluster, i, fp1, ks1, k, m, xxhash_flag, min_len);
-    	}
-	}else {
-
-    	for (int i = 0; i < num_threads; ++i) {
-    	    threads.emplace_back(consumer, i, fp1, ks1, k, m, xxhash_flag, min_len);
-    	}
-	}
-    for (auto& t : threads) {
-        t.join();
-    }
-    
-	if(!reorder_off){
-		reorderRowsSwap(hashes, seq_ids);
-	}
-
-	auto generation_end = chrono::high_resolution_clock::now();
-	auto generation_duration = chrono::duration_cast<chrono::seconds>(generation_end - generation_start).count();
-
-	cerr << "Sketching time: " << generation_duration << endl;
-	cerr << "Total number of seqs: " << num_seqs.load() << endl;
-
-	cerr << "Generated Map Size: " << fa_map.size() << endl;
-
-    gzclose(fp1);
-    kseq_destroy(ks1);
-
-	//grouping
 	cerr << "Start grouping!" << endl;
-	GroupStream gs(num_seqs.load(), m, r, 1);
+	GroupStream gs(cnt_seqs, m, r, 1);
 	gs.setIDs(seq_ids);
 	gs.setNumThreads(num_threads);
-	if(rep_group_on) {
-		if(rep_cluster_on) {
-			gs.setRepGroupAndClusterOn();
-		}else{
-			gs.setRepGroupOn();
-		}
-	}
+	gs.set_sketch_filename(sketch_file_name);
+
 	if(!threadPool_off) {
 		gs.setThreadPool();
 	}
@@ -318,7 +184,7 @@ int main(int argc, char* argv[])
 	}
 	if(res_file != "") {
 		gs.setOutput(res_file);
-		top_on = true;
+		//top_on = true;
 	}
 	if(!final_cluster_off) {
 		gs.setFinalClusterOn();
@@ -336,7 +202,7 @@ int main(int argc, char* argv[])
 //	ofstream rep_file(rep_name);
 //	vector<int> rep_ids;
 
-	string folder_name = "test-output";
+//	string folder_name = "test-output";
 //	priority_queue<int, std::vector<int>, std::greater<int>> minHeap;
 	priority_queue<pair<int,int>, std::vector<pair<int, int>>, compare> minHeap;
 	int max_group_Size = 0;

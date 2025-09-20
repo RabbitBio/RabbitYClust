@@ -38,6 +38,10 @@ endif()
 set(LIBCDHIT "${CMAKE_SOURCE_DIR}/libs/libcdhitlib.so")
 set(LIBCDHIT_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
 
+message(STATUS "Using include path: ${LIBCDHIT_INCLUDE_DIR}")
+get_filename_component(ABS_PATH ${LIBCDHIT_INCLUDE_DIR} ABSOLUTE)
+message(STATUS "Absolute path: ${ABS_PATH}")
+
 # 检查头文件路径
 if(NOT EXISTS ${LIBCDHIT_INCLUDE_DIR})
     message(FATAL_ERROR "cdhit include directory not found: ${LIBCDHIT_INCLUDE_DIR}")
