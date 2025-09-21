@@ -549,7 +549,7 @@ void GroupStream::countGroupSize(int m, UnionFind& uf) {
 			map[id_root_map[i]].push_back(i);
 		}
 	}
-	cerr << "Top 10 largest group size after rescure is: ";
+	cerr << "Top 10 largest group size after clustering is: ";
 
 	priority_queue<int, vector<int>, greater<int>> minHeap;
 	for(auto &[root_id, seqs] : map){
@@ -608,13 +608,13 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 	if(slide) {
 		for(int m=0; m < M-R+1; m++){
 			cerr << "round "<<  m << endl;
-            round_cnt++;
 			fillHashVec(hashes, hash_vec, m);
 			GroupByCol(hash_vec, uf);
 			if(m == M-R && final_cluster_on) {
 				cluster_condition = 1;
 			}
 			countGroupSize(m, uf);
+            round_cnt++;
 		}
 	}
 
