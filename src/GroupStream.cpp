@@ -102,10 +102,15 @@ void GroupStream::checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf) {
 	int cnt_10_1 = 0;
 
 	vector<vector<int>> first_hit_sequences;
+    int small_groups_cnt = 0;
 	for(auto &[key, seqs] : map){
 		if(seqs.size() > 1) {
 			first_hit_sequences.emplace_back(seqs);
 		}
+        if(seqs.size() < 10000) {
+            small_groups_cnt++;
+        }
+        
 		// 统计完全图的大小
 		int size = seqs.size();
 		//if(size > 1000){
@@ -127,14 +132,15 @@ void GroupStream::checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf) {
 			return a.size() > b.size();
 		});
 
-	cerr << "    Top 10 largest groups: " ;
+	//cerr << "    Top 10 largest groups: " ;
+	cerr << "    Top 10 largest collisions: " ;
 	for(int i = 0; i < std::min(10, (int)first_hit_sequences.size()); i++){
 		cerr << first_hit_sequences[i].size() << " ";
 	}
 	cerr << endl;
 
 	auto start_time = chrono::high_resolution_clock::now();
-    Cluster(first_hit_sequences);
+    build_connected_components(first_hit_sequences, small_groups_cnt);
 	cur_uf.updateParent(id_root_map);
 	auto end_time = chrono::high_resolution_clock::now();
 	auto duration_cc = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
@@ -176,9 +182,9 @@ void GroupStream::Unite(const vector<Data>& dataList, UnionFind& this_uf) {
 }
 
 
-void GroupStream::unite_by_edges(UnionFind& col_uf) {
+void GroupStream::unite_by_edges(UnionFind& cur_uf) {
 	for(int i = 0; i < items; i++) {
-		uf.unite(i, col_uf.find(i));
+		uf.unite(uf.find(i), cur_uf.find(i));
 	}
 }
 								
@@ -252,6 +258,19 @@ void GroupStream::get_group_res(UnionFind& uf, unordered_map<int, vector<int>>& 
 	}
 }
 
+void GroupStream::build_connected_components(vector<vector<int>>& cluster_sequences, int small_groups_cnt) {
+    int avail_threads = num_threads - 1;
+ 	omp_set_num_threads(avail_threads);
+    for(int i = 0; i < small_groups_cnt; i++) {
+        clusterEachGroup(cluster_sequences[i], avail_threads);
+    }
+
+    #pragma omp parallel for
+    for(int i = small_groups_cnt; i < cluster_sequences.size(); i++) {
+        clusterEachGroup(cluster_sequences[i]);
+    }
+
+}
 void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
     init_cnt();
 	std::atomic<int> thread_pool;
@@ -266,11 +285,10 @@ void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
 	vector<vector<int>> temp_cluster_sequences;
 	vector<int>temp_temp_cluster_sequences;
 	int count=0;
-//	if(m == M-R){
+    int max_threads = omp_get_max_threads()-1;
 	for(int i=0;i<cluster_sequences.size();i++){
 		if (cluster_sequences[i].size()>=100000)
 		{
-            max_size = cluster_sequences[i].size() > max_size ? cluster_sequences[i].size() : max_size;
 			if(cluster_sequences[i].size() >= 10000000){
 				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 40);
 			} else if(cluster_sequences[i].size() >= 1000000) {
@@ -309,25 +327,10 @@ void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
 			}
 		}
 	}
-//	}else{
-//	for(int i=0;i<cluster_sequences.size();i++){
-//		if (cluster_sequences[i].size()>=100000)
-//		{
-//			if(cluster_sequences[i].size() >= 10000000){
-//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 40);
-//			} else if(cluster_sequences[i].size() >= 1000000) {
-//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 32);
-//			} else if(cluster_sequences[i].size() >= 500000){
-//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 16);
-//			} else{
-//				tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 8);
-//			}
-//
+
 //		} else {
 //			tasks.emplace_back(std::vector<vector<int>>{cluster_sequences[i]}, 1);
 //		}
-//	}
-//	}
 /**
  * gyj old version
 		if (cluster_sequences[i].size()>100000)

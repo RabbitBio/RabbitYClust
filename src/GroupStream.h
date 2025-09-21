@@ -162,6 +162,8 @@ public:
 
 	void Cluster(vector<vector<int>>& cluster_sequences);
 
+    void build_connected_components(vector<vector<int>>& cluster_sequences, int small_groups_cnt);
+
 	void tempOutput(vector<vector<int>>& cluster_sequences);
 
 	void outputClstr();
