@@ -139,7 +139,7 @@ void GroupStream::checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf) {
 	}
 	cerr << endl;
 
-    build_connected_components(first_hit_sequences, huge_groups_cnt);
+    cut_edges(first_hit_sequences, huge_groups_cnt);
 	cur_uf.updateParent(id_root_map);
 
 	unordered_map<int, vector<int>> groups_after_filter; // rootid:[seq0, seq1...]
@@ -255,24 +255,27 @@ void GroupStream::get_group_res(UnionFind& uf, unordered_map<int, vector<int>>& 
 	}
 }
 
-void GroupStream::build_connected_components(vector<vector<int>>& cluster_sequences, int huge_groups_cnt) {
-    cerr << "Collisions size large than 10000: " << huge_groups_cnt << endl;
-    cerr << "Collisions size small than 10000: " << (cluster_sequences.size() - huge_groups_cnt) << endl;
-	auto start_huge_time = chrono::high_resolution_clock::now();
-    int avail_threads = num_threads - 1;
+void GroupStream::cut_edges(vector<vector<int>>& sequences_collisions, int huge_groups_cnt) {
+	int avail_threads = num_threads > 1 ? num_threads - 1 : 1;
  	omp_set_num_threads(avail_threads);
+
+	// huge collisions
+    cerr << "Collisions size large than 10000: " << huge_groups_cnt << endl;
+    cerr << "Collisions size small than 10000: " << (sequences_collisions.size() - huge_groups_cnt) << endl;
+	auto start_huge_time = chrono::high_resolution_clock::now();
     for(int i = 0; i < huge_groups_cnt; i++) {
-        clusterEachGroup(cluster_sequences[i], avail_threads);
+    	build_connected_components(sequences_collisions[i], avail_threads);
     }
 	auto end_huge_time = chrono::high_resolution_clock::now();
 	auto duration_huge = chrono::duration_cast<chrono::seconds>(end_huge_time - start_huge_time).count();
 	cerr << "Cut edges time(seconds): " << endl;
 	cerr << "    huge collision groups (use all threads once)" << duration_huge << endl;
 
+	// small collisions
 	auto start_small_time = chrono::high_resolution_clock::now();
     #pragma omp parallel for
-    for(int i = huge_groups_cnt; i < cluster_sequences.size(); i++) {
-        clusterEachGroup(cluster_sequences[i]);
+    for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++) {
+    	build_connected_components(sequences_collisions[i], 1);
     }
 	auto end_small_time = chrono::high_resolution_clock::now();
 	auto duration_small = chrono::duration_cast<chrono::seconds>(end_small_time - start_small_time).count();
@@ -523,6 +526,7 @@ void GroupStream::countGroupSize(int m, UnionFind& uf) {
 			cluster_sequences.emplace_back(seqs);
 		}
 	}
+	cout << round_cnt << " " << m << endl;
 
 	if(cluster_on && (round_cnt == M-R || cluster_sequences.size() > 0)) {
 	    cerr << "---------------------------------------------------" << endl;
@@ -634,24 +638,29 @@ void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vec
 	}
 }
 
+void GroupStream::build_connected_components(vector<int>& group_seqs, int needed_threads)
+{
+	vector<Sequence_new> sequences;
+	for(int i = 0; i < group_seqs.size(); i++) {
+		sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]].c_str());
+	}
+	if(needed_threads > 1) {
+		cluster_sequences(sequences, id_root_map, 5, 0.05, needed_threads); 
+	}else {
+		cluster_sequences_st(sequences, id_root_map, 5, 0.05); 
+	}
+}
+
 void GroupStream::clusterEachGroup(vector<int>& group_seqs){
 	vector<Sequence_new> sequences;
 	for(int i = 0; i < group_seqs.size(); i++) {
 		sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]].c_str());
 	}
-	//读取FAI获取data
-	if(round_cnt == M-R)
-	{
-		cluster cluster_cdhit;
-		cluster_cdhit.cdhit_cluster(sequences, id_root_map, 1);
-	}
-	else
-	{
-		cluster_sequences_st(sequences, id_root_map, 5, 0.05); 
-	}
-
+	cluster cluster_cdhit;
+	cluster_cdhit.cdhit_cluster(sequences, id_root_map, 1);
 }
-void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
+
+void GroupStream::clusterEachGroup(vector<int>& group_seqs,int needed_threads) {
 	auto start_time_build = chrono::high_resolution_clock::now();
 	vector<Sequence_new> sequences;
 	for(int i = 0; i < group_seqs.size(); i++) {
@@ -663,20 +672,8 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs,int neededThread) {
 	//读取FAI获取data
 
 	//auto start_time = chrono::high_resolution_clock::now();
-
-	if(round_cnt == M-R)
-	{
 		cluster cluster_cdhit;
-		cluster_cdhit.cdhit_cluster(sequences, id_root_map, neededThread);
-	}
-	else
-	{
-		if(neededThread == 1 && sequences.size() < 1000){
-			cluster_sequences_st(sequences, id_root_map, 5, 0.05); 
-		}else{
-			cluster_sequences(sequences, id_root_map, 5, 0.05, neededThread); 
-		}
-	}
+		cluster_cdhit.cdhit_cluster(sequences, id_root_map, needed_threads);
 	//auto end_time = chrono::high_resolution_clock::now();
 	//auto duration_cdhit = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
 

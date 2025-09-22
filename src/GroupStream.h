@@ -158,11 +158,13 @@ public:
 	void get_group_res(UnionFind& uf,unordered_map<int, vector<int>>& group_map);
 
 	void clusterEachGroup(vector<int>& seq_ids);
-	void clusterEachGroup(vector<int>& seq_ids, int neededThread);
+	void clusterEachGroup(vector<int>& seq_ids, int needed_threads);
 
 	void Cluster(vector<vector<int>>& cluster_sequences);
 
-    void build_connected_components(vector<vector<int>>& cluster_sequences, int small_groups_cnt);
+    void build_connected_components(vector<int>& group_seqs, int needed_threads);
+
+	void cut_edges(vector<vector<int>>& sequences_collisions, int huge_groups_cnt);
 
 	void tempOutput(vector<vector<int>>& cluster_sequences);
 
