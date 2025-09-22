@@ -102,13 +102,13 @@ void GroupStream::checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf) {
 	int cnt_10_1 = 0;
 
 	vector<vector<int>> first_hit_sequences;
-    int small_groups_cnt = 0;
+    int huge_groups_cnt = 0;
 	for(auto &[key, seqs] : map){
 		if(seqs.size() > 1) {
 			first_hit_sequences.emplace_back(seqs);
 		}
-        if(seqs.size() < 10000) {
-            small_groups_cnt++;
+        if(seqs.size() > 10000) {
+            huge_groups_cnt++;
         }
         
 		// 统计完全图的大小
@@ -139,12 +139,8 @@ void GroupStream::checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf) {
 	}
 	cerr << endl;
 
-	auto start_time = chrono::high_resolution_clock::now();
-    build_connected_components(first_hit_sequences, small_groups_cnt);
+    build_connected_components(first_hit_sequences, huge_groups_cnt);
 	cur_uf.updateParent(id_root_map);
-	auto end_time = chrono::high_resolution_clock::now();
-	auto duration_cc = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
-	cout << "Cut edges time(seconds): " << duration_cc  << endl;
 
 	unordered_map<int, vector<int>> groups_after_filter; // rootid:[seq0, seq1...]
 	priority_queue<int, vector<int>, greater<int>> minHeap;
@@ -195,6 +191,7 @@ void GroupStream::GroupByCol(vector<Data>& hash_vec, UnionFind& uf) {
 	checkEdges(hash_vec, col_uf);
 	unite_by_edges(col_uf);
 	int groups_size = uf.countSetsSize();
+	cerr << "---------------------------------------------------" << endl;
 	cout << "Group Size after merging:" << groups_size << endl;
 }
 
@@ -258,17 +255,28 @@ void GroupStream::get_group_res(UnionFind& uf, unordered_map<int, vector<int>>& 
 	}
 }
 
-void GroupStream::build_connected_components(vector<vector<int>>& cluster_sequences, int small_groups_cnt) {
+void GroupStream::build_connected_components(vector<vector<int>>& cluster_sequences, int huge_groups_cnt) {
+    cerr << "Collisions size large than 10000: " << huge_groups_cnt << endl;
+    cerr << "Collisions size small than 10000: " << (cluster_sequences.size() - huge_groups_cnt) << endl;
+	auto start_huge_time = chrono::high_resolution_clock::now();
     int avail_threads = num_threads - 1;
  	omp_set_num_threads(avail_threads);
-    for(int i = 0; i < small_groups_cnt; i++) {
+    for(int i = 0; i < huge_groups_cnt; i++) {
         clusterEachGroup(cluster_sequences[i], avail_threads);
     }
+	auto end_huge_time = chrono::high_resolution_clock::now();
+	auto duration_huge = chrono::duration_cast<chrono::seconds>(end_huge_time - start_huge_time).count();
+	cerr << "Cut edges time(seconds): " << endl;
+	cerr << "    huge collision groups (use all threads once)" << duration_huge << endl;
 
+	auto start_small_time = chrono::high_resolution_clock::now();
     #pragma omp parallel for
-    for(int i = small_groups_cnt; i < cluster_sequences.size(); i++) {
+    for(int i = huge_groups_cnt; i < cluster_sequences.size(); i++) {
         clusterEachGroup(cluster_sequences[i]);
     }
+	auto end_small_time = chrono::high_resolution_clock::now();
+	auto duration_small = chrono::duration_cast<chrono::seconds>(end_small_time - start_small_time).count();
+	cerr << "    small collision groups (use only 1 threads each group)" << duration_small << endl;
 
 }
 void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
@@ -517,6 +525,7 @@ void GroupStream::countGroupSize(int m, UnionFind& uf) {
 	}
 
 	if(cluster_on && (round_cnt == M-R || cluster_sequences.size() > 0)) {
+	    cerr << "---------------------------------------------------" << endl;
 		if(round_cnt == M-R){
 			cerr << "Final Cluster: groups larger than" << cluster_condition << " : " << cluster_sequences.size() << endl;
 		}else if(cluster_sequences.size() > 0){
@@ -549,7 +558,7 @@ void GroupStream::countGroupSize(int m, UnionFind& uf) {
 			map[id_root_map[i]].push_back(i);
 		}
 	}
-	cerr << "Top 10 largest group size after clustering is: ";
+	cerr << "Top 10 largest group size in this round is: ";
 
 	priority_queue<int, vector<int>, greater<int>> minHeap;
 	for(auto &[root_id, seqs] : map){
@@ -563,6 +572,7 @@ void GroupStream::countGroupSize(int m, UnionFind& uf) {
 		minHeap.pop();
 	}
 	cerr << endl;
+	cerr << "---------------------------------------------------" << endl;
 
 }
 
