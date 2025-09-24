@@ -46,6 +46,7 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
     while (true) {
         std::string sequence;
         int seq_id;
+		string name;
 
 		{
 				std::lock_guard<std::mutex> lock(mtx1);
@@ -54,6 +55,7 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 				if (length < min_len) continue;
 				sequence = ks->seq.s;//direct copy?
 				seq_id = num_seqs.fetch_add(1);
+				name = ks->name.s;
 //				cout << ks->name.s << " " << seq_id << endl;
 		}
 
@@ -74,6 +76,7 @@ void consumer(int tid, gzFile fp, kseq_t* ks, int k, int m, bool xxhash_flag, in
 //				seq_id = num_seqs.fetch_add(1);
 				hashes.emplace_back(sketch.hashes);
 				seq_ids.emplace_back(seq_id);
+				names.emplace_back(name);
 		}
 	}
 }

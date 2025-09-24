@@ -38,6 +38,7 @@ public:
 	string res_file = "";
 	vector<Data> hash_vec;
 	string folder_name = "nr-15/";
+	int groups_num;
 
 	// count time
 	unordered_map<int, int> cdhit_cnt;
@@ -104,6 +105,7 @@ public:
 		valid_items = n;
 		resize(items);
 		initOptions();
+		groups_num = items;
 	}
 
 	GroupStream(int n) : uf(n), items(n) {
