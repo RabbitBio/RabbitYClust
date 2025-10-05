@@ -20,23 +20,21 @@ struct Task {
 class GroupStream {
 public:
 	UnionFind uf;
+	ClusterWS ws;
 	int items;
 	int M = 15;
 	int R = 1;
 	int L = 1;
 	int K = 8; 
-	int cluster_condition = 1000000;
+	int cluster_condition = 500000;
 	int num_threads = 8;
 	bool slide = true;
 	bool cluster_on = false;
 	bool threadPool_on = false;
-	bool temp_output_on = false;
 	bool output_on = false;
-	bool small_data_merge_cluster_on = true;
 	string res_file = "";
 	vector<Data> hash_vec;
 	string folder_name = "nr-15/";
-	string sketch_file_name;
 
 	// count time
 	unordered_map<int, int> cdhit_cnt;
@@ -100,10 +98,6 @@ public:
 	void setIDs(const vector<uint64_t>& seq_ids) {
 		this->seq_ids = seq_ids;
 	}
-	void set_sketch_filename(string filename)
-	{
-		sketch_file_name = filename;
-	}
 	
 	int valid_items;
 	bool rep_only_group = false;
@@ -117,7 +111,6 @@ public:
 		res_file = res_file_name;
 	}
 
-	void setSmallDataMergeClusterOff() { small_data_merge_cluster_on = false; }
 	void setFinalClusterOn() { final_cluster_on = true; }
 	void setThreadPool() { threadPool_on = true; }
 	void setClusterOn() { cluster_on = true; }
@@ -133,8 +126,8 @@ public:
 		for(auto& data : hash_vec)
 			data.value.resize(L * R);
 	}
-	// 这个hashes还是得改成全局的
 	void Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map);
+	void Group(string sketch_filename, unordered_map<int, vector<int>>& group_map);
 	// grouping sequences with m hash-functions
 
  	// use unionfind to unite group results by per column
@@ -148,6 +141,7 @@ public:
 
 	// construct a sorted struct Data(hash-vec) for a column of hash-funtions(vec)
 	void fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m);
+	void fillHashVec(string sketch_filename, vector<Data>& hash_vec, int m);
 	
 	void checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf); 
 	void unite_by_edges(UnionFind& col_uf);
