@@ -21,10 +21,6 @@ find_package(OpenMP REQUIRED)
 
 aux_source_directory(src DIR_SRCS)
 aux_source_directory(src/aahash DIR_SRCS)
-list(REMOVE_ITEM DIR_SRCS cdhit-common.c++)
-list(REMOVE_ITEM DIR_SRCS cluster.cpp)
-list(REMOVE_ITEM DIR_SRCS cdhit-common.h)
-list(REMOVE_ITEM DIR_SRCS cluster.h)
 
 add_executable(yclust ${DIR_SRCS})
 
