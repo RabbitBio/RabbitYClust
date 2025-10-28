@@ -5,6 +5,8 @@
 #include "libcdhit/cdhit.h"
 #include <math.h>
 #include "ConfigData.h"
+#include "SharedData.h"
+#include <unordered_map>
 
 extern void initOptions();
 extern void setOptionsClusterThd(float cluster_thd);
@@ -30,12 +32,10 @@ public:
 		bool output_on = true;
 		string res_file = "";
 	};
-	//GroupStream(int n, int m, int r, int l) : uf(n), items(n), R(r), L(l), M(m) {
-	//	resize(items);
-	//	initOptions();
-	//}
+
 	explicit GroupStream(const Config& cfg);
 
+/* unused
 	void setNames(vector<string>&& sequences_names) {
 		names = std::move(sequences_names);
 	}
@@ -49,12 +49,7 @@ public:
 	void setSequences(unordered_map<uint64_t, string>& sequences_aa) {
 		fa_map = sequences_aa;
 	}
-
-
-	// 分组时只考虑代表序列
-	// 最后一轮全聚类,cluster-condition=1
-	bool second_group = false;
-
+*/
 
 	void resize(int n) {
 		hash_vec.resize(gs_config.items);
@@ -62,20 +57,18 @@ public:
 		for(auto& data : hash_vec)
 			data.value.resize(gs_config.L * gs_config.R);
 	}
-	void Group(
-		vector<vector<uint64_t>>& hashes, 
-		unordered_map<int, vector<int>>& group_map
-		);
-	void Group(string sketch_filename, unordered_map<int, vector<int>>& group_map);
-	// grouping sequences with m hash-functions
+
+	//void Group(
+	//	vector<vector<uint64_t>>& hashes, 
+	//	unordered_map<int, vector<int>>& group_map
+	//	);
+	void Group(string sketch_filename, const ProteinData& proteindata);
 
 private:
 	Config gs_config;
 	UnionFind uf;
 	
 	vector<Data> hash_vec;
-	vector<string> names;
-	unordered_map<uint64_t, string> fa_map;
 
 	// 存储seq-id到root-id的映射
 	vector<int> id_root_map;
@@ -89,32 +82,29 @@ private:
 	void Sort(vector<Data>& dataList);
 
 	// grouping by column
-	void GroupByCol(vector<Data>& hash_vec, UnionFind& uf);
+	void GroupByCol(vector<Data>& hash_vec, const unordered_map<uint64_t, string>& fa_map);
 
 	// construct a sorted struct Data(hash-vec) for a column of hash-funtions(vec)
 	void fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m);
 	void fillHashVec(string sketch_filename, vector<Data>& hash_vec, int m);
 	
-	void checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf); 
+	void checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf, const unordered_map<uint64_t, string>& fa_map); 
 	void unite_by_edges(UnionFind& col_uf);
 
-	void countGroupSize(int m, UnionFind& uf);
+	void countGroupSize(int m, UnionFind& uf, const unordered_map<uint64_t, string>& fa_map);
 	void countGroupSizeBySort(UnionFind& uf);
 	
 	void get_group_res(UnionFind& uf,unordered_map<int, vector<int>>& group_map);
 
-	void clusterEachGroup(vector<int>& group_seqs);
-	void clusterEachGroup(vector<int>& group_seqs, int needed_threads);
+	void clusterEachGroup(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map);
 
-	void Cluster(vector<vector<int>>& cluster_sequences);
+	void Cluster(vector<vector<int>>& cluster_sequences, const unordered_map<uint64_t, string>& fa_map);
 
-    void build_connected_components(vector<int>& group_seqs, int needed_threads);
+    void build_connected_components(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map);
 
-	void cut_edges(vector<vector<int>>& sequences_collisions, int huge_groups_cnt);
+	void cut_edges(vector<vector<int>>& sequences_collisions, int huge_groups_cnt, const unordered_map<uint64_t, string>& fa_map);
 
-	void tempOutput(vector<vector<int>>& cluster_sequences);
-
-	void outputClstr();
+	void outputClstr(const vector<string>& names, const unordered_map<uint64_t, string>& fa_map);
 
 
 

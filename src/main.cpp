@@ -125,19 +125,19 @@ int main(int argc, char* argv[])
 		true
 	};
 	ProteinProcessor processor(cfg_1);
-	ProteinData::Config cfg_2{
-		k,
-		m,
-		min_len,
-		xxhash_flag
-	};
-	ProteinData proteindata(cfg_2);
+
 
 	if(*subA) {
 		cerr << "Start Building sketches!" << endl;
 		auto generation_start = chrono::high_resolution_clock::now();
-
-		cnt_seqs = processor.build_sketches(input_filename, result_filename, proteindata);
+		ProteinSketchData::Config cfg_2{
+			k,
+			m,
+			min_len,
+			xxhash_flag
+		};
+		ProteinSketchData protein_sketch_data(cfg_2);
+		cnt_seqs = processor.build_sketches(input_filename, result_filename, protein_sketch_data);
 
 		//test hashes
 		//int n = num_seqs.load();
@@ -169,7 +169,7 @@ int main(int argc, char* argv[])
 
 		cerr << "Start reading FA files!" << endl;
 		auto read_fa_start = chrono::high_resolution_clock::now();
-		//cnt_seqs = read_fa(input_filename, min_len);
+		ProteinData proteindata;
 		cnt_seqs = processor.load_sequences(input_filename, proteindata);
 		auto read_fa_end = chrono::high_resolution_clock::now();
 		auto read_fa_duration = chrono::duration_cast<chrono::seconds>(read_fa_end - read_fa_start).count();
@@ -197,28 +197,12 @@ int main(int argc, char* argv[])
 		};
 		GroupStream gs(gs_config);
 
-		gs.setNames(std::move(proteindata.names));
 		unordered_map<int, vector<int>> group_map;
-		gs.setSequences(std::move(proteindata.sequence_map));
-		gs.Group(sketch_filename, group_map);
+		gs.Group(sketch_filename, proteindata);
 	
 		priority_queue<pair<int,int>, std::vector<pair<int, int>>, compare> minHeap;
 		int max_group_Size = 0;
 		for(const auto& pair : group_map) {
-			/**
-			 * 把含有多个序列的类输出用cdhit聚类
-			 if(pair.second.size() > 1) {
-			 string file_name = folder_name + "/" + to_string(pair.first) + ".fa";
-			 ofstream out_file(file_name);
-			 for(int id : pair.second) {
-			 out_file << ">" << id << endl;
-			 out_file << fa_map[id]  << endl;
-			 }
-			 out_file.close();
-			 }
-			 **/
-			// 输出rep
-			//rep_ids.emplace_back(pair.first);
 			minHeap.push({pair.second.size(), pair.first});
 			if (minHeap.size() > 2) {
 				minHeap.pop(); // 保持堆的大小为 2
@@ -227,8 +211,6 @@ int main(int argc, char* argv[])
 
 		//	输出代表序列
 		//	std::copy(rep_ids.begin(), rep_ids.end(), std::ostream_iterator<int>(rep_file, "\n"));
-
-		cerr << "Total Group Nums: " << group_map.size() << endl;
 	}
 	
 	if(*subC) {

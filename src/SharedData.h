@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <string>
 
-struct ProteinData {
+struct ProteinSketchData {
 	struct Config {
 		int k = 8;
 		int sketch_size = 15;
@@ -12,13 +12,10 @@ struct ProteinData {
 	};
 	Config config_;
 
-	explicit ProteinData(const Config& cfg) : config_(cfg) {
+	explicit ProteinSketchData(const Config& cfg) : config_(cfg) {
 		hashes.assign(config_.sketch_size, {});
 	}
-	std::vector<std::string>  names;
 	std::vector<std::vector<uint64_t>> hashes;  // hashes[i] = 第 i 列哈希
-	std::unordered_map<uint64_t, std::string> sequence_map; //序列id -> 序列内容 
-
 	//void reserve_items(int n) {
 	//	cfg.items = n;
 	//	names.reserve(n);
@@ -31,6 +28,11 @@ struct ProteinData {
 	//		has
 	//	}
 	//}
+};
+
+struct ProteinData {
+	std::vector<std::string>  names;
+	std::unordered_map<uint64_t, std::string> sequence_map; //序列id -> 序列内容 
 };
 //class SketchResult {
 //public:

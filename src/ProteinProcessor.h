@@ -29,7 +29,7 @@ class ProteinProcessor {
 		// 构建sketch
 		int build_sketches(const std::string input_fa,
 				const std::string output_sketch,
-				ProteinData& proteindata
+				ProteinSketchData& protein_sketch_data
 				);
 
 		// 读取FA

@@ -66,11 +66,12 @@ void ProteinProcessor::worker_thread(
 	}
 }
 
-int ProteinProcessor::build_sketches(const std::string input_fa,
+int ProteinProcessor::build_sketches(
+		const std::string input_fa,
 		const std::string output_sketch,
-		ProteinData& proteindata
+		ProteinSketchData& protein_sketch_data
 		) {
-	auto& hashes_ = proteindata.hashes;
+	auto& hashes_ = protein_sketch_data.hashes;
 	std::vector<uint64_t> seq_ids_;
 
 	gzFile fp = gzopen(input_fa.c_str(), "r");
