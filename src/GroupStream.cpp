@@ -10,7 +10,6 @@
 // 静态成员变量的定义
 
 int round_cnt=0;
-int max_size=0;
 
 struct minheapcompare {
 	bool operator()(const pair<int, int> &a, const pair<int, int> &b) {
@@ -22,12 +21,10 @@ bool compareByHash(const Data &a, const Data &b) {
 	return a.value < b.value;
 }
 
-//vector<int> GroupStream::GroupSizeCnt;
-//bool compareByHashAndGroupSize(const Data &a, const Data &b) {
-//    if(a.value != b.value)
-//	    return a.value < b.value;
-//    return GroupSizeCnt[a.id] < GroupSizeCnt[b.id];
-//}
+GroupStream::GroupStream(const Config& cfg) : gs_config(cfg), uf(cfg.items){
+	resize(gs_config.items);
+	initOptions();
+}
 
 void GroupStream::tempOutput(vector<vector<int>>& cluster_sequences) {	
 	unordered_map<int, vector<int>> map_after_cluster;
@@ -46,7 +43,7 @@ void GroupStream::tempOutput(vector<vector<int>>& cluster_sequences) {
 	cerr.rdbuf(log.rdbuf());
 	while(!minHeap.empty()){
 		int rootid = minHeap.top().second;
-		string filename = folder_name + to_string(rootid) + ".fa";
+		string filename = to_string(rootid) + ".fa";
 		ofstream ofile(filename);
 		for(int id : map_after_cluster[rootid]){
 			ofile << ">" << id << endl;
@@ -93,7 +90,7 @@ void GroupStream::checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf) {
 	cur_uf.findRoot(id_root_map);
 	unordered_map<int, vector<int>> map;
 
-	for(int i = 0; i < items; i++) {
+	for(int i = 0; i < gs_config.items; i++) {
 		map[id_root_map[i]].push_back(i);
 	}
 
@@ -159,7 +156,7 @@ void GroupStream::checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf) {
 	unordered_map<int, vector<int>> groups_after_filter; // rootid:[seq0, seq1...]
 	priority_queue<int, vector<int>, greater<int>> minHeap;
 
-	for(int i = 0; i < items; i++) {
+	for(int i = 0; i < gs_config.items; i++) {
 		groups_after_filter[id_root_map[i]].push_back(i);
 	}
 
@@ -182,7 +179,7 @@ void GroupStream::checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf) {
 
 void GroupStream::Unite(const vector<Data>& dataList, UnionFind& this_uf) {
 	vector<uint64_t> cur_value = dataList[0].value;
-	for (int i = 1; i < valid_items; i++) {
+	for (int i = 1; i < dataList.size(); i++) {
 		auto thisone = dataList[i];
     	auto lastone = dataList[i-1];
 		if(thisone.value == lastone.value) {
@@ -193,15 +190,15 @@ void GroupStream::Unite(const vector<Data>& dataList, UnionFind& this_uf) {
 
 
 void GroupStream::unite_by_edges(UnionFind& cur_uf) {
-	for(int i = 0; i < items; i++) {
+	for(int i = 0; i < gs_config.items; i++) {
 		uf.unite(uf.find(i), cur_uf.find(i));
 	}
 }
 								
 void GroupStream::GroupByCol(vector<Data>& hash_vec, UnionFind& uf) {
 	Sort(hash_vec);
-	if(cluster_on) {
-		UnionFind col_uf(items);
+	if(gs_config.cluster_on) {
+		UnionFind col_uf(gs_config.items);
 		Unite(hash_vec, col_uf);
 		checkEdges(hash_vec, col_uf);
 		unite_by_edges(col_uf);
@@ -225,38 +222,26 @@ void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>&
 //        hash_vec[i].id = i;
 //        hash_vec[i].value = vec[i];
 //    }
-//
-//	if(rep_only_group){
-//		valid_items = 0;
-//		for (int i = 0; i < items; i++) {
-//			if(valid_seqs[seq_ids[i]]){
-//				hash_vec[valid_items].id = seq_ids[i];
-//				copy(vec[i].begin() + m * L, vec[i].begin() + m * L + R * L, hash_vec[valid_items].value.begin());
-//				valid_items++;
-//			}
-//		}
-//		cerr << valid_items << " valid items in round " << m << endl;
-//	}
-	for (int i = 0; i < items; i++) {
+	for (int i = 0; i < vec.size(); i++) {
 		hash_vec[i].id = i;
-		copy(vec[i].begin() + m * L, vec[i].begin() + m * L + R * L, hash_vec[i].value.begin());
+		copy(vec[i].begin() + m * gs_config.L, vec[i].begin() + m * gs_config.L + gs_config.R * gs_config.L, hash_vec[i].value.begin());
 	}
-	cerr << valid_items << " valid items in round " << m << endl;
+	cerr << vec.size() << " valid items in round " << m << endl;
 }
 
 
 void GroupStream::fillHashVec(string sketch_filename, vector<Data>& hash_vec, int m) {
-	valid_items = 0;
+	int valid_items = 0;
 	std::ifstream ifs(sketch_filename, ios::binary);
 	if(!ifs){
 		cerr << "Error opening file!" << endl;
 		return;
 	}
-	ifs.seekg(m * items * sizeof(uint64_t), std::ios::beg);
-	vector<uint64_t> read_hashes(items);
-	ifs.read(reinterpret_cast<char*>(read_hashes.data()), items * sizeof(uint64_t));
+	ifs.seekg(m * gs_config.items * sizeof(uint64_t), std::ios::beg);
+	vector<uint64_t> read_hashes(gs_config.items);
+	ifs.read(reinterpret_cast<char*>(read_hashes.data()), gs_config.items * sizeof(uint64_t));
 	cout << read_hashes.size() << endl;
-	for (int i = 0; i < items; i++) {
+	for (int i = 0; i < gs_config.items; i++) {
 		hash_vec[i].id = i;
 		hash_vec[i].value[0] = read_hashes[i];
 		valid_items++;
@@ -266,7 +251,7 @@ void GroupStream::fillHashVec(string sketch_filename, vector<Data>& hash_vec, in
 
 void GroupStream::get_group_res(UnionFind& uf, unordered_map<int, vector<int>>& group_map) {
 	uf.findRoot(id_root_map);
-	for(int i = 0; i < items; i++) {
+	for(int i = 0; i < gs_config.items; i++) {
 		int id = i;
 		int root_id = id_root_map[id];
 		group_map[root_id].push_back(id);
@@ -274,37 +259,82 @@ void GroupStream::get_group_res(UnionFind& uf, unordered_map<int, vector<int>>& 
 }
 
 void GroupStream::cut_edges(vector<vector<int>>& sequences_collisions, int huge_groups_cnt) {
-	int avail_threads = num_threads > 1 ? num_threads - 1 : 1;
+	int avail_threads = gs_config.num_threads > 1 ? gs_config.num_threads - 1 : 1;
  	omp_set_num_threads(avail_threads);
+	int mt_seqs = 0;
+	int st_seqs = 0;
 
-	// huge collisions
     cerr << "Collisions size large than 10000: " << huge_groups_cnt << endl;
-    cerr << "Collisions size small than 10000: " << (sequences_collisions.size() - huge_groups_cnt) << endl;
+	cerr << "Collisions size small than 10000: " << (sequences_collisions.size() - huge_groups_cnt) << endl;
+	// huge collisions
+	int max_mt_time = 0;
+	int max_mt_id = 0;
 	auto start_huge_time = chrono::high_resolution_clock::now();
-    for(int i = 0; i < huge_groups_cnt; i++) {
-    	build_connected_components(sequences_collisions[i], avail_threads);
-    }
+	for(int i = 0; i < huge_groups_cnt; i++) {
+		auto start = chrono::high_resolution_clock::now();
+		build_connected_components(sequences_collisions[i], avail_threads);
+		auto end = chrono::high_resolution_clock::now();
+		auto duration = chrono::duration_cast<chrono::seconds>(end - start).count();
+		if(max_mt_time < duration) {
+			max_mt_time = duration;
+			max_mt_id = i;
+		}
+		mt_seqs += sequences_collisions[i].size();
+	}
 	auto end_huge_time = chrono::high_resolution_clock::now();
 	auto duration_huge = chrono::duration_cast<chrono::seconds>(end_huge_time - start_huge_time).count();
 	cerr << "Cut edges time(seconds): " << endl;
 	cerr << "    huge collision groups (use all threads once)" << duration_huge << endl;
+	cout << "max cut edges time in mt: " << max_mt_time << endl;
+	//string mt_name = "nr_round1_max_mt_time_cid" + to_string(max_mt_id) + ".fa";
+	//ofstream ofs(mt_name);
+	//for(auto& seq : sequences_collisions[max_mt_id]){
+	//	ofs << ">" << names[seq] << endl;
+	//	ofs << fa_map[seq] << endl;
+	//}
 
+	cout << "seqs number processed in mt_libcdhit: " << mt_seqs << endl;
+	cout << "seqs number processed in st_libcdhit: " << gs_config.items - mt_seqs << endl;
 	// small collisions
+	cout << "avail threads: " << omp_get_max_threads() << endl;
 	auto start_small_time = chrono::high_resolution_clock::now();
-    #pragma omp parallel for
+	vector<int> max_time(avail_threads, 0);
+	vector<int> groups_id(avail_threads, 0);
+    #pragma omp parallel for num_threads(avail_threads- 1) schedule(dynamic)
     for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++) {
+		auto start = chrono::high_resolution_clock::now();
     	build_connected_components(sequences_collisions[i], 1);
+		auto end = chrono::high_resolution_clock::now();
+		auto duration = chrono::duration_cast<chrono::seconds>(end - start).count();
+		int tid = omp_get_thread_num();
+		if(max_time[tid] < duration)
+		{
+			max_time[tid] = duration;
+			groups_id[tid] = i;
+		}
     }
 	auto end_small_time = chrono::high_resolution_clock::now();
 	auto duration_small = chrono::duration_cast<chrono::seconds>(end_small_time - start_small_time).count();
 	cerr << "    small collision groups (use only 1 threads each group)" << duration_small << endl;
-
+	int max_id = 0;
+	int max_time_of_all_groups = 0;
+	for(int i = 0; i < avail_threads; i++)
+	{
+		if(max_time[i] > max_time_of_all_groups) {
+			max_time_of_all_groups = max_time[i];
+			max_id = groups_id[i];
+		}
+	}
+	// output
+	cout << "max cut edges time in st: " << max_time_of_all_groups << endl;
+	cout << "group_id: " << max_id << "containing seqs number: " << sequences_collisions[max_id].size() << endl;
 }
+
 void GroupStream::Cluster(vector<vector<int>>& cluster_sequences) {
     init_cnt();
 	std::atomic<int> thread_pool;
  	int TOTAL_THREADS;
- 	TOTAL_THREADS=num_threads;
+ 	TOTAL_THREADS = gs_config.num_threads;
     thread_pool = TOTAL_THREADS;
  	omp_set_num_threads(TOTAL_THREADS);
  	omp_set_nested(1);
@@ -536,24 +566,24 @@ void GroupStream::countGroupSize(int m, UnionFind& uf) {
 // 1.用map来统计分组结果 增加内存 只遍历一次
 	unordered_map<int, vector<int>> map;
 
-	for(int i = 0; i < items; i++) {
+	for(int i = 0; i < gs_config.items; i++) {
 		map[id_root_map[i]].push_back(i);
 	}
 	//统计超过cluster—condition的组的个数
 	vector<vector<int>> cluster_sequences;
 	for(auto &[key, seqs] : map){
-		if(seqs.size() > cluster_condition) {
+		if(seqs.size() > gs_config.cluster_condition) {
 			cluster_sequences.emplace_back(seqs);
 		}
 	}
 	cout << round_cnt << " " << m << endl;
 
-	if(cluster_on && (round_cnt == M-R || cluster_sequences.size() > 0)) {
+	if(gs_config.cluster_on && (round_cnt == gs_config.M - gs_config.R || cluster_sequences.size() > 0)) {
 	    cerr << "---------------------------------------------------" << endl;
-		if(round_cnt == M-R){
-			cerr << "Final Cluster: groups larger than" << cluster_condition << " : " << cluster_sequences.size() << endl;
+		if(round_cnt == gs_config.M - gs_config.R){
+			cerr << "Final Cluster: groups larger than" << gs_config.cluster_condition << " : " << cluster_sequences.size() << endl;
 		}else if(cluster_sequences.size() > 0){
-			cerr << "start rescure: groups larger than" << cluster_condition << " : " << cluster_sequences.size() << endl;
+			cerr << "start rescure: groups larger than" << gs_config.cluster_condition << " : " << cluster_sequences.size() << endl;
 		}
 
 		sort(cluster_sequences.begin(), cluster_sequences.end(), [](const vector<int>& a, const vector<int>& b){
@@ -565,20 +595,13 @@ void GroupStream::countGroupSize(int m, UnionFind& uf) {
 		}
 		cerr << endl;
 
-		if(threadPool_on){
-            max_size=0;
-			Cluster(cluster_sequences);
-		}else{
-			for(int i = 0; i < cluster_sequences.size(); i++) {
-					clusterEachGroup(cluster_sequences[i]);
-			}
-		}
+		Cluster(cluster_sequences);
 
 		uf.updateParent(id_root_map);
 
 		map.clear();
 
-		for(int i = 0; i < items; i++) {
+		for(int i = 0; i < gs_config.items; i++) {
 			map[id_root_map[i]].push_back(i);
 		}
 	}
@@ -633,52 +656,54 @@ void GroupStream::countGroupSizeBySort(UnionFind& uf) {
 	cerr << endl;
 }
 
-void GroupStream::Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map) {
+void GroupStream::Group(
+	vector<vector<uint64_t>>& hashes,
+	unordered_map<int, vector<int>>& group_map
+	) {
 	cerr << "==========Group Parameters==========" << endl;
-	cerr << "cluster:" << cluster_on << endl;
-	cerr << "cluster-condition: " << cluster_condition << endl;
-	cerr << "clustering all sequences in last round: " << final_cluster_on << endl;
+	cerr << "cluster:" << gs_config.cluster_on << endl;
+	cerr << "cluster-condition: " << gs_config.cluster_condition << endl;
+	cerr << "clustering all sequences in last round: " << gs_config.final_cluster_on << endl;
 	cerr << "==========Group Parameters==========" << endl;
-	if(slide) {
-		for(int m=0; m < M-R+1; m++){
-			cerr << "round "<<  m << endl;
-			fillHashVec(hashes, hash_vec, m);
-			GroupByCol(hash_vec, uf);
-			if(m == M-R && final_cluster_on) {
-				cluster_condition = 1;
-			}
-			countGroupSize(m, uf);
-            round_cnt++;
+	for(int m=0; m < gs_config.M - gs_config.R+1; m++){
+		cerr << "round "<<  m << endl;
+		fillHashVec(hashes, hash_vec, m);
+		GroupByCol(hash_vec, uf);
+		if(m == gs_config.M - gs_config.R && gs_config.final_cluster_on) {
+			gs_config.cluster_condition = 1;
 		}
+		countGroupSize(m, uf);
+		round_cnt++;
 	}
 
 	get_group_res(uf, group_map);
-	if(output_on) {
+	if(gs_config.output_on) {
 		outputClstr();
 	}
 }
 
-void GroupStream::Group(string sketch_filename, unordered_map<int, vector<int>>& group_map) {
+void GroupStream::Group(
+	string sketch_filename, 
+	unordered_map<int, vector<int>>& group_map
+	) {
 	cerr << "==========Group Parameters==========" << endl;
-	cerr << "cluster:" << cluster_on << endl;
-	cerr << "cluster-condition: " << cluster_condition << endl;
-	cerr << "clustering all sequences in last round: " << final_cluster_on << endl;
+	cerr << "cluster:" << gs_config.cluster_on << endl;
+	cerr << "cluster-condition: " << gs_config.cluster_condition << endl;
+	cerr << "clustering all sequences in last round: " << gs_config.final_cluster_on << endl;
 	cerr << "==========Group Parameters==========" << endl;
-	if(slide) {
-		for(int m=0; m < M-R+1; m++){
-			cerr << "round "<<  m << endl;
-			fillHashVec(sketch_filename, hash_vec, m);
-			GroupByCol(hash_vec, uf);
-			if(m == M-R && final_cluster_on) {
-				cluster_condition = 1;
-			}
-			countGroupSize(m, uf);
-            round_cnt++;
+	for(int m=0; m < gs_config.M-gs_config.R+1; m++){
+		cerr << "round "<<  m << endl;
+		fillHashVec(sketch_filename, hash_vec, m);
+		GroupByCol(hash_vec, uf);
+		if(m == gs_config.M-gs_config.R && gs_config.final_cluster_on) {
+			gs_config.cluster_condition = 1;
 		}
+		countGroupSize(m, uf);
+		round_cnt++;
 	}
 
 	get_group_res(uf, group_map);
-	if(output_on) {
+	if(gs_config.output_on) {
 		outputClstr();
 	}
 }
@@ -696,10 +721,39 @@ void GroupStream::build_connected_components(vector<int>& group_seqs, int needed
 		if(size < 120) {
 			cluster_sequences_st_less10(sequences, id_root_map, 5, 0.05); 
 		}else {
+			// TODO error use of clusterws
+            ClusterWS ws;
 			cluster_sequences_st_reuse(sequences, id_root_map, 5, 0.05, ws); 
 		}
 	}
 }
+/*
+void GroupStream::build_connected_components(vector<int>& group_seqs, int needed_threads)
+{
+	vector<Sequence_new> sequences;
+    //vector<int> local_seq_group_map(group_seqs.size()); 
+	for(int i = 0; i < group_seqs.size(); i++) {
+		sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]].c_str());
+    //    local_seq_group_map.emplace_back(id_root_map[group_seqs[i]]);
+	}
+    // id_root_map: global -> local
+	if(needed_threads > 1) {
+		cluster_sequences(sequences, local_seq_group_map, 5, 0.05, needed_threads); 
+	}else {
+		int size = group_seqs.size();
+		if(size < 120) {
+			cluster_sequences_st_less10(sequences, local_seq_group_map, 5, 0.05); 
+		}else {
+            ClusterWS ws;
+			cluster_sequences_st_reuse(sequences, local_seq_group_map, 5, 0.05, ws); 
+		}
+	}
+    // 更新local_seq_group_map更新回id_root_map
+	for(int i = 0; i < group_seqs.size(); i++) {
+        id_root_map[group_seqs[i]] = local_seq_group_map[i];
+    }
+}
+*/
 
 void GroupStream::clusterEachGroup(vector<int>& group_seqs){
 	vector<Sequence_new> sequences;
@@ -729,20 +783,6 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs,int needed_threads) {
 
     //序列输出ID...
 	/*
-    if(group_seqs.size() == max_size && group_seqs.size() > 10000000) {
-            ostringstream oss;
-            ofstream seqs("max_group_seqs");
-            streambuf* origin_cout = cout.rdbuf();
-            cout.rdbuf(seqs.rdbuf());
-
-            uf.findRoot(id_root_map);
-            for (const auto& seq : group_seqs) {
-                oss << ">" << names[seq] << "\n";
-            }
-            cout << oss.str();
-            cout.rdbuf(origin_cout);
-    }
-
     if(group_seqs.size() >= 10000000){ // > 10,000,000
         tasks_cnt[10000000]++;
         build_cnt[10000000]+=duration_build;
@@ -788,13 +828,13 @@ void GroupStream::clusterEachGroup(vector<int>& group_seqs,int needed_threads) {
 //}
 
 void GroupStream::outputClstr() {
-	cerr << "cluster result stored: " << res_file << endl;
-	ofstream seq_id(res_file);
+	cerr << "cluster result stored: " << gs_config.res_file << endl;
+	ofstream seq_id(gs_config.res_file);
 	streambuf* origin_cout = cout.rdbuf();
 	cout.rdbuf(seq_id.rdbuf());
 
 	uf.findRoot(id_root_map);
-	for(int i = 0; i < items; i++) {
+	for(int i = 0; i < gs_config.items; i++) {
 		cout << ">" << names[i] << " " << ">" << names[id_root_map[i]] << endl;
 	}
 	cout.rdbuf(origin_cout);

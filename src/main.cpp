@@ -16,15 +16,13 @@
 #include <atomic>
 
 #include "GroupStream.h"
-#include "util.h"
+#include "ProteinProcessor.h"
+//#include "util.h"
 
 #define BUFFER_SIZE (1<<20 * sizeof(char))
 
 using namespace std;
 using namespace Sketch;
-
-extern unordered_map<uint64_t, string> fa_map;
-extern vector<string> names;
 
 struct compare {
 	bool operator()(const pair<int, int> &a, const pair<int, int> &b) {
@@ -118,10 +116,28 @@ int main(int argc, char* argv[])
 	cerr << "Output: " << result_filename << endl;
 	cerr << "==========End Paramters==========" << endl;
 
+	ProteinProcessor::Config cfg_1{
+		k,
+		m,
+		min_len,
+		xxhash_flag,
+		num_threads,
+		true
+	};
+	ProteinProcessor processor(cfg_1);
+	ProteinData::Config cfg_2{
+		k,
+		m,
+		min_len,
+		xxhash_flag
+	};
+	ProteinData proteindata(cfg_2);
+
 	if(*subA) {
 		cerr << "Start Building sketches!" << endl;
 		auto generation_start = chrono::high_resolution_clock::now();
-		cnt_seqs = buildSketches(input_filename, result_filename, num_threads, k, m, xxhash_flag, min_len, true);
+
+		cnt_seqs = processor.build_sketches(input_filename, result_filename, proteindata);
 
 		//test hashes
 		//int n = num_seqs.load();
@@ -153,7 +169,8 @@ int main(int argc, char* argv[])
 
 		cerr << "Start reading FA files!" << endl;
 		auto read_fa_start = chrono::high_resolution_clock::now();
-		cnt_seqs = read_fa(input_filename, min_len);
+		//cnt_seqs = read_fa(input_filename, min_len);
+		cnt_seqs = processor.load_sequences(input_filename, proteindata);
 		auto read_fa_end = chrono::high_resolution_clock::now();
 		auto read_fa_duration = chrono::duration_cast<chrono::seconds>(read_fa_end - read_fa_start).count();
 
@@ -166,27 +183,25 @@ int main(int argc, char* argv[])
 		}
 
 		cerr << "Start grouping!" << endl;
-		GroupStream gs(cnt_seqs, m, r, 1);
-		gs.setNumThreads(num_threads);
-		gs.setNames(std::move(names));
-		gs.setSequences(std::move(fa_map));
+		GroupStream::Config gs_config{
+			cnt_seqs,
+			m,
+			r,
+			1,
+			num_threads,
+			cluster_on,
+			!final_cluster_off,
+			500000,
+			true,
+			result_filename
+		};
+		GroupStream gs(gs_config);
 
-		if(!threadPool_off) {
-			gs.setThreadPool();
-		}
-		if(cluster_on) {
-			gs.setClusterOn();
-			gs.setClusterThd(cluster_thd);
-		}
-		if(result_filename != "") {
-			gs.setOutput(result_filename);
-		}
-		if(!final_cluster_off) {
-			gs.setFinalClusterOn();
-		}
+		gs.setNames(std::move(proteindata.names));
 		unordered_map<int, vector<int>> group_map;
+		gs.setSequences(std::move(proteindata.sequence_map));
 		gs.Group(sketch_filename, group_map);
-
+	
 		priority_queue<pair<int,int>, std::vector<pair<int, int>>, compare> minHeap;
 		int max_group_Size = 0;
 		for(const auto& pair : group_map) {
