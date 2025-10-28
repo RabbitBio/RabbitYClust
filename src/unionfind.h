@@ -8,9 +8,11 @@
 #include <numeric> //iota
 #include <algorithm>
 #include <variant>
+#include "ConfigData.h"
 
 using namespace std;
 
+/*
 struct Data {
 	vector<uint64_t> value;
 	int id;
@@ -24,6 +26,7 @@ struct GroupNode {
 	GroupNode(int id, int root_id) : id(id), root(root_id) {}
 	GroupNode() {}
 };
+*/
 
 class UnionFind {
 private:
