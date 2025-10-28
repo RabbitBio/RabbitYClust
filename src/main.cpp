@@ -24,6 +24,7 @@ using namespace std;
 using namespace Sketch;
 
 extern unordered_map<uint64_t, string> fa_map;
+extern vector<string> names;
 
 struct compare {
 	bool operator()(const pair<int, int> &a, const pair<int, int> &b) {
@@ -166,9 +167,9 @@ int main(int argc, char* argv[])
 
 		cerr << "Start grouping!" << endl;
 		GroupStream gs(cnt_seqs, m, r, 1);
-		// no use seq_ids
-		//gs.setIDs(seq_ids);
 		gs.setNumThreads(num_threads);
+		gs.setNames(std::move(names));
+		gs.setSequences(std::move(fa_map));
 
 		if(!threadPool_off) {
 			gs.setThreadPool();

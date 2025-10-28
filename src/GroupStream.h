@@ -5,8 +5,6 @@
 #include "libcdhit/cdhit.h"
 #include <math.h>
 
-extern unordered_map<uint64_t, string> fa_map;
-extern vector<string> names;
 extern void initOptions();
 extern void setOptionsClusterThd(float cluster_thd);
 
@@ -18,7 +16,6 @@ struct Task {
  		: task_cluster(_cluster), required_threads(_threads) {}
 };
 class GroupStream {
-public:
 	UnionFind uf;
 	ClusterWS ws;
 	int items;
@@ -34,7 +31,9 @@ public:
 	bool output_on = false;
 	string res_file = "";
 	vector<Data> hash_vec;
-	string folder_name = "nr-15/";
+	vector<string> names;
+	unordered_map<uint64_t, string> fa_map;
+
 
 	// count time
 	unordered_map<int, int> cdhit_cnt;
@@ -74,61 +73,11 @@ public:
 		update_cnt[5000000]=0;
 		update_cnt[10000000]=0;
 	}
-
 	// 存储seq-id到root-id的映射
 	vector<int> id_root_map;
 	// 存储序列在hash-vec里的顺序和读入顺序的映射
 	vector<uint64_t> seq_ids; 
 
-
-	GroupStream(int n, int m, int r, int l) : uf(n), items(n), R(r), L(l), M(m) {
-		valid_items = n;
-		resize(items);
-		initOptions();
-	}
-
-	GroupStream(int n) : uf(n), items(n) {
-		resize(items);
-		initOptions();
-    }
-
-	void setClusterThd(float cluster_thd) {
-		setOptionsClusterThd(cluster_thd);
-	}
-	void setIDs(const vector<uint64_t>& seq_ids) {
-		this->seq_ids = seq_ids;
-	}
-	
-	int valid_items;
-	bool rep_only_group = false;
-	// 分组时只考虑代表序列
-	bool final_cluster_on = false;
-	// 最后一轮全聚类,cluster-condition=1
-	bool second_group = false;
-	
-	void setOutput(string res_file_name) {
-		output_on = true; 
-		res_file = res_file_name;
-	}
-
-	void setFinalClusterOn() { final_cluster_on = true; }
-	void setThreadPool() { threadPool_on = true; }
-	void setClusterOn() { cluster_on = true; }
-	void setClusterCondition(int conditon) { cluster_condition = conditon; }
-	void setSlideOff(){ slide = false; }
-	void setM(int m) { M = m; }
-	void setR(int r) { R = r; }
-	void setL(int l) { L = l; }
-	void setNumThreads(int threads) { num_threads = threads; }
-	void resize(int n) {
-		hash_vec.resize(items);
-		id_root_map.resize(items, -1);
-		for(auto& data : hash_vec)
-			data.value.resize(L * R);
-	}
-	void Group(vector<vector<uint64_t>>& hashes, unordered_map<int, vector<int>>& group_map);
-	void Group(string sketch_filename, unordered_map<int, vector<int>>& group_map);
-	// grouping sequences with m hash-functions
 
  	// use unionfind to unite group results by per column
 	void Unite(const vector<Data>& dataList, UnionFind& uf);
@@ -163,6 +112,74 @@ public:
 	void tempOutput(vector<vector<int>>& cluster_sequences);
 
 	void outputClstr();
-    
+
+public:
+	GroupStream(int n, int m, int r, int l) : uf(n), items(n), R(r), L(l), M(m) {
+		valid_items = n;
+		resize(items);
+		initOptions();
+	}
+
+	GroupStream(int n) : uf(n), items(n) {
+		resize(items);
+		initOptions();
+    }
+
+	void setClusterThd(float cluster_thd) {
+		setOptionsClusterThd(cluster_thd);
+	}
+	void setIDs(const vector<uint64_t>& seq_ids) {
+		this->seq_ids = seq_ids;
+	}
+	
+	int valid_items;
+	bool rep_only_group = false;
+	// 分组时只考虑代表序列
+	bool final_cluster_on = false;
+	// 最后一轮全聚类,cluster-condition=1
+	bool second_group = false;
+	
+	void setOutput(string res_file_name) {
+		output_on = true; 
+		res_file = res_file_name;
+	}
+
+	void setNames(vector<string>&& sequences_names) {
+		names = std::move(sequences_names);
+	}
+	void setNames(vector<string>& sequences_names) {
+		names = sequences_names;
+	}
+	
+	void setSequences(unordered_map<uint64_t, string>&& sequences_aa) {
+		fa_map = std::move(sequences_aa);
+	}
+	void setSequences(unordered_map<uint64_t, string>& sequences_aa) {
+		fa_map = sequences_aa;
+	}
+
+	void setFinalClusterOn() { final_cluster_on = true; }
+	void setThreadPool() { threadPool_on = true; }
+	void setClusterOn() { cluster_on = true; }
+	void setClusterCondition(int conditon) { cluster_condition = conditon; }
+	void setSlideOff(){ slide = false; }
+	void setM(int m) { M = m; }
+	void setR(int r) { R = r; }
+	void setL(int l) { L = l; }
+	void setNumThreads(int threads) { num_threads = threads; }
+	void resize(int n) {
+		hash_vec.resize(items);
+		id_root_map.resize(items, -1);
+		for(auto& data : hash_vec)
+			data.value.resize(L * R);
+	}
+	void Group(
+		vector<vector<uint64_t>>& hashes, 
+		unordered_map<int, vector<int>>& group_map
+		);
+	void Group(string sketch_filename, unordered_map<int, vector<int>>& group_map);
+	// grouping sequences with m hash-functions
+
+   
 };
 #endif
