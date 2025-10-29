@@ -103,13 +103,13 @@ int ProteinProcessor::build_sketches(
 
 	std::cout << "Finish building sketch! Total: " << next_seq_id_ << " sequences.\n";
 
-	merge_thread_results(seq_ids_, hashes_);
+	merge_thread_results(seq_ids_, protein_sketch_data);
 	if (config_.num_threads > 1) {
 		reorder_hashes(seq_ids_, hashes_);
 	}
 
 	if (config_.output_binary && !output_sketch.empty()) {
-		write_binary(output_sketch, hashes_);
+		write_binary(output_sketch, protein_sketch_data);
 	}
 
 	return next_seq_id_;
@@ -117,12 +117,20 @@ int ProteinProcessor::build_sketches(
 
 void ProteinProcessor::merge_thread_results(
 	std::vector<uint64_t>& seq_ids_,
-	std::vector<std::vector<uint64_t>>& hashes_
+	ProteinSketchData& protein_sketch_data
+	//std::vector<std::vector<uint64_t>>& hashes_
 	) {
 	std::unique_lock lock(result_mtx_);
 
 	seq_ids_.clear();
-	hashes_ = std::vector<std::vector<uint64_t>>(config_.m);
+	ProteinSketchData::Config sketch_config{
+		next_seq_id_,
+		config_.m,
+		config_.min_len
+	};
+	protein_sketch_data.reserveSketchesSize(sketch_config);
+	auto& hashes_ = protein_sketch_data.hashes;
+	//hashes_ = std::vector<std::vector<uint64_t>>(config_.m);
 
 	for (const auto& tl : thread_locals_) {
 		seq_ids_.insert(seq_ids_.end(),
@@ -163,7 +171,11 @@ void ProteinProcessor::reorder_hashes(
 
 void ProteinProcessor::write_binary(
 	const std::string path,
-	std::vector<std::vector<uint64_t>>& hashes_) const {
+	ProteinSketchData& protein_sketch_data
+	//std::vector<std::vector<uint64_t>>& hashes_
+	) const {
+	auto& hashes_ = protein_sketch_data.hashes;
+
 	std::ofstream ofs(path, std::ios::binary);
 	if (!ofs) {
 		std::cerr << "Cannot write to: " << path << '\n';
@@ -171,6 +183,7 @@ void ProteinProcessor::write_binary(
 	}
 
 	std::shared_lock lock(result_mtx_);
+	protein_sketch_data.saveConfig(ofs);
 	for (int i = 0; i < config_.m; ++i) {
 		const auto& row = hashes_[i];
 		ofs.write(reinterpret_cast<const char*>(row.data()), row.size() * sizeof(uint64_t));
@@ -179,7 +192,7 @@ void ProteinProcessor::write_binary(
 	std::cout << "Sketch written to: " << path << '\n';
 }
 
-int ProteinProcessor::load_sequences(const std::string input_fa, ProteinData& proteindata) {
+int ProteinProcessor::load_sequences(const std::string input_fa, int min_len, ProteinData& proteindata) {
 	auto& seq_map_ = proteindata.sequence_map;
 	auto& names_ = proteindata.names;
 
@@ -194,7 +207,7 @@ int ProteinProcessor::load_sequences(const std::string input_fa, ProteinData& pr
 	while (true) {
 		int len = kseq_read(ks);
 		if (len < 0) break;
-		if (len < config_.min_len) continue;
+		if (len < min_len) continue;
 
 		seq_map_[cnt] = ks->seq.s;
 		names_.emplace_back(ks->name.s);

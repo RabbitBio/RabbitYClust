@@ -34,6 +34,7 @@ class ProteinProcessor {
 
 		// 读取FA
 		int load_sequences(const std::string input_fa,
+				int min_len,
 				ProteinData& proteindata
 				);
 
@@ -56,11 +57,12 @@ class ProteinProcessor {
 		// 汇总线程结果
 		void merge_thread_results(
 			std::vector<uint64_t>& seq_ids_,
-			std::vector<std::vector<uint64_t>>& hashes_
+			ProteinSketchData& protein_sketch_data
+			//std::vector<std::vector<uint64_t>>& hashes_
 		);
 
 		// 写二进制文件
-		void write_binary(const std::string path, std::vector<std::vector<uint64_t>>& hashes) const;
+		void write_binary(const std::string path, ProteinSketchData& protein_sketch_data) const;
 
 		// 重新排序（多线程乱序 → 按 seq_id 排序）
 		void reorder_hashes(

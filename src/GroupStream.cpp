@@ -246,7 +246,7 @@ void GroupStream::fillHashVec(string sketch_filename, vector<Data>& hash_vec, in
 		cerr << "Error opening file!" << endl;
 		return;
 	}
-	ifs.seekg(m * gs_config.items * sizeof(uint64_t), std::ios::beg);
+	ifs.seekg(sizeof(ProteinSketchData::Config)  + m * gs_config.items * sizeof(uint64_t), std::ios::beg);
 	vector<uint64_t> read_hashes(gs_config.items);
 	ifs.read(reinterpret_cast<char*>(read_hashes.data()), gs_config.items * sizeof(uint64_t));
 	cout << read_hashes.size() << endl;

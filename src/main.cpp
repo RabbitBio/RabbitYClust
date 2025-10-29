@@ -72,8 +72,6 @@ int main(int argc, char* argv[])
 	subB->add_flag("-c", cluster_on, "enable clustering to avoid super-huge group");
 	subB->add_flag("-f", final_cluster_off, "turn off the final clustering")->needs("-c");
 	subB->add_option("-t, --threads", num_threads,  "set the thread number, default 1 thread");
-	//subB->add_option("--min-len", min_len, "set the filter minimum length (minLen), protein length less than minLen will be ignore, default 50");
-	//TODO min_len变成从文件中读入的
 	subB->add_option("-s, --min-similarity", similarity, "set the minimum similarity for clustering, default 0.9");
 	subB->add_option("-m, --m-size", m, "set the number of hash functions will be used, default 15");
 	subB->add_option("-r, --r-size", r, "set the number of block");
@@ -130,13 +128,8 @@ int main(int argc, char* argv[])
 	if(*subA) {
 		cerr << "Start Building sketches!" << endl;
 		auto generation_start = chrono::high_resolution_clock::now();
-		ProteinSketchData::Config cfg_2{
-			k,
-			m,
-			min_len,
-			xxhash_flag
-		};
-		ProteinSketchData protein_sketch_data(cfg_2);
+
+		ProteinSketchData protein_sketch_data;
 		cnt_seqs = processor.build_sketches(input_filename, result_filename, protein_sketch_data);
 
 		//test hashes
@@ -163,24 +156,32 @@ int main(int argc, char* argv[])
 	//	return 1;
 	//}
 	if (*subB) {
-		if(!final_cluster_off) {
-			cerr << "Clustering all groups in the last round" << endl;
-		}
-
 		cerr << "Start reading FA files!" << endl;
 		auto read_fa_start = chrono::high_resolution_clock::now();
+		
+		// 从sketch文件中加载序列条数,hash函数个数和最小序列长度
+		ProteinSketchData sketch_data;
+		sketch_data.loadConfig(sketch_filename);
+		if(m > sketch_data.config.sketch_size){
+			std::cerr << "Number of MinHash functions in sketch file: " << sketch_data.config.sketch_size << std::endl;
+			std::cerr << "Number of MinHash functions in sketch file is lower than Number of input m " << std::endl;
+			return 1;
+		}
+
 		ProteinData proteindata;
-		cnt_seqs = processor.load_sequences(input_filename, proteindata);
+		cnt_seqs = processor.load_sequences(input_filename, sketch_data.config.min_len, proteindata);
+		if(cnt_seqs != sketch_data.config.items) {
+			std::cerr << "Number of sequences in sketch file: " << sketch_data.config.items << std::endl;
+			std::cerr << "Number of sequences in FATSA input: " << cnt_seqs << std::endl;
+			std::cerr << "Sequences number in sketch file != sequences number read in FASTA input" << std::endl;
+			return 1;
+		}
+
 		auto read_fa_end = chrono::high_resolution_clock::now();
 		auto read_fa_duration = chrono::duration_cast<chrono::seconds>(read_fa_end - read_fa_start).count();
 
 		cerr << "Reading time: " << read_fa_duration << endl;
 		cerr << "Total number of seqs: " << cnt_seqs << endl;
-
-		if(cnt_seqs == 0) {
-			cerr << "no sequences in grouping!" << endl;
-			return 1;
-		}
 
 		cerr << "Start grouping!" << endl;
 		GroupStream::Config gs_config{

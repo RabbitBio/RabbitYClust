@@ -2,32 +2,38 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <fstream>
 
 struct ProteinSketchData {
 	struct Config {
-		int k = 8;
+		int items = 1;
 		int sketch_size = 15;
 		int min_len = 10;
-		bool use_xxhash = true;
 	};
-	Config config_;
+	Config config;
 
-	explicit ProteinSketchData(const Config& cfg) : config_(cfg) {
-		hashes.assign(config_.sketch_size, {});
-	}
 	std::vector<std::vector<uint64_t>> hashes;  // hashes[i] = 第 i 列哈希
-	//void reserve_items(int n) {
-	//	cfg.items = n;
-	//	names.reserve(n);
-	//	sequence_map.reserve(n);
-	//}
 
-	//void reserve_sketch_size(int sketch_size) {
-	//	if(sketch_size > 0) {
-	//		cfg.sketch_size = sketch_size;
-	//		has
-	//	}
-	//}
+	void reserveSketchesSize(const Config& cfg) {
+		if(config.sketch_size > 0 && config.items > 0) {
+			config = cfg;
+			hashes.assign(config.sketch_size, {});
+			for(int i = 0; i < config.sketch_size; i++)
+				hashes[i].reserve(config.items);
+		}
+	}
+
+	void saveConfig(std::ofstream& ofs) {
+		if (!ofs) throw std::runtime_error("saving sketch config open failed");
+		ofs.write(reinterpret_cast<const char*>(&config), sizeof(Config));
+	}
+	
+	void loadConfig(std::string sketch_filename) {
+		std::ifstream ifs(sketch_filename, std::ios::binary);
+		if (!ifs) throw std::runtime_error("loading sketch config open failed");
+		ifs.read(reinterpret_cast<char*>(&config), sizeof(Config));
+		if (!ifs) throw std::runtime_error("incomplete read");
+	}
 };
 
 struct ProteinData {
