@@ -29,6 +29,7 @@ void ProteinProcessor::worker_thread(
 	while (!done) {
 		std::string seq, name;
 		int len = -1;
+		uint64_t seq_id;
 
 		// 线程安全读取序列
 		{
@@ -42,6 +43,8 @@ void ProteinProcessor::worker_thread(
 
 			seq = kseq->seq.s;
 			name = kseq->name.s;
+
+			seq_id = next_seq_id_.fetch_add(1);
 		}
 
 		// 计算 MinHash
@@ -56,7 +59,7 @@ void ProteinProcessor::worker_thread(
 		auto& sketch = mh.getSektch();
 
 		// 分配全局 seq_id
-		uint64_t seq_id = next_seq_id_.fetch_add(1, std::memory_order_relaxed);
+		//uint64_t seq_id = next_seq_id_.fetch_add(1, std::memory_order_relaxed);
 
 		local.seq_ids.push_back(seq_id);
 		local.names.push_back(std::move(name));
