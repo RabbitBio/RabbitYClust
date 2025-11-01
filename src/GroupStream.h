@@ -29,6 +29,7 @@ public:
 		bool cluster_on = false;
 		bool final_cluster_on = false;
 		int cluster_condition = 500000;
+		float similarity = 0.9;
 		bool output_on = true;
 		string res_file = "";
 	};
@@ -67,6 +68,7 @@ public:
 private:
 	Config gs_config;
 	UnionFind uf;
+	float tau = 0.05; // TODO 根据用户输入的similarity—threshold计算tau
 	
 	vector<Data> hash_vec;
 
@@ -89,22 +91,22 @@ private:
 	void fillHashVec(string sketch_filename, vector<Data>& hash_vec, int m);
 	
 	void checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf, const unordered_map<uint64_t, string>& fa_map); 
-	void unite_by_edges(UnionFind& col_uf);
+	void uniteByEdges(UnionFind& col_uf);
 
 	void countGroupSize(int m, UnionFind& uf, const unordered_map<uint64_t, string>& fa_map);
 	void countGroupSizeBySort(UnionFind& uf);
 	
-	void get_group_res(UnionFind& uf,unordered_map<int, vector<int>>& group_map);
+	void getGroupRes(UnionFind& uf,unordered_map<int, vector<int>>& group_map);
 
 	void clusterEachGroup(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map);
 
 	void Cluster(vector<vector<int>>& cluster_sequences, const unordered_map<uint64_t, string>& fa_map);
 
-    void build_connected_components(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map);
-    void build_connected_components_st(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map);
-    void build_connected_components_st_reuse(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map, ClusterWS& ws);
+    void buildConnectedComponents(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map);
+    void buildConnectedComponents_st(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map);
+    void buildConnectedComponents_st_reuse(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map, ClusterWS& ws);
 
-	void cut_edges(vector<vector<int>>& sequences_collisions, int huge_groups_cnt, const unordered_map<uint64_t, string>& fa_map);
+	void cutEdges(vector<vector<int>>& sequences_collisions, int huge_groups_cnt, const unordered_map<uint64_t, string>& fa_map);
 
 	void outputClstr(const vector<string>& names, const unordered_map<uint64_t, string>& fa_map);
 

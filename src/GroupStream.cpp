@@ -24,6 +24,11 @@ bool compareByHash(const Data &a, const Data &b) {
 GroupStream::GroupStream(const Config& cfg) : gs_config(cfg), uf(cfg.items){
 	resize(gs_config.items);
 	initOptions();
+	if(cfg.similarity == 0.9) {
+		tau = 0.36;
+	}else {
+		tau = 0.05;
+	}
 }
 
 /*
@@ -124,7 +129,7 @@ void GroupStream::checkEdges(
 
 
 	auto start_time = chrono::high_resolution_clock::now();
-	cut_edges(first_hit_sequences, huge_groups_cnt, fa_map);
+	cutEdges(first_hit_sequences, huge_groups_cnt, fa_map);
 	cur_uf.updateParent(id_root_map);
 
 	auto end_time = chrono::high_resolution_clock::now();
@@ -167,7 +172,7 @@ void GroupStream::Unite(const vector<Data>& dataList, UnionFind& this_uf) {
 }
 
 
-void GroupStream::unite_by_edges(UnionFind& cur_uf) {
+void GroupStream::uniteByEdges(UnionFind& cur_uf) {
 	for(int i = 0; i < gs_config.items; i++) {
 		uf.unite(uf.find(i), cur_uf.find(i));
 	}
@@ -182,7 +187,7 @@ void GroupStream::GroupByCol(
 		UnionFind col_uf(gs_config.items);
 		Unite(hash_vec, col_uf);
 		checkEdges(hash_vec, col_uf, fa_map);
-		unite_by_edges(col_uf);
+		uniteByEdges(col_uf);
 	}else {
 		Unite(hash_vec, uf);
 	}
@@ -230,7 +235,7 @@ void GroupStream::fillHashVec(string sketch_filename, vector<Data>& hash_vec, in
 	cerr << valid_items << " valid items in round " << m << endl;
 }
 
-void GroupStream::get_group_res(UnionFind& uf, unordered_map<int, vector<int>>& group_map) {
+void GroupStream::getGroupRes(UnionFind& uf, unordered_map<int, vector<int>>& group_map) {
 	uf.findRoot(id_root_map);
 	for(int i = 0; i < gs_config.items; i++) {
 		int id = i;
@@ -239,7 +244,7 @@ void GroupStream::get_group_res(UnionFind& uf, unordered_map<int, vector<int>>& 
 	}
 }
 
-void GroupStream::cut_edges(
+void GroupStream::cutEdges(
 	vector<vector<int>>& sequences_collisions, 
 	int huge_groups_cnt,
 	const unordered_map<uint64_t, string>& fa_map
@@ -258,7 +263,7 @@ void GroupStream::cut_edges(
 	auto start_huge_time = chrono::high_resolution_clock::now();
 	for(int i = 0; i < huge_groups_cnt; i++) {
 		auto start = chrono::high_resolution_clock::now();
-		build_connected_components(sequences_collisions[i], avail_threads, fa_map);
+		buildConnectedComponents(sequences_collisions[i], avail_threads, fa_map);
 		auto end = chrono::high_resolution_clock::now();
 		auto duration = chrono::duration_cast<chrono::seconds>(end - start).count();
 		if(max_mt_time < duration) {
@@ -284,8 +289,8 @@ void GroupStream::cut_edges(
 		#pragma omp for schedule(dynamic)
     	for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++) {
 			auto start = chrono::high_resolution_clock::now();
-			build_connected_components_st(sequences_collisions[i], 1, fa_map);
-			//	build_connected_components_st_reuse(sequences_collisions[i], 1, fa_map, ws);
+			buildConnectedComponents_st(sequences_collisions[i], 1, fa_map);
+			//	buildConnectedComponents_st_reuse(sequences_collisions[i], 1, fa_map, ws);
 			auto end = chrono::high_resolution_clock::now();
 			auto duration = chrono::duration_cast<chrono::seconds>(end - start).count();
 			int tid = omp_get_thread_num();
@@ -667,7 +672,7 @@ void GroupStream::Group(
 		round_cnt++;
 	}
 
-	get_group_res(uf, group_map);
+	getGroupRes(uf, group_map);
 	if(gs_config.output_on) {
 		outputClstr();
 	}
@@ -694,7 +699,7 @@ void GroupStream::Group(
 	}
 }
 
-void GroupStream::build_connected_components(
+void GroupStream::buildConnectedComponents(
 	vector<int>& group_seqs, 
 	int needed_threads,
 	const unordered_map<uint64_t, string>& fa_map
@@ -704,13 +709,13 @@ void GroupStream::build_connected_components(
 		sequences.emplace_back(group_seqs[i], fa_map.at(group_seqs[i]).c_str());
 	}
 	if(needed_threads > 1) {
-		cluster_sequences(sequences, id_root_map, 5, 0.05, needed_threads); 
+		cluster_sequences(sequences, id_root_map, 5, tau, needed_threads); 
 	}else {
-		cluster_sequences_st_less10(sequences, id_root_map, 5, 0.05); 
+		cluster_sequences_st_less10(sequences, id_root_map, 5, tau); 
 	}
 }
 
-void GroupStream::build_connected_components_st(
+void GroupStream::buildConnectedComponents_st(
 	vector<int>& group_seqs, 
 	int needed_threads,
 	const unordered_map<uint64_t, string>& fa_map
@@ -720,13 +725,13 @@ void GroupStream::build_connected_components_st(
 		sequences.emplace_back(group_seqs[i], fa_map.at(group_seqs[i]).c_str());
 	}
 	if(sequences.size() < 1000) {
-		cluster_sequences_st_less10(sequences, id_root_map, 5, 0.05); 
+		cluster_sequences_st_less10(sequences, id_root_map, 5, tau); 
 	}else{
-		cluster_sequences_st(sequences, id_root_map, 5, 0.05); 
+		cluster_sequences_st(sequences, id_root_map, 5, tau); 
 	}
 }
 
-void GroupStream::build_connected_components_st_reuse(
+void GroupStream::buildConnectedComponents_st_reuse(
 	vector<int>& group_seqs, 
 	int needed_threads,
 	const unordered_map<uint64_t, string>& fa_map,
@@ -736,10 +741,10 @@ void GroupStream::build_connected_components_st_reuse(
 	for(int i = 0; i < group_seqs.size(); i++) {
 		sequences.emplace_back(group_seqs[i], fa_map.at(group_seqs[i]).c_str());
 	}
-	cluster_sequences_st_reuse(sequences, id_root_map, 5, 0.05, ws); 
+	cluster_sequences_st_reuse(sequences, id_root_map, 5, tau, ws); 
 }
 /*
-void GroupStream::build_connected_components(vector<int>& group_seqs, int needed_threads)
+void GroupStream::buildConnectedComponents(vector<int>& group_seqs, int needed_threads)
 {
 	vector<Sequence_new> sequences;
     //vector<int> local_seq_group_map(group_seqs.size()); 
