@@ -58,11 +58,169 @@ void ProteinProcessor::worker_thread(
 		}
 		auto& sketch = mh.getSektch();
 
+		local.seq_ids.push_back(seq_id);
+		local.names.push_back(std::move(name));
+		for (int i = 0; i < config_.m; ++i) {
+			local.hashes[i].push_back(sketch.hashes[i]);
+		}
+		local.seqs[seq_id] = seq;
+	}
+}
+
+int ProteinProcessor::build_sketches(
+		const std::string input_fa,
+		ProteinSketchData& protein_sketch_data,
+		ProteinData& proteindata
+		) {
+	std::vector<uint64_t> seq_ids_;
+
+	gzFile fp = gzopen(input_fa.c_str(), "r");
+	if (!fp) {
+		std::cerr << "Failed to open: " << input_fa << '\n';
+		return 0;
+	}
+	kseq_t* ks = kseq_init(fp);
+
+	next_seq_id_ = 0;
+	for (auto& tl : thread_locals_) {
+		tl.seq_ids.clear();
+		tl.names.clear();
+		for (auto& row : tl.hashes) row.clear();
+	}
+
+	std::atomic<bool> done{false};
+	std::vector<std::thread> threads;
+	threads.reserve(config_.num_threads);
+
+	for (int i = 0; i < config_.num_threads; ++i) {
+		threads.emplace_back(&ProteinProcessor::worker_thread, this, i, fp, ks, std::ref(done));
+	}
+
+	for (auto& t : threads) t.join();
+
+	kseq_destroy(ks);
+	gzclose(fp);
+
+	std::cout << "Finish building sketch! Total: " << next_seq_id_ << " sequences.\n";
+
+	merge_thread_results(seq_ids_, protein_sketch_data, proteindata);
+
+	if (config_.num_threads > 1) {
+		auto& hashes_ = protein_sketch_data.hashes;
+		auto& names_ = proteindata.names;
+		reorderHashesAndNames(seq_ids_, names_, hashes_);
+	}
+
+	return next_seq_id_;
+}
+
+void ProteinProcessor::merge_thread_results(
+	std::vector<uint64_t>& seq_ids_,
+	ProteinSketchData& protein_sketch_data,
+	ProteinData& proteindata
+	) {
+	auto& seqs_map_ = proteindata.sequence_map;
+	auto& names_ = proteindata.names;
+
+	std::unique_lock lock(result_mtx_);
+
+	seq_ids_.clear();
+	ProteinSketchData::Config sketch_config{
+		next_seq_id_,
+		config_.m,
+		config_.min_len
+	};
+	protein_sketch_data.reserveSketchesSize(sketch_config);
+	auto& hashes_ = protein_sketch_data.hashes;
+
+	for (const auto& tl : thread_locals_) {
+		seq_ids_.insert(seq_ids_.end(),
+				std::make_move_iterator(tl.seq_ids.begin()),
+				std::make_move_iterator(tl.seq_ids.end()));
+		names_.insert(names_.end(),
+				std::make_move_iterator(tl.names.begin()),
+				std::make_move_iterator(tl.names.end()));
+		seqs_map_.insert(
+				std::make_move_iterator(tl.seqs.begin()),
+				std::make_move_iterator(tl.seqs.end()));
+		for (int i = 0; i < config_.m; ++i) {
+			hashes_[i].insert(hashes_[i].end(),
+					std::make_move_iterator(tl.hashes[i].begin()),
+					std::make_move_iterator(tl.hashes[i].end()));
+		}
+	}
+}
+
+void ProteinProcessor::reorderHashesAndNames(
+	std::vector<uint64_t>& seq_ids_,
+	std::vector<std::string>& names_,
+	std::vector<std::vector<uint64_t>>& hashes_
+) {
+	if (seq_ids_.empty()) return;
+
+	std::vector<size_t> order(seq_ids_.size());
+	std::iota(order.begin(), order.end(), 0);
+	std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+			return seq_ids_[a] < seq_ids_[b];
+			});
+
+	std::vector<std::vector<uint64_t>> sorted_hashes(config_.m, std::vector<uint64_t>(seq_ids_.size()));
+	std::vector<std::string> sorted_names(seq_ids_.size());
+
+	for (size_t i = 0; i < seq_ids_.size(); ++i) {
+		size_t old_idx = order[i];
+		for (int j = 0; j < config_.m; ++j) {
+			sorted_hashes[j][i] = hashes_[j][old_idx];
+		}
+		sorted_names[i] = names_[i][old_idx];
+	}
+
+	hashes_ = std::move(sorted_hashes);
+	names_ = std::move(sorted_names);
+}
+
+void ProteinProcessor::worker_thread_only_sketch(
+		int thread_id,
+		gzFile file,
+		kseq_t* kseq,
+		std::atomic<bool>& done) {
+	auto& local = thread_locals_[thread_id];
+
+	while (!done) {
+		std::string seq;
+		int len = -1;
+		uint64_t seq_id;
+
+		// 线程安全读取序列
+		{
+			std::lock_guard<std::mutex> lock(file_read_mtx);  // 保留全局 mtx1 给 kseq_read
+			len = kseq_read(kseq);
+			if (len < 0) {
+				done = true;
+				break;
+			}
+			if (len < config_.min_len) continue;
+
+			seq = kseq->seq.s;
+
+			seq_id = next_seq_id_.fetch_add(1);
+		}
+
+		// 计算 MinHash
+		Sketch::KHFMinHash mh;
+		mh.setK(config_.k);
+		mh.setM(config_.m);
+		if (config_.use_xxhash) {
+			mh.buildSketch(seq.c_str());
+		} else {
+			mh.buildSketchByNoSeedAAHash(seq.c_str());
+		}
+		auto& sketch = mh.getSektch();
+
 		// 分配全局 seq_id
 		//uint64_t seq_id = next_seq_id_.fetch_add(1, std::memory_order_relaxed);
 
 		local.seq_ids.push_back(seq_id);
-		local.names.push_back(std::move(name));
 		for (int i = 0; i < config_.m; ++i) {
 			local.hashes[i].push_back(sketch.hashes[i]);
 		}
@@ -96,7 +254,7 @@ int ProteinProcessor::build_sketches(
 	threads.reserve(config_.num_threads);
 
 	for (int i = 0; i < config_.num_threads; ++i) {
-		threads.emplace_back(&ProteinProcessor::worker_thread, this, i, fp, ks, std::ref(done));
+		threads.emplace_back(&ProteinProcessor::worker_thread_only_sketch, this, i, fp, ks, std::ref(done));
 	}
 
 	for (auto& t : threads) t.join();
@@ -159,7 +317,6 @@ void ProteinProcessor::reorder_hashes(
 			return seq_ids_[a] < seq_ids_[b];
 			});
 
-	// 重新排列 names 和 hashes
 	std::vector<std::vector<uint64_t>> sorted_hashes(config_.m, std::vector<uint64_t>(seq_ids_.size()));
 
 	for (size_t i = 0; i < seq_ids_.size(); ++i) {

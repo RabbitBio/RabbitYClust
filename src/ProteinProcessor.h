@@ -26,10 +26,16 @@ class ProteinProcessor {
 		// 构造函数
 		explicit ProteinProcessor(const Config& cfg);
 
-		// 构建sketch
+		// 构建sketch 然后输出sketch文件
 		int build_sketches(const std::string input_fa,
 				const std::string output_sketch,
 				ProteinSketchData& protein_sketch_data
+				);
+
+		// 构建sketch 同时读取FA进内存然后直接用
+		int build_sketches(const std::string input_fa,
+				ProteinSketchData& protein_sketch_data,
+				ProteinData& proteindata
 				);
 
 		// 读取FA
@@ -43,12 +49,19 @@ class ProteinProcessor {
 		struct ThreadLocal {
 			std::vector<uint64_t> seq_ids;
 			std::vector<std::string> names;
+			std::unordered_map<uint64_t, std::string> seqs;
 			std::vector<std::vector<uint64_t>> hashes;  // [m][...]
 		};
 
 		std::mutex file_read_mtx;
 
-		// 线程任务
+		// 只构建sketch
+		void worker_thread_only_sketch(int thread_id,
+				gzFile file,
+				kseq_t* kseq,
+				std::atomic<bool>& done);
+
+		// 构建sketch,读FA
 		void worker_thread(int thread_id,
 				gzFile file,
 				kseq_t* kseq,
@@ -61,12 +74,24 @@ class ProteinProcessor {
 			//std::vector<std::vector<uint64_t>>& hashes_
 		);
 
+		void merge_thread_results(
+			std::vector<uint64_t>& seq_ids_,
+			ProteinSketchData& protein_sketch_data,
+			ProteinData& proteindata
+		);
+
 		// 写二进制文件
 		void write_binary(const std::string path, ProteinSketchData& protein_sketch_data) const;
 
 		// 重新排序（多线程乱序 → 按 seq_id 排序）
 		void reorder_hashes(
 			std::vector<uint64_t>& seq_ids_,
+			std::vector<std::vector<uint64_t>>& hashes_
+		);
+
+		void reorderHashesAndNames(
+			std::vector<uint64_t>& seq_ids_,
+			std::vector<std::string>& names_,
 			std::vector<std::vector<uint64_t>>& hashes_
 		);
 
