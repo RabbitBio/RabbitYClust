@@ -100,42 +100,22 @@ void GroupStream::checkEdges(
 		map[id_root_map[i]].push_back(i);
 	}
 
-	int cnt_1000_100 = 0;
-	int cnt_100_10 = 0;
-	int cnt_10_1 = 0;
-
 	vector<vector<int>> first_hit_sequences;
     int huge_groups_cnt = 0;
 	for(auto &[key, seqs] : map){
 		if(seqs.size() > 1) {
 			first_hit_sequences.emplace_back(seqs);
 		}
-        if(seqs.size() > 10000) {
+        if(seqs.size() > 100000) {
             huge_groups_cnt++;
         }
-        
-		// 统计完全图的大小
-		int size = seqs.size();
-		//if(size > 1000){
-		//	cnt_1000_100++;
-		//}else if (size > 10){
-		//	cnt_100_10++;
-		//}else if (size > 1){
-		//	cnt_10_1++;
-		//}
 	}
 	cerr << "MinHash collisions : " << first_hit_sequences.size() << endl;
-	//cerr << "    groups size count: " << endl;
-	//cerr << "       1000-100: " << cnt_1000_100 << endl;
-	//cerr << "       100-10: " << cnt_100_10 << endl;
-	//cerr << "       10-1: " << cnt_10_1 << endl;
-
 	sort(first_hit_sequences.begin(), first_hit_sequences.end(),
 		[](const vector<int>& a, const vector<int>& b){
 			return a.size() > b.size();
 		});
 
-	//cerr << "    Top 10 largest groups: " ;
 	cerr << "    Top 10 largest collisions: " ;
 	for(int i = 0; i < std::min(10, (int)first_hit_sequences.size()); i++){
 		cerr << first_hit_sequences[i].size() << " ";
@@ -145,19 +125,11 @@ void GroupStream::checkEdges(
 
 	auto start_time = chrono::high_resolution_clock::now();
 	cut_edges(first_hit_sequences, huge_groups_cnt, fa_map);
-	//#pragma omp parallel for schedule(dynamic, 100)
-	//for(int i = 0; i < cluster_sequences.size(); i++) {
-	//	clusterEachGroup_st(cluster_sequences[i]);
-	//	if(i % 10000 == 0)
-	//		cout << "finished " << i << " groups" << endl;
-
-	//}
 	cur_uf.updateParent(id_root_map);
 
 	auto end_time = chrono::high_resolution_clock::now();
 	auto duration_cc = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
 	cerr << "	Break the bad edges time(seconds): " << duration_cc  << endl;
-	//cout << duration_cc << endl;
 
 	unordered_map<int, vector<int>> groups_after_filter; // rootid:[seq0, seq1...]
 	priority_queue<int, vector<int>, greater<int>> minHeap;
@@ -174,7 +146,7 @@ void GroupStream::checkEdges(
 
 	}
 	cerr << "After break the bad edges, connected components number are: " << groups_after_filter.size() << endl;
-	cerr << "    Top 10 largest connected components: " << endl;
+	cerr << "    Top 10 largest connected components: ";
 	while(!minHeap.empty()){
 		cerr << minHeap.top() << " ";
 		minHeap.pop();
@@ -215,7 +187,7 @@ void GroupStream::GroupByCol(
 		Unite(hash_vec, uf);
 	}
 	int groups_size = uf.countSetsSize();
-	cerr << "---------------------------------------------------" << endl;
+	//cerr << "---------------------------------------------------" << endl;
 	cout << "Group Size after merging:" << groups_size << endl;
 }
 
@@ -276,9 +248,10 @@ void GroupStream::cut_edges(
  	omp_set_num_threads(avail_threads);
 	int mt_seqs = 0;
 	int st_seqs = 0;
+	cout << "avail threads: " << omp_get_max_threads() << endl;
+    cerr << "Collisions number processed in mt: " << huge_groups_cnt << endl;
+	cerr << "Collisions number processed in st: " << (sequences_collisions.size() - huge_groups_cnt) << endl;
 
-    cerr << "Collisions size large than 10000: " << huge_groups_cnt << endl;
-	cerr << "Collisions size small than 10000: " << (sequences_collisions.size() - huge_groups_cnt) << endl;
 	// huge collisions
 	int max_mt_time = 0;
 	int max_mt_id = 0;
@@ -296,39 +269,36 @@ void GroupStream::cut_edges(
 	}
 	auto end_huge_time = chrono::high_resolution_clock::now();
 	auto duration_huge = chrono::duration_cast<chrono::seconds>(end_huge_time - start_huge_time).count();
-	cerr << "Cut edges time(seconds): " << endl;
-	cerr << "    huge collision groups (use all threads once)" << duration_huge << endl;
-	cout << "max cut edges time in mt: " << max_mt_time << endl;
-	//string mt_name = "nr_round1_max_mt_time_cid" + to_string(max_mt_id) + ".fa";
-	//ofstream ofs(mt_name);
-	//for(auto& seq : sequences_collisions[max_mt_id]){
-	//	ofs << ">" << names[seq] << endl;
-	//	ofs << fa_map[seq] << endl;
-	//}
+	cerr << "mt_libcdhit (use all threads once): " << duration_huge << endl;
+	cout << "	max cut edges time in mt: " << max_mt_time << endl;
 
-	cout << "seqs number processed in mt_libcdhit: " << mt_seqs << endl;
-	cout << "seqs number processed in st_libcdhit: " << gs_config.items - mt_seqs << endl;
+	
 	// small collisions
-	cout << "avail threads: " << omp_get_max_threads() << endl;
 	auto start_small_time = chrono::high_resolution_clock::now();
 	vector<int> max_time(avail_threads, 0);
 	vector<int> groups_id(avail_threads, 0);
-    #pragma omp parallel for num_threads(avail_threads- 1) schedule(dynamic)
-    for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++) {
-		auto start = chrono::high_resolution_clock::now();
-    	build_connected_components(sequences_collisions[i], 1, fa_map);
-		auto end = chrono::high_resolution_clock::now();
-		auto duration = chrono::duration_cast<chrono::seconds>(end - start).count();
-		int tid = omp_get_thread_num();
-		if(max_time[tid] < duration)
-		{
-			max_time[tid] = duration;
-			groups_id[tid] = i;
-		}
-    }
+
+    #pragma omp parallel num_threads(avail_threads- 1) 
+	{
+		//ClusterWS ws;
+		#pragma omp for schedule(dynamic)
+    	for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++) {
+			auto start = chrono::high_resolution_clock::now();
+			build_connected_components_st(sequences_collisions[i], 1, fa_map);
+			//	build_connected_components_st_reuse(sequences_collisions[i], 1, fa_map, ws);
+			auto end = chrono::high_resolution_clock::now();
+			auto duration = chrono::duration_cast<chrono::seconds>(end - start).count();
+			int tid = omp_get_thread_num();
+			if(max_time[tid] < duration)
+			{
+				max_time[tid] = duration;
+				groups_id[tid] = i;
+			}
+    	}
+	}
 	auto end_small_time = chrono::high_resolution_clock::now();
 	auto duration_small = chrono::duration_cast<chrono::seconds>(end_small_time - start_small_time).count();
-	cerr << "    small collision groups (use only 1 threads each group)" << duration_small << endl;
+	cerr << "st_libcdhit (use only 1 threads each group): " << duration_small << endl;
 	int max_id = 0;
 	int max_time_of_all_groups = 0;
 	for(int i = 0; i < avail_threads; i++)
@@ -339,8 +309,11 @@ void GroupStream::cut_edges(
 		}
 	}
 	// output
-	cout << "max cut edges time in st: " << max_time_of_all_groups << endl;
-	cout << "group_id: " << max_id << "containing seqs number: " << sequences_collisions[max_id].size() << endl;
+	cout << "	max cut edges time in st: " << max_time_of_all_groups << endl;
+	cout << "	group_id: " << max_id << "containing seqs number: " << sequences_collisions[max_id].size() << endl;
+
+	cerr << "Seqs number processed in mt_libcdhit: " << mt_seqs << endl;
+	cerr << "Seqs number processed in st_libcdhit: " << gs_config.items - mt_seqs << endl;
 }
 
 void GroupStream::Cluster(
@@ -592,12 +565,12 @@ void GroupStream::countGroupSize(int m, UnionFind& uf, const unordered_map<uint6
 			cluster_sequences.emplace_back(seqs);
 		}
 	}
-	cout << round_cnt << " " << m << endl;
+	//cout << round_cnt << " " << m << endl;
 
-	if(gs_config.cluster_on && (round_cnt == gs_config.M - gs_config.R || cluster_sequences.size() > 0)) {
+	if(gs_config.cluster_on && (gs_config.final_cluster_on && round_cnt == gs_config.M - gs_config.R || cluster_sequences.size() > 0)) {
 	    cerr << "---------------------------------------------------" << endl;
-		if(round_cnt == gs_config.M - gs_config.R){
-			cerr << "Final Cluster: groups larger than" << gs_config.cluster_condition << " : " << cluster_sequences.size() << endl;
+		if(gs_config.final_cluster_on && round_cnt == gs_config.M - gs_config.R){
+			cerr << "Use cdhit in Clustering: groups size larger than " << gs_config.cluster_condition << " number of sequences: " << cluster_sequences.size() << endl;
 		}else if(cluster_sequences.size() > 0){
 			cerr << "start rescure: groups larger than" << gs_config.cluster_condition << " : " << cluster_sequences.size() << endl;
 		}
@@ -733,15 +706,37 @@ void GroupStream::build_connected_components(
 	if(needed_threads > 1) {
 		cluster_sequences(sequences, id_root_map, 5, 0.05, needed_threads); 
 	}else {
-		int size = group_seqs.size();
-		if(size < 120) {
-			cluster_sequences_st_less10(sequences, id_root_map, 5, 0.05); 
-		}else {
-			// TODO error use of clusterws
-            ClusterWS ws;
-			cluster_sequences_st_reuse(sequences, id_root_map, 5, 0.05, ws); 
-		}
+		cluster_sequences_st_less10(sequences, id_root_map, 5, 0.05); 
 	}
+}
+
+void GroupStream::build_connected_components_st(
+	vector<int>& group_seqs, 
+	int needed_threads,
+	const unordered_map<uint64_t, string>& fa_map
+	) {
+	vector<Sequence_new> sequences;
+	for(int i = 0; i < group_seqs.size(); i++) {
+		sequences.emplace_back(group_seqs[i], fa_map.at(group_seqs[i]).c_str());
+	}
+	if(sequences.size() < 1000) {
+		cluster_sequences_st_less10(sequences, id_root_map, 5, 0.05); 
+	}else{
+		cluster_sequences_st(sequences, id_root_map, 5, 0.05); 
+	}
+}
+
+void GroupStream::build_connected_components_st_reuse(
+	vector<int>& group_seqs, 
+	int needed_threads,
+	const unordered_map<uint64_t, string>& fa_map,
+	ClusterWS& ws
+	) {
+	vector<Sequence_new> sequences;
+	for(int i = 0; i < group_seqs.size(); i++) {
+		sequences.emplace_back(group_seqs[i], fa_map.at(group_seqs[i]).c_str());
+	}
+	cluster_sequences_st_reuse(sequences, id_root_map, 5, 0.05, ws); 
 }
 /*
 void GroupStream::build_connected_components(vector<int>& group_seqs, int needed_threads)

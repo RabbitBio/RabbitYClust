@@ -101,6 +101,8 @@ private:
 	void Cluster(vector<vector<int>>& cluster_sequences, const unordered_map<uint64_t, string>& fa_map);
 
     void build_connected_components(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map);
+    void build_connected_components_st(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map);
+    void build_connected_components_st_reuse(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map, ClusterWS& ws);
 
 	void cut_edges(vector<vector<int>>& sequences_collisions, int huge_groups_cnt, const unordered_map<uint64_t, string>& fa_map);
 
