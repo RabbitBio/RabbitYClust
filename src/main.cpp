@@ -67,7 +67,6 @@ int main(int argc, char* argv[])
 
 	auto subB = app.add_subcommand("cluster", "Only clustering by MinHash, input must have existing MinHash sketch file");
 	subB->add_option("-i, --input", input_filename, "input file name, fasta or gziped fasta formats")->required();
-	subB->add_option("-S, --skech-file-name", sketch_filename, "Sketch file name")->required();
 	subB->add_option("-o", result_filename, "output clusters, seq_id : rep_seq_id")->required();
 	subB->add_flag("-c", cluster_on, "enable clustering to avoid super-huge group");
 	subB->add_flag("-f", final_cluster_off, "turn off the final clustering")->needs("-c");
@@ -76,6 +75,10 @@ int main(int argc, char* argv[])
 	subB->add_option("-m, --m-size", m, "set the number of hash functions will be used, default 15");
 	subB->add_option("-r, --r-size", r, "set the number of block");
 	subB->add_option("--c-thd, --cluser-threshold", cluster_thd, "cluster threshold in cdhit");
+	auto option_sketch = subB->add_option("-S, --skech-file-name", sketch_filename, "Sketch file name");
+	subB->add_flag("-x", xxhash_flag, "enable this flag to use xxhash in building sketches, default aaHash")->excludes("-S");
+	subB->add_option("--min-len", min_len, "set the filter minimum length (minLen), protein length less than minLen will be ignore, default 50")->excludes("-S");
+	subB->add_option("-k, --kmer-size", k, "set the kmer size, default 8")->excludes("-S");
 	
 	auto subC = app.add_subcommand("easy-cluster", "Giving a FASTA file, building sketches and clustering by MinHash");
 	subC->add_flag("-c", cluster_on, "enable clustering to avoid super-huge group");
@@ -159,59 +162,66 @@ int main(int argc, char* argv[])
 		cerr << "Start reading FA files!" << endl;
 		auto read_fa_start = chrono::high_resolution_clock::now();
 		
-		// 从sketch文件中加载序列条数,hash函数个数和最小序列长度
-		ProteinSketchData sketch_data;
-		sketch_data.loadConfig(sketch_filename);
-		if(m > sketch_data.config.sketch_size){
-			std::cerr << "Number of MinHash functions in sketch file: " << sketch_data.config.sketch_size << std::endl;
-			std::cerr << "Number of MinHash functions in sketch file is lower than Number of input m " << std::endl;
-			return 1;
-		}
-
-		ProteinData proteindata;
-		cnt_seqs = processor.load_sequences(input_filename, sketch_data.config.min_len, proteindata);
-		if(cnt_seqs != sketch_data.config.items) {
-			std::cerr << "Number of sequences in sketch file: " << sketch_data.config.items << std::endl;
-			std::cerr << "Number of sequences in FATSA input: " << cnt_seqs << std::endl;
-			std::cerr << "Sequences number in sketch file != sequences number read in FASTA input" << std::endl;
-			return 1;
-		}
-
-		auto read_fa_end = chrono::high_resolution_clock::now();
-		auto read_fa_duration = chrono::duration_cast<chrono::seconds>(read_fa_end - read_fa_start).count();
-
-		cerr << "Reading time: " << read_fa_duration << endl;
-		cerr << "Total number of seqs: " << cnt_seqs << endl;
-
-		cerr << "Start grouping!" << endl;
-		GroupStream::Config gs_config{
-			cnt_seqs,
-			m,
-			r,
-			1,
-			num_threads,
-			cluster_on,
-			!final_cluster_off,
-			500000,
-			true,
-			result_filename
-		};
-		GroupStream gs(gs_config);
-
-		unordered_map<int, vector<int>> group_map;
-		gs.Group(sketch_filename, proteindata);
-	
-		priority_queue<pair<int,int>, std::vector<pair<int, int>>, compare> minHeap;
-		int max_group_Size = 0;
-		for(const auto& pair : group_map) {
-			minHeap.push({pair.second.size(), pair.first});
-			if (minHeap.size() > 2) {
-				minHeap.pop(); // 保持堆的大小为 2
+		if(option_sketch->count() == 0)
+		{
+			//build sketch
+			ProteinSketchData protein_sketch_data;
+			cnt_seqs = processor.build_sketches(input_filename, result_filename, protein_sketch_data);
+		}else{
+			// 从sketch文件中加载序列条数,hash函数个数和最小序列长度
+			ProteinSketchData sketch_data;
+			sketch_data.loadConfig(sketch_filename);
+			if(m > sketch_data.config.sketch_size){
+				std::cerr << "Number of MinHash functions in sketch file: " << sketch_data.config.sketch_size << std::endl;
+				std::cerr << "Number of MinHash functions in sketch file is lower than Number of input m " << std::endl;
+				return 1;
 			}
-		}
 
-		//	输出代表序列
-		//	std::copy(rep_ids.begin(), rep_ids.end(), std::ostream_iterator<int>(rep_file, "\n"));
+			ProteinData proteindata;
+			cnt_seqs = processor.load_sequences(input_filename, sketch_data.config.min_len, proteindata);
+			if(cnt_seqs != sketch_data.config.items) {
+				std::cerr << "Number of sequences in sketch file: " << sketch_data.config.items << std::endl;
+				std::cerr << "Number of sequences in FATSA input: " << cnt_seqs << std::endl;
+				std::cerr << "Sequences number in sketch file != sequences number read in FASTA input" << std::endl;
+				return 1;
+			}
+
+			auto read_fa_end = chrono::high_resolution_clock::now();
+			auto read_fa_duration = chrono::duration_cast<chrono::seconds>(read_fa_end - read_fa_start).count();
+
+			cerr << "Reading time: " << read_fa_duration << endl;
+			cerr << "Total number of seqs: " << cnt_seqs << endl;
+
+			cerr << "Start grouping!" << endl;
+			GroupStream::Config gs_config{
+				cnt_seqs,
+					m,
+					r,
+					1,
+					num_threads,
+					cluster_on,
+					!final_cluster_off,
+					500000,
+					similarity,
+					true,
+					result_filename
+			};
+			GroupStream gs(gs_config);
+
+			unordered_map<int, vector<int>> group_map;
+			gs.Group(sketch_filename, proteindata);
+
+			priority_queue<pair<int,int>, std::vector<pair<int, int>>, compare> minHeap;
+			int max_group_Size = 0;
+			for(const auto& pair : group_map) {
+				minHeap.push({pair.second.size(), pair.first});
+				if (minHeap.size() > 2) {
+					minHeap.pop(); // 保持堆的大小为 2
+				}
+			}
+			//	输出代表序列
+			//	std::copy(rep_ids.begin(), rep_ids.end(), std::ostream_iterator<int>(rep_file, "\n"));
+		}
 	}
 	
 	if(*subC) {
