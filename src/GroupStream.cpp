@@ -285,12 +285,11 @@ void GroupStream::cutEdges(
 
     #pragma omp parallel num_threads(avail_threads- 1) 
 	{
-		//ClusterWS ws;
+		ClusterWS ws;
 		#pragma omp for schedule(dynamic)
     	for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++) {
 			auto start = chrono::high_resolution_clock::now();
-			buildConnectedComponents_st(sequences_collisions[i], 1, fa_map);
-			//	buildConnectedComponents_st_reuse(sequences_collisions[i], 1, fa_map, ws);
+			buildConnectedComponents_st(sequences_collisions[i], avail_threads, fa_map, ws);
 			auto end = chrono::high_resolution_clock::now();
 			auto duration = chrono::duration_cast<chrono::seconds>(end - start).count();
 			int tid = omp_get_thread_num();
@@ -708,30 +707,19 @@ void GroupStream::buildConnectedComponents(
 	for(int i = 0; i < group_seqs.size(); i++) {
 		sequences.emplace_back(group_seqs[i], fa_map.at(group_seqs[i]).c_str());
 	}
+	vector<int> local_parent(group_seqs.size());
 	if(needed_threads > 1) {
-		cluster_sequences(sequences, id_root_map, 5, tau, needed_threads); 
+		cluster_sequences(sequences, local_parent, 5, tau, needed_threads); 
 	}else {
-		cluster_sequences_st_less10(sequences, id_root_map, 5, tau); 
+		cluster_sequences_st_less10(sequences, local_parent, 5, tau); 
+	}
+	for(int i = 0; i < group_seqs.size(); i++)
+	{
+		id_root_map[sequences[i].seq_id] = local_parent[i];
 	}
 }
 
 void GroupStream::buildConnectedComponents_st(
-	vector<int>& group_seqs, 
-	int needed_threads,
-	const unordered_map<uint64_t, string>& fa_map
-	) {
-	vector<Sequence_new> sequences;
-	for(int i = 0; i < group_seqs.size(); i++) {
-		sequences.emplace_back(group_seqs[i], fa_map.at(group_seqs[i]).c_str());
-	}
-	if(sequences.size() < 1000) {
-		cluster_sequences_st_less10(sequences, id_root_map, 5, tau); 
-	}else{
-		cluster_sequences_st(sequences, id_root_map, 5, tau); 
-	}
-}
-
-void GroupStream::buildConnectedComponents_st_reuse(
 	vector<int>& group_seqs, 
 	int needed_threads,
 	const unordered_map<uint64_t, string>& fa_map,
@@ -741,35 +729,17 @@ void GroupStream::buildConnectedComponents_st_reuse(
 	for(int i = 0; i < group_seqs.size(); i++) {
 		sequences.emplace_back(group_seqs[i], fa_map.at(group_seqs[i]).c_str());
 	}
-	cluster_sequences_st_reuse(sequences, id_root_map, 5, tau, ws); 
-}
-/*
-void GroupStream::buildConnectedComponents(vector<int>& group_seqs, int needed_threads)
-{
-	vector<Sequence_new> sequences;
-    //vector<int> local_seq_group_map(group_seqs.size()); 
-	for(int i = 0; i < group_seqs.size(); i++) {
-		sequences.emplace_back(group_seqs[i], fa_map[group_seqs[i]].c_str());
-    //    local_seq_group_map.emplace_back(id_root_map[group_seqs[i]]);
+	vector<int> local_parent(group_seqs.size());
+	if(group_seqs.size() < 1000){
+		cluster_sequences_st_less10(sequences, local_parent, 5, tau); 
+	}else{
+		cluster_sequences_st_reuse(sequences, local_parent, 5, tau, ws); 
 	}
-    // id_root_map: global -> local
-	if(needed_threads > 1) {
-		cluster_sequences(sequences, local_seq_group_map, 5, 0.05, needed_threads); 
-	}else {
-		int size = group_seqs.size();
-		if(size < 120) {
-			cluster_sequences_st_less10(sequences, local_seq_group_map, 5, 0.05); 
-		}else {
-            ClusterWS ws;
-			cluster_sequences_st_reuse(sequences, local_seq_group_map, 5, 0.05, ws); 
-		}
+	for(int i = 0; i < group_seqs.size(); i++)
+	{
+		id_root_map[sequences[i].seq_id] = local_parent[i];
 	}
-    // 更新local_seq_group_map更新回id_root_map
-	for(int i = 0; i < group_seqs.size(); i++) {
-        id_root_map[group_seqs[i]] = local_seq_group_map[i];
-    }
 }
-*/
 
 void GroupStream::clusterEachGroup(
 	vector<int>& group_seqs,
