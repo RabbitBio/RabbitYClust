@@ -39,7 +39,8 @@ void ProteinProcessor::worker_thread(
 				done = true;
 				break;
 			}
-			if (len < config_.min_len) continue;
+            int l = kseq->seq.l;
+			if (l < config_.min_len) continue;
 
 			seq = kseq->seq.s;
 			name = kseq->name.s;
@@ -199,7 +200,8 @@ void ProteinProcessor::worker_thread_only_sketch(
 				done = true;
 				break;
 			}
-			if (len < config_.min_len) continue;
+            int l = kseq->seq.l;
+			if (l < config_.min_len) continue;
 
 			seq = kseq->seq.s;
 
@@ -367,7 +369,8 @@ int ProteinProcessor::load_sequences(const std::string input_fa, int min_len, Pr
 	while (true) {
 		int len = kseq_read(ks);
 		if (len < 0) break;
-		if (len < min_len) continue;
+        int l = ks->seq.l;
+		if (l < min_len) continue;
 
 		seq_map_[cnt] = ks->seq.s;
 		names_.emplace_back(ks->name.s);
