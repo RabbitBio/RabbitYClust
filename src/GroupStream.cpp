@@ -196,7 +196,7 @@ void GroupStream::GroupByCol(
 	cout << "Group Size after merging:" << groups_size << endl;
 }
 
-void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m) {
+void GroupStream::fillHashVec(const ProteinSketchData& sketchdata, vector<Data>& hash_vec, int m) {
 // 1. use std::transform
 //	int index = 0;
 //	transform(vec.begin(), vec.end(), hash_vec.begin(), 
@@ -204,15 +204,13 @@ void GroupStream::fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>&
 //		return Data{value, (index++)};
 //		});
 // 2. iteration to construct pair
-//    for (int i = 0; i < vec.size(); ++i) {
-//        hash_vec[i].id = i;
-//        hash_vec[i].value = vec[i];
-//    }
-	for (int i = 0; i < vec.size(); i++) {
+    auto& tmp_hashes = sketchdata.hashes[m];
+	for (int i = 0; i < gs_config.items; i++) {
 		hash_vec[i].id = i;
-		copy(vec[i].begin() + m * gs_config.L, vec[i].begin() + m * gs_config.L + gs_config.R * gs_config.L, hash_vec[i].value.begin());
+        hash_vec[i].value[0] = tmp_hashes[i];
+		//copy(vec[i].begin() + m * gs_config.L, vec[i].begin() + m * gs_config.L + gs_config.R * gs_config.L, hash_vec[i].value.begin());
 	}
-	cerr << vec.size() << " valid items in round " << m << endl;
+	cerr << gs_config.items << " valid items in round " << m << endl;
 }
 
 
@@ -614,34 +612,26 @@ void GroupStream::countGroupSizeBySort(UnionFind& uf) {
 	cerr << endl;
 }
 
-/*
- * TODO for subC
 void GroupStream::Group(
-	vector<vector<uint64_t>>& hashes,
-	unordered_map<int, vector<int>>& group_map
+    const ProteinSketchData& sketchdata,
+	const ProteinData& proteindata
 	) {
-	cerr << "==========Group Parameters==========" << endl;
-	cerr << "cluster:" << gs_config.cluster_on << endl;
-	cerr << "cluster-condition: " << gs_config.cluster_condition << endl;
-	cerr << "clustering all sequences in last round: " << gs_config.final_cluster_on << endl;
-	cerr << "==========Group Parameters==========" << endl;
 	for(int m=0; m < gs_config.M - gs_config.R+1; m++){
 		cerr << "round "<<  m << endl;
-		fillHashVec(hashes, hash_vec, m);
-		GroupByCol(hash_vec, uf);
+		fillHashVec(sketchdata, hash_vec, m);
+		GroupByCol(hash_vec, proteindata.sequence_map);
 		if(m == gs_config.M - gs_config.R && gs_config.final_cluster_on) {
 			gs_config.cluster_condition = 1;
 		}
-		countGroupSize(m, uf);
+		countGroupSize(m, uf, proteindata.sequence_map);
 		round_cnt++;
 	}
 
-	getGroupRes(uf, group_map);
+	//getGroupRes(uf, group_map);
 	if(gs_config.output_on) {
-		outputClstr();
+		outputClstr(proteindata.names, proteindata.sequence_map);
 	}
 }
-*/
 
 void GroupStream::Group(
 	string sketch_filename,

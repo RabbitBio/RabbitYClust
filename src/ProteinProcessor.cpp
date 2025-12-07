@@ -173,7 +173,7 @@ void ProteinProcessor::reorderHashesAndNames(
 		for (int j = 0; j < config_.m; ++j) {
 			sorted_hashes[j][i] = hashes_[j][old_idx];
 		}
-		sorted_names[i] = names_[i][old_idx];
+		sorted_names[i] = names_[old_idx];
 	}
 
 	hashes_ = std::move(sorted_hashes);

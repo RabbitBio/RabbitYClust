@@ -59,10 +59,7 @@ public:
 			data.value.resize(gs_config.L * gs_config.R);
 	}
 
-	//void Group(
-	//	vector<vector<uint64_t>>& hashes, 
-	//	unordered_map<int, vector<int>>& group_map
-	//	);
+	void Group( const ProteinSketchData& sketchdata, const ProteinData& proteindata);
 	void Group(string sketch_filename, const ProteinData& proteindata);
 
 private:
@@ -87,7 +84,7 @@ private:
 	void GroupByCol(vector<Data>& hash_vec, const unordered_map<uint64_t, string>& fa_map);
 
 	// construct a sorted struct Data(hash-vec) for a column of hash-funtions(vec)
-	void fillHashVec(const vector<vector<uint64_t>>& vec, vector<Data>& hash_vec, int m);
+	void fillHashVec(const ProteinSketchData& sketchdata, vector<Data>& hash_vec, int m);
 	void fillHashVec(string sketch_filename, vector<Data>& hash_vec, int m);
 	
 	void checkEdges(vector<Data>& hash_vec, UnionFind& cur_uf, const unordered_map<uint64_t, string>& fa_map); 
