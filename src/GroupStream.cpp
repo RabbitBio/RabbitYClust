@@ -7,6 +7,8 @@
 #include <unordered_set>
 #include <fstream>
 
+#include "ips2ra.hpp"
+#include "ips4o.hpp"
 // 静态成员变量的定义
 
 int round_cnt=0;
@@ -63,34 +65,60 @@ void GroupStream::tempOutput(vector<vector<int>>& cluster_sequences) {
 	cerr << endl;
 }
 */
+
+void ips4o_sort_single_thread(vector<Data>& hash_vec, int r = 1) {
+    auto cmp = [r](const Data& a, const Data& b) {
+        for (int i = 0; i < r; i++) {
+            if (a.value[i] < b.value[i])
+                return true;
+            else if (a.value[i] > b.value[i])
+                return false;
+        }
+        return false;
+    };
+    ips4o::sort(hash_vec.begin(), hash_vec.end(), cmp);
+}
+
+void ips4o_sort_multi_thread(vector<Data>& hash_vec, int r = 1) {
+    auto cmp = [r](const Data& a, const Data& b) {
+        for (int i = 0; i < r; i++) {
+            if (a.value[i] < b.value[i])
+                return true;
+            else if (a.value[i] > b.value[i])
+                return false;
+        }
+        return false;
+    };
+    ips4o::parallel::sort(hash_vec.begin(), hash_vec.end(), cmp);
+}
+
+void ips2ra_sort_single_thread(vector<Data>& hash_vec, const int r = 1) {
+    ips2ra::sort(hash_vec.begin(), hash_vec.end(), [](const Data& r) { return r.value[0]; });
+}
+
+void ips2ra_sort_multi_thread(vector<Data>& hash_vec, const int r = 1) {
+    ips2ra::parallel::sort(hash_vec.begin(), hash_vec.end(), [](const Data& r) { return r.value[0]; }, 1);
+}
+
+
 void GroupStream::Sort(vector<Data>& dataList){
+	auto start_time = chrono::high_resolution_clock::now();
+//#ifdef USE_PARALLEL
+	if (gs_config.num_threads == 1) ips2ra_sort_single_thread(dataList, dataList.size());
+    else ips2ra_sort_multi_thread(dataList, dataList.size());
 
-#ifdef parallel
-	size_t n = dataList.size();
-	int num_threads = omp_get_max_threads();
-	size_t chunk_size = n / num_threads;
-	cout << num_threads << " threads are used in sorting" << endl;
-
-#pragma omp parallel num_threads(num_threads)
-    {
-        int tid = omp_get_thread_num();
-        size_t start = tid * chunk_size;
-        size_t end = (tid == num_threads - 1) ? n : start + chunk_size;
-        sort(dataList.begin()+start, dataList.begin()+end, compareByHash);
-    }
-
-//#pragma omp parallel for num_threads(num_threads)
-	for (int i = 1; i < num_threads; ++i) {
-		inplace_merge(dataList.begin(), dataList.begin() + i * chunk_size,
-			dataList.begin() + ((i == num_threads - 1) ? n : (i + 1) * chunk_size),
-			compareByHash);
-	}
-#else
+//	if (gs_config.num_threads == 1) ips4o_sort_single_thread(dataList);
+//    else ips4o_sort_multi_thread(dataList);
+	// r = 1 用ips2ra
+//#else
 //	sort(dataList.begin(), dataList.end(), [](const Data& a, const Data& b){
 //		return a.value < b.value;
 //		});
-		sort(dataList.begin(), dataList.end(), compareByHash);
-#endif
+//		sort(dataList.begin(), dataList.end(), compareByHash);
+//#endif
+	auto end_time = chrono::high_resolution_clock::now();
+	auto duration = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
+	cerr << "sort time (seconds): " << duration  << endl;
 }
 
 void GroupStream::checkEdges(
@@ -641,6 +669,7 @@ void GroupStream::Group(
 		cerr << "round "<<  m << endl;
 		fillHashVec(sketch_filename, hash_vec, m);
 		GroupByCol(hash_vec, proteindata.sequence_map);
+		return;
 		if(m == gs_config.M-gs_config.R && gs_config.final_cluster_on) {
 			gs_config.cluster_condition = 1;
 		}
