@@ -24,6 +24,7 @@ aux_source_directory(src/aahash DIR_SRCS)
 
 add_executable(yclust ${DIR_SRCS})
 
+
 # 启用线程池
 option(ENABLE_THREAD_POOL "Enable thread pool support" OFF)
 if(ENABLE_THREAD_POOL)
@@ -58,3 +59,13 @@ else()
 	target_link_libraries(yclust z)
 endif()
 
+find_package(TBB CONFIG REQUIRED)
+target_link_libraries(yclust PRIVATE TBB::tbb)
+target_link_libraries(yclust PRIVATE atomic)
+
+option(OPTIMIZE_NATIVE "为本机CPU优化（-march=native）" ON)
+
+if(OPTIMIZE_NATIVE)
+  target_compile_options(yclust PRIVATE -march=native)
+  #target_compile_options(bench_main PRIVATE -O3 -DNDEBUG -march=native)
+endif()
