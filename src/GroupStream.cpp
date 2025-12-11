@@ -26,10 +26,10 @@ bool compareByHash(const Data &a, const Data &b) {
 GroupStream::GroupStream(const Config& cfg) : gs_config(cfg), uf(cfg.items){
 	resize(gs_config.items);
 	initOptions();
-	if(cfg.similarity == 0.9) {
-		tau = 0.36;
+	if(cfg.similarity >= 0.9) {
+		tau = 0.3;
 	}else {
-		tau = 0.05;
+		tau = 0.3;
 	}
 }
 
@@ -270,11 +270,96 @@ void GroupStream::getGroupRes(UnionFind& uf, unordered_map<int, vector<int>>& gr
 	}
 }
 
+constexpr int aa_value(char c) {
+    switch (c) {
+        case 'A': return 0;  case 'C': return 1;  case 'D': return 2;  case 'E': return 3;
+        case 'F': return 4;  case 'G': return 5;  case 'H': return 6;  case 'I': return 7;
+        case 'K': return 8;  case 'L': return 9;  case 'M': return 10; case 'N': return 11;
+        case 'P': return 12; case 'Q': return 13; case 'R': return 14; case 'S': return 15;
+        case 'T': return 16; case 'V': return 17; case 'W': return 18; case 'Y': return 19;
+        case 'X': return 20;
+        default:  return 0;
+    }
+}
+
+constexpr std::array<int,256> aa_map = []{
+    std::array<int,256> a{};                 // 全部置 0
+    for (int i = 0; i < 256; ++i)
+        a[static_cast<unsigned char>(i)] = aa_value(static_cast<char>(i));
+    return a;
+}();
+
+bool computeGlobalUniqueKmers(
+    const vector<int>& seqs, 
+    int k,
+	const unordered_map<uint64_t, string>& fa_map
+    ) {
+    //unordered_map<int, int> unique_map;
+    unordered_set<int> unique;
+    int total_kmers = 0;
+    int NAA = k;
+    for (const auto& seq_id : seqs) {
+        const char* seq = fa_map.at(seq_id).c_str();
+        int len = fa_map.at(seq_id).size();
+        if (len < k) continue;
+        total_kmers += len - k + 1;
+        
+        // EncodeWords 
+        int aan_no = len - NAA + 1;
+        unsigned char k, k1;
+        for (int j = 0; j < aan_no; j++) {
+            const char* word = seq + j;
+            int encode = 0;
+            for (k = 0, k1 = NAA - 1; k < NAA; k++, k1--) {
+                encode += aa_map[(unsigned char)word[k]] * NAAN_array[k1];  // 修改为使用 aa_map
+            }
+            unique.insert(encode);
+            //unique_map[encode]++;
+        }
+    }
+    return unique.size() * 32 <= total_kmers;
+    // TODO 使用组合数
+
+}
+// 测试一下这个kernel
+//bool computeGlobalUniqueKmers(
+//    const vector<int>& seqs, 
+//    int k,
+//	const unordered_map<uint64_t, string>& fa_map
+//    ) {
+//    unordered_set<uint64_t> unique;
+//    uint64_t base = 1;
+//    for (int i = 1; i < k; ++i) base *= 131;  // 用131更稳
+//
+//    uint64_t total_kmers = 0;
+//    for (const auto& seq_id : seqs) {
+//        const char* seq = fa_map.at(seq_id).c_str();
+//        int len = fa_map.at(seq_id).size();
+//        total_kmers += len - k + 1;
+//        
+//        if (len < k) continue;
+//        uint64_t h = 0;
+//        for (int i = 0; i < k; ++i)
+//            h = h * 131 + (seq[i] - 'A' + 1);
+//
+//        unique.insert(h);
+//        for (size_t i = k; i < len; ++i) {
+//            h = h * 131 
+//                - (seq[i-k] - 'A' + 1) * base 
+//                + (seq[i]   - 'A' + 1);
+//            unique.insert(h);
+//        }
+//    }
+//    // 以4%作为是否使用wordtable的标准
+//    return unique.size() * 25 <= total_kmers;
+//}
+
 void GroupStream::cutEdges(
 	vector<vector<int>>& sequences_collisions, 
 	int huge_groups_cnt, // 需要多线程libcdhit的组的个数
 	const unordered_map<uint64_t, string>& fa_map
 	) {
+
 	int avail_threads = gs_config.num_threads;
  	omp_set_num_threads(avail_threads);
 	int mt_seqs = 0;
@@ -291,21 +376,92 @@ void GroupStream::cutEdges(
 	}
 	auto end_huge_time = chrono::high_resolution_clock::now();
 	auto duration_huge = chrono::duration_cast<chrono::seconds>(end_huge_time - start_huge_time).count();
-	cerr << "multi-thread libcdhit (use all threads once): " << duration_huge << endl;
-	
-	// small collisions in single thread libcdhit
+	cerr << "Time of multi-thread libcdhit (use all threads once): " << duration_huge << endl;
+
+    vector<int> tasks(sequences_collisions.size()); 
+	auto start_build = chrono::high_resolution_clock::now();
+    // task_id in sequences_collisions, type of libcdhit
+    // eg. 0:less10; >1:word_table 
+    for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++)
+    {
+        if(sequences_collisions[i].size() <= 100){
+            cerr << "Number of groups(size <= 100): " <<  sequences_collisions.size()-i << endl;
+            break;
+        }
+    }
+    int use_direct = 0;
+	#pragma omp parallel for schedule(dynamic) reduction(+:use_direct)
+    for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++)
+    {
+        // 统计不同的kmers
+        if(sequences_collisions[i].size() <= 100 || computeGlobalUniqueKmers(sequences_collisions[i], 5, fa_map)) {
+            tasks[i] = 0;
+            use_direct++;
+        }else {
+            tasks[i] = 1;
+        }
+    }
+	auto end_build = chrono::high_resolution_clock::now();
+	auto duration_build = chrono::duration_cast<chrono::seconds>(end_build - start_build).count();
+    cerr << "Number of groups use direct: " << use_direct << endl;
+	cerr << "Time of computing kmers density: " << duration_build << endl;
+    //vector<int> per_thread_max_times(avail_threads, 0);
+    //vector<int> use_type(avail_threads, 0);
+    //vector<int> group_ids(avail_threads, 0);
+    //vector<uint64_t> containing_aas(avail_threads, 0);
 	auto start_small_time = chrono::high_resolution_clock::now();
     #pragma omp parallel num_threads(avail_threads) 
 	{
-		ClusterWS ws;
+        int tid = omp_get_thread_num();
 		#pragma omp for schedule(dynamic)
     	for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++) {
-			buildConnectedComponents(sequences_collisions[i], 1, fa_map, ws);
+
+	        //auto start1 = chrono::high_resolution_clock::now();
+			uint64_t total_aas = buildConnectedComponents_st(sequences_collisions[i], fa_map, tasks[i]);
+            //auto end1 = chrono::high_resolution_clock::now();
+            //auto duration1 = chrono::duration_cast<chrono::seconds>(end1 - start1).count();
+            //if(duration1 >= per_thread_max_times[tid])
+            //{
+            //    per_thread_max_times[tid] = duration1;
+            //    use_type[tid] = tasks[i];
+            //    group_ids[tid] = i;
+            //    containing_aas[tid] = total_aas;
+            //}
     	}
 	}
 	auto end_small_time = chrono::high_resolution_clock::now();
 	auto duration_small = chrono::duration_cast<chrono::seconds>(end_small_time - start_small_time).count();
-	cerr << "single-thread libcdhit (use only 1 threads each group): " << duration_small << endl;
+	cerr << "Time of single-thread libcdhit (use only 1 threads each group): " << duration_small << endl;
+//    for(int i = 0; i < avail_threads; i++){
+//        int group_id = group_ids[i];
+//        cerr << "times: " << per_thread_max_times[i] << endl;
+//        if(use_type[i] == 1) cerr << "type: wt" << endl;
+//        else cerr << "type: direct" << endl;
+//        cerr << "number of seqs processed: " << sequences_collisions[group_id].size()  << endl;
+//        cerr << "number of AAs processed: " << containing_aas[i] << endl;
+//        //cerr << "fa name: " << i << endl;
+//        //string filename = "fa" + to_string(i);
+//	    //ofstream ofs(filename);
+//        //for(int j = 0; j < sequences_collisions[group_id].size(); j++) {
+//        //    ofs << ">seq" << j << "\n";
+//		//    ofs << fa_map.at(sequences_collisions[group_id][j]).c_str() << "\n";
+//        //}
+//		//ofs.close();
+//	}
+
+
+//	// small collisions in single thread libcdhit
+//	auto start_small_time = chrono::high_resolution_clock::now();
+//    #pragma omp parallel num_threads(avail_threads) 
+//	{
+//		#pragma omp for schedule(dynamic)
+//    	for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++) {
+//			buildConnectedComponents_st(sequences_collisions[i], fa_map, 1);
+//    	}
+//	}
+//	auto end_small_time = chrono::high_resolution_clock::now();
+//	auto duration_small = chrono::duration_cast<chrono::seconds>(end_small_time - start_small_time).count();
+//	cerr << "Time of single-thread libcdhit (use only 1 threads each group): " << duration_small << endl;
 
 	cerr << "Seqs number processed in mt_libcdhit: " << mt_seqs << endl;
 	cerr << "Seqs number processed in st_libcdhit: " << gs_config.items - mt_seqs << endl;
@@ -665,11 +821,11 @@ void GroupStream::Group(
 	string sketch_filename,
 	const ProteinData& proteindata
 	) {
+    cerr << "tau in libcdhit: " << tau << endl;
 	for(int m=0; m < gs_config.M-gs_config.R+1; m++){
 		cerr << "round "<<  m << endl;
 		fillHashVec(sketch_filename, hash_vec, m);
 		GroupByCol(hash_vec, proteindata.sequence_map);
-		return;
 		if(m == gs_config.M-gs_config.R && gs_config.final_cluster_on) {
 			gs_config.cluster_condition = 1;
 		}
@@ -680,6 +836,32 @@ void GroupStream::Group(
 	if(gs_config.output_on) {
 		outputClstr(proteindata.names, proteindata.sequence_map);
 	}
+}
+// TODO临时声明的
+//void GroupStream::buildConnectedComponents_st(
+uint64_t GroupStream::buildConnectedComponents_st(
+	vector<int>& group_seqs, 
+	const unordered_map<uint64_t, string>& fa_map,
+    int use_wt
+	) {
+	vector<Sequence_new> sequences;
+    uint64_t total_aas = 0;
+	for(int i = 0; i < group_seqs.size(); i++) {
+		sequences.emplace_back(group_seqs[i], fa_map.at(group_seqs[i]).c_str());
+        total_aas += fa_map.at(group_seqs[i]).size();
+	}
+
+    if(use_wt == 1){
+		cluster_sequences_st(sequences, 5, tau); 
+    }else{
+	    cluster_sequences_st_less10(sequences, 5, tau); 
+    }
+
+	for(int i = 0; i < group_seqs.size(); i++)
+	{
+		id_root_map[sequences[i].seq_id] = sequences[i].new_root_id;
+	}
+    return total_aas;
 }
 
 void GroupStream::buildConnectedComponents(
@@ -695,7 +877,7 @@ void GroupStream::buildConnectedComponents(
 	if(needed_threads > 1) {
 		cluster_sequences(sequences, 5, tau, needed_threads); 
 	}else {
-		if(group_seqs.size() < 1000){
+		if(group_seqs.size() < 100){
 			cluster_sequences_st_less10(sequences, 5, tau); 
 		}else{
 			cluster_sequences_st_reuse(sequences, 5, tau, ws); 

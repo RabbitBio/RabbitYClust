@@ -101,6 +101,9 @@ private:
 
     void buildConnectedComponents(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map, ClusterWS& ws);
 
+    uint64_t buildConnectedComponents_st( vector<int>& group_seqs, const unordered_map<uint64_t, string>& fa_map, int use_wt);
+    //void buildConnectedComponents_st( vector<int>& group_seqs, const unordered_map<uint64_t, string>& fa_map, int use_wt);
+
 	void cutEdges(vector<vector<int>>& sequences_collisions, int huge_groups_cnt, const unordered_map<uint64_t, string>& fa_map);
 
 	void outputClstr(const vector<string>& names, const unordered_map<uint64_t, string>& fa_map);
