@@ -99,9 +99,9 @@ private:
 
 	void Cluster(vector<vector<int>>& cluster_sequences, const unordered_map<uint64_t, string>& fa_map);
 
-    void buildConnectedComponents(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map, ClusterWS& ws);
+    pair<uint64_t, uint64_t> buildConnectedComponents(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map, ClusterWS& ws);
 
-    uint64_t buildConnectedComponents_st( vector<int>& group_seqs, const unordered_map<uint64_t, string>& fa_map, int use_wt);
+    pair<uint64_t, uint64_t> buildConnectedComponents_st( vector<int>& group_seqs, const unordered_map<uint64_t, string>& fa_map, int use_wt);
     //void buildConnectedComponents_st( vector<int>& group_seqs, const unordered_map<uint64_t, string>& fa_map, int use_wt);
 
 	void cutEdges(vector<vector<int>>& sequences_collisions, int huge_groups_cnt, const unordered_map<uint64_t, string>& fa_map);

@@ -26,11 +26,7 @@ bool compareByHash(const Data &a, const Data &b) {
 GroupStream::GroupStream(const Config& cfg) : gs_config(cfg), uf(cfg.items){
 	resize(gs_config.items);
 	initOptions();
-	if(cfg.similarity >= 0.9) {
-		tau = 0.3;
-	}else {
-		tau = 0.3;
-	}
+    tau = 0.5;
 }
 
 /*
@@ -366,12 +362,19 @@ void GroupStream::cutEdges(
 	cout << "avail threads: " << omp_get_max_threads() << endl;
     cerr << "Collisions number processed in multi-thread: " << huge_groups_cnt << endl;
 	cerr << "Collisions number processed in single-thread: " << (sequences_collisions.size() - huge_groups_cnt) << endl;
+    // edge stat
+    uint64_t validated_edges = 0;
+    uint64_t cross_edge_sum = 0;
+    uint64_t minhash_edge_sum = 0;
 
 	// huge collisions in multiple thread libcdhit
 	auto start_huge_time = chrono::high_resolution_clock::now();
 	ClusterWS ws_for_hugegroup;
 	for(int i = 0; i < huge_groups_cnt; i++) {
-		buildConnectedComponents(sequences_collisions[i], avail_threads, fa_map, ws_for_hugegroup);
+        pair<uint64_t, uint64_t> edge_stat = buildConnectedComponents(sequences_collisions[i], avail_threads, fa_map, ws_for_hugegroup);
+        cross_edge_sum += edge_stat.first;
+        validated_edges += edge_stat.second;
+        minhash_edge_sum += (sequences_collisions[i].size() * (sequences_collisions[i].size()-1)) >> 1;
 		mt_seqs += sequences_collisions[i].size();
 	}
 	auto end_huge_time = chrono::high_resolution_clock::now();
@@ -382,29 +385,35 @@ void GroupStream::cutEdges(
 	auto start_build = chrono::high_resolution_clock::now();
     // task_id in sequences_collisions, type of libcdhit
     // eg. 0:less10; >1:word_table 
-    for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++)
-    {
-        if(sequences_collisions[i].size() <= 100){
-            cerr << "Number of groups(size <= 100): " <<  sequences_collisions.size()-i << endl;
-            break;
-        }
-    }
-    int use_direct = 0;
-	#pragma omp parallel for schedule(dynamic) reduction(+:use_direct)
-    for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++)
-    {
-        // 统计不同的kmers
-        if(sequences_collisions[i].size() <= 100 || computeGlobalUniqueKmers(sequences_collisions[i], 5, fa_map)) {
-            tasks[i] = 0;
-            use_direct++;
-        }else {
-            tasks[i] = 1;
-        }
-    }
-	auto end_build = chrono::high_resolution_clock::now();
-	auto duration_build = chrono::duration_cast<chrono::seconds>(end_build - start_build).count();
-    cerr << "Number of groups use direct: " << use_direct << endl;
-	cerr << "Time of computing kmers density: " << duration_build << endl;
+    // ---------------
+    // 统计小于100的任务个数
+    //for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++)
+    //{
+    //    if(sequences_collisions[i].size() <= 100){
+    //        cerr << "Number of groups(size <= 100): " <<  sequences_collisions.size()-i << endl;
+    //        break;
+    //    }
+    //}
+    // ---------------
+    // 统计wordtable 根据word table的分布来决定使用wt or direct
+    //int use_direct = 0;
+	//#pragma omp parallel for schedule(dynamic) reduction(+:use_direct)
+    //for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++)
+    //{
+    //    // 统计不同的kmers
+    //    if(sequences_collisions[i].size() <= 100 || computeGlobalUniqueKmers(sequences_collisions[i], 5, fa_map)) {
+    //        tasks[i] = 0;
+    //        use_direct++;
+    //    }else {
+    //        tasks[i] = 1;
+    //    }
+    //}
+	//auto end_build = chrono::high_resolution_clock::now();
+	//auto duration_build = chrono::duration_cast<chrono::seconds>(end_build - start_build).count();
+    //cerr << "Number of groups use direct: " << use_direct << endl;
+	//cerr << "Time of computing kmers density: " << duration_build << endl;
+    // ---------------
+    // 统计最耗时的任务
     //vector<int> per_thread_max_times(avail_threads, 0);
     //vector<int> use_type(avail_threads, 0);
     //vector<int> group_ids(avail_threads, 0);
@@ -413,11 +422,14 @@ void GroupStream::cutEdges(
     #pragma omp parallel num_threads(avail_threads) 
 	{
         int tid = omp_get_thread_num();
-		#pragma omp for schedule(dynamic)
+		#pragma omp for schedule(dynamic) reduction(+:cross_edge_sum,minhash_edge_sum,validated_edges)
     	for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++) {
 
 	        //auto start1 = chrono::high_resolution_clock::now();
-			uint64_t total_aas = buildConnectedComponents_st(sequences_collisions[i], fa_map, tasks[i]);
+			pair<uint64_t, uint64_t>  edge_stat = buildConnectedComponents_st(sequences_collisions[i], fa_map, 1);
+            cross_edge_sum += edge_stat.first;
+            validated_edges += edge_stat.second;
+            minhash_edge_sum += (sequences_collisions[i].size() * (sequences_collisions[i].size()-1)) >> 1;
             //auto end1 = chrono::high_resolution_clock::now();
             //auto duration1 = chrono::duration_cast<chrono::seconds>(end1 - start1).count();
             //if(duration1 >= per_thread_max_times[tid])
@@ -465,6 +477,12 @@ void GroupStream::cutEdges(
 
 	cerr << "Seqs number processed in mt_libcdhit: " << mt_seqs << endl;
 	cerr << "Seqs number processed in st_libcdhit: " << gs_config.items - mt_seqs << endl;
+
+    cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+    cerr << "Number of edges cross origin group between CC: " << cross_edge_sum << endl;
+    cerr << "Number of validated edges build between CC: " << validated_edges << endl;
+    cerr << "Number of total edges in MinHash collisions: " << minhash_edge_sum << endl;
+    cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
 }
 
 void GroupStream::Cluster(
@@ -753,7 +771,7 @@ void GroupStream::countGroupSize(int m, UnionFind& uf, const unordered_map<uint6
 		if (minHeap.size() > 10){
 			 minHeap.pop();
 		}
-	}
+    }
 	while(!minHeap.empty()){
 		cerr << minHeap.top() << " ";
 		minHeap.pop();
@@ -839,20 +857,19 @@ void GroupStream::Group(
 }
 // TODO临时声明的
 //void GroupStream::buildConnectedComponents_st(
-uint64_t GroupStream::buildConnectedComponents_st(
+pair<uint64_t, uint64_t> GroupStream::buildConnectedComponents_st(
 	vector<int>& group_seqs, 
 	const unordered_map<uint64_t, string>& fa_map,
     int use_wt
 	) {
 	vector<Sequence_new> sequences;
-    uint64_t total_aas = 0;
 	for(int i = 0; i < group_seqs.size(); i++) {
-		sequences.emplace_back(group_seqs[i], fa_map.at(group_seqs[i]).c_str());
-        total_aas += fa_map.at(group_seqs[i]).size();
+		sequences.emplace_back(group_seqs[i], uf.find(group_seqs[i]), fa_map.at(group_seqs[i]).c_str());
 	}
 
+    pair<uint64_t, uint64_t> edge_stat = {0, 0};
     if(use_wt == 1){
-		cluster_sequences_st(sequences, 5, tau); 
+		edge_stat = cluster_sequences_st(sequences, 5, tau); 
     }else{
 	    cluster_sequences_st_less10(sequences, 5, tau); 
     }
@@ -861,10 +878,10 @@ uint64_t GroupStream::buildConnectedComponents_st(
 	{
 		id_root_map[sequences[i].seq_id] = sequences[i].new_root_id;
 	}
-    return total_aas;
+    return edge_stat;
 }
 
-void GroupStream::buildConnectedComponents(
+pair<uint64_t, uint64_t> GroupStream::buildConnectedComponents(
 	vector<int>& group_seqs, 
 	int needed_threads,
 	const unordered_map<uint64_t, string>& fa_map,
@@ -872,10 +889,12 @@ void GroupStream::buildConnectedComponents(
 	) {
 	vector<Sequence_new> sequences;
 	for(int i = 0; i < group_seqs.size(); i++) {
-		sequences.emplace_back(group_seqs[i], fa_map.at(group_seqs[i]).c_str());
+		sequences.emplace_back(group_seqs[i], uf.find(group_seqs[i]), fa_map.at(group_seqs[i]).c_str());
 	}
+
+    pair<uint64_t, uint64_t> edge_stat = {0, 0};
 	if(needed_threads > 1) {
-		cluster_sequences(sequences, 5, tau, needed_threads); 
+		edge_stat = cluster_sequences(sequences, 5, tau, needed_threads); 
 	}else {
 		if(group_seqs.size() < 100){
 			cluster_sequences_st_less10(sequences, 5, tau); 
@@ -887,6 +906,7 @@ void GroupStream::buildConnectedComponents(
 	{
 		id_root_map[sequences[i].seq_id] = sequences[i].new_root_id;
 	}
+    return edge_stat;
 }
 
 void GroupStream::clusterEachGroup(
@@ -897,7 +917,7 @@ void GroupStream::clusterEachGroup(
 	auto start_time_build = chrono::high_resolution_clock::now();
 	vector<Sequence_new> sequences;
 	for(int i = 0; i < group_seqs.size(); i++) {
-		sequences.emplace_back(group_seqs[i], fa_map.at(group_seqs[i]).c_str());
+		sequences.emplace_back(group_seqs[i], uf.find(group_seqs[i]), fa_map.at(group_seqs[i]).c_str());
 	}
 	auto end_time_build = chrono::high_resolution_clock::now();
     auto duration_build = chrono::duration_cast<chrono::seconds>(end_time_build - start_time_build).count();

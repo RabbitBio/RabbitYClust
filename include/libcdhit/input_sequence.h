@@ -21,6 +21,7 @@ struct Sequence_new
 	int length;
 	Sequence_new() {}
 	Sequence_new(int id, const char* d) : seq_id(id), data(d) {}
+	Sequence_new(int id, int root_id, const char* d) : seq_id(id), origin_root_id(root_id), data(d) {}
 //    char* identifier = null;
 };
 #endif
