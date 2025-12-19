@@ -24,7 +24,6 @@ aux_source_directory(src/aahash DIR_SRCS)
 
 add_executable(yclust ${DIR_SRCS})
 
-
 # 启用线程池
 option(ENABLE_THREAD_POOL "Enable thread pool support" OFF)
 if(ENABLE_THREAD_POOL)
@@ -32,25 +31,44 @@ if(ENABLE_THREAD_POOL)
 	target_compile_definitions(yclust PRIVATE THREAD_POOL)
 endif()
 
-set(LIBCDHIT "${CMAKE_SOURCE_DIR}/libs/libcdhitlib.so")
-set(LIBCDHIT_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
 
-message(STATUS "Using include path: ${LIBCDHIT_INCLUDE_DIR}")
-get_filename_component(ABS_PATH ${LIBCDHIT_INCLUDE_DIR} ABSOLUTE)
-message(STATUS "Absolute path: ${ABS_PATH}")
-
-# 检查头文件路径
-if(NOT EXISTS ${LIBCDHIT_INCLUDE_DIR})
-    message(FATAL_ERROR "cdhit include directory not found: ${LIBCDHIT_INCLUDE_DIR}")
+# ---- edlib ----
+# 查找 edlib 动态库（通过 -DEDLIB_ROOT 指定或自动查找）
+if(EDLIB_ROOT)
+    set(EDLIB_INCLUDE_DIR ${EDLIB_ROOT}/include)
+    find_library(EDLIB_LIBRARY NAMES edlib libedlib.so PATHS ${EDLIB_ROOT} PATH_SUFFIXES lib lib64 NO_DEFAULT_PATH)
+else()
+    find_path(EDLIB_INCLUDE_DIR edlib.h PATHS /usr/include /usr/local/include)
+    find_library(EDLIB_LIBRARY NAMES edlib libedlib.so PATHS /usr/lib /usr/lib64 /usr/local/lib /usr/local/lib64)
 endif()
 
-# 检查库文件
-if(NOT EXISTS ${LIBCDHIT})
-    message(FATAL_ERROR "cdhit library not found: ${LIBCDHIT}")
+if(NOT EDLIB_INCLUDE_DIR OR NOT EDLIB_LIBRARY)
+    message(FATAL_ERROR "edlib not found. Please specify -DEDLIB_ROOT=<path> or install edlib system-wide.")
+else()
+    target_include_directories(yclust PUBLIC ${EDLIB_INCLUDE_DIR})
+    target_link_libraries(yclust PRIVATE ${EDLIB_LIBRARY})
 endif()
+#-------------------
 
-target_include_directories(yclust PRIVATE ${LIBCDHIT_INCLUDE_DIR})
-target_link_libraries(yclust PRIVATE ${LIBCDHIT})
+if(LIBCC_ROOT)
+    set(LIBCC_LIB "${LIBCC_ROOT}/lib/libcdhitlib.so")
+    set(LIBCC_INCLUDE_DIR "${LIBCC_ROOT}/include")
+#message(STATUS "Using include path: ${LIBCC_INCLUDE_DIR}")
+#get_filename_component(ABS_PATH ${LIBCC_INCLUDE_DIR} ABSOLUTE)
+#message(STATUS "Absolute path: ${ABS_PATH}")
+    # 检查头文件路径
+    if(NOT EXISTS ${LIBCC_INCLUDE_DIR})
+        message(FATAL_ERROR "cdhit include directory not found: ${LIBCC_INCLUDE_DIR}")
+    endif()
+    # 检查库文件
+    if(NOT EXISTS ${LIBCC_LIB})
+        message(FATAL_ERROR "cdhit library not found: ${LIBCC_LIB}")
+    endif()
+    target_include_directories(yclust PRIVATE ${LIBCC_INCLUDE_DIR})
+    target_link_libraries(yclust PRIVATE ${LIBCC_LIB})
+else()
+    message(FATAL_ERROR "Please specify -DLIBCC_ROOT=<path>")
+endif()
 
 # 将 OpenMP 链接到目标
 if(OpenMP_CXX_FOUND)
@@ -62,6 +80,7 @@ endif()
 find_package(TBB CONFIG REQUIRED)
 target_link_libraries(yclust PRIVATE TBB::tbb)
 target_link_libraries(yclust PRIVATE atomic)
+target_include_directories(yclust PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 option(OPTIMIZE_NATIVE "为本机CPU优化（-march=native）" ON)
 
