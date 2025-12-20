@@ -126,20 +126,26 @@ void GroupStream::checkEdges(
 	UnionFind& cur_uf,
 	const unordered_map<uint64_t, string>& fa_map
 	) {
+	std::cout << "Visting UnionFind to collect minhash collisions info " << std::endl;
+	auto start_collect = chrono::high_resolution_clock::now();
 	cur_uf.findRoot(id_root_map);
 	unordered_map<int, vector<int>> map;
 
 	for(int i = 0; i < gs_config.items; i++) {
 		map[id_root_map[i]].push_back(i);
 	}
+	auto end_collect = chrono::high_resolution_clock::now();
+	auto duration_collect = chrono::duration_cast<chrono::seconds>(end_collect - start_collect).count();
 
+	std::cout << "Evaluate the size of the task. " << std::endl;
+	auto start_evaluation = chrono::high_resolution_clock::now();
 	vector<vector<int>> first_hit_sequences;
     int huge_groups_cnt = 0;
 	for(auto &[key, seqs] : map){
 		if(seqs.size() > 1) {
 			first_hit_sequences.emplace_back(seqs);
 		}
-        if(seqs.size() > 100000) {
+        if(seqs.size() > 10000) {
             huge_groups_cnt++;
         }
 	}
@@ -148,6 +154,8 @@ void GroupStream::checkEdges(
 		[](const vector<int>& a, const vector<int>& b){
 			return a.size() > b.size();
 		});
+	auto end_evaluation = chrono::high_resolution_clock::now();
+	auto duration_evaluation = chrono::duration_cast<chrono::seconds>(end_evaluation - start_evaluation).count();
 
 	cerr << "    Top 10 largest collisions: " ;
 	for(int i = 0; i < std::min(10, (int)first_hit_sequences.size()); i++){
@@ -189,6 +197,8 @@ void GroupStream::checkEdges(
 
 
 void GroupStream::Unite(const vector<Data>& dataList, UnionFind& this_uf) {
+	std::cout << "Uniting Unionfind." << std::endl;
+	auto start = chrono::high_resolution_clock::now();
 	vector<uint64_t> cur_value = dataList[0].value;
 	for (int i = 1; i < dataList.size(); i++) {
 		auto thisone = dataList[i];
@@ -197,6 +207,8 @@ void GroupStream::Unite(const vector<Data>& dataList, UnionFind& this_uf) {
 		    this_uf.unite(thisone.id, lastone.id);
 		}
     }
+	auto end = chrono::high_resolution_clock::now();
+	auto duration = chrono::duration_cast<chrono::seconds>(end - start).count();
 }
 
 
@@ -357,7 +369,24 @@ bool computeGlobalUniqueKmers(
 //    // 以4%作为是否使用wordtable的标准
 //    return unique.size() * 25 <= total_kmers;
 //}
-
+// 进度条函数
+void print_progress(int current, int total, int bar_width = 50) {
+	if (total == 0) return;
+	
+	double progress = (double)current / total;
+	int pos = (int)(bar_width * progress);
+	
+	std::cout << "\r[";
+	for (int i = 0; i < bar_width; ++i) {
+		if (i < pos) std::cout << "=";
+		else if (i == pos) std::cout << ">";
+		else std::cout << " ";
+	}
+	std::cout << "] " << int(progress * 100.0) << "% (" << current << "/" << total << ")";
+	std::cout.flush();
+	
+	if (current == total) std::cout << std::endl;
+}
 void GroupStream::cutEdges(
 	vector<vector<int>>& sequences_collisions, 
 	int huge_groups_cnt, // 需要多线程libcdhit的组的个数
@@ -378,10 +407,15 @@ void GroupStream::cutEdges(
 	uint64_t pass_ed_edge_sum = 0;
     uint64_t minhash_edge_sum = 0;
 
+	cerr << "Huge task in multi-threading..." <<endl;
 	// huge collisions in multiple thread libcdhit
 	auto start_huge_time = chrono::high_resolution_clock::now();
 	ClusterWS ws_for_hugegroup;
 	for(int i = 0; i < huge_groups_cnt; i++) {
+		// 显示进度条（每10组更新一次，或最后一个）
+		if (i % 10 == 0 || i == huge_groups_cnt - 1) {
+			print_progress(i + 1, huge_groups_cnt);
+		}
         vector<uint64_t> edge_stat = buildConnectedComponents(sequences_collisions[i], avail_threads, fa_map, ws_for_hugegroup);
         validated_edges += edge_stat[0];
         cross_edge_sum += edge_stat[1];
@@ -432,13 +466,19 @@ void GroupStream::cutEdges(
     //vector<int> use_type(avail_threads, 0);
     //vector<int> group_ids(avail_threads, 0);
     //vector<uint64_t> containing_aas(avail_threads, 0);
+	cerr << "Small task in single-threading..." <<endl;
 	auto start_small_time = chrono::high_resolution_clock::now();
+	int small_groups_cnt = sequences_collisions.size() - huge_groups_cnt;
+	int sequences_collisions_cnt = sequences_collisions.size();
     #pragma omp parallel num_threads(avail_threads) 
 	{
         int tid = omp_get_thread_num();
 		#pragma omp for schedule(dynamic) reduction(+:cross_edge_sum,minhash_edge_sum,validated_edges,high_cj_edge_sum,pass_ed_edge_sum,filter_ed_edge_sum)
     	for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++) {
-
+				//if(tid == 0)
+				//if (i % 100 == 0 || i == sequences_collisions_cnt - 1) {
+				//		print_progress(i + 1, sequences_collisions_cnt);
+				//}
 	        //auto start1 = chrono::high_resolution_clock::now();
 			vector<uint64_t>  edge_stat = buildConnectedComponents_st(sequences_collisions[i], fa_map, 1);
 			validated_edges += edge_stat[0];
