@@ -406,6 +406,8 @@ void GroupStream::cutEdges(
 	uint64_t filter_ed_edge_sum = 0;
 	uint64_t pass_ed_edge_sum = 0;
     uint64_t minhash_edge_sum = 0;
+	uint64_t last_round_jump_sum = 0;
+	uint64_t this_round_jump_sum = 0;
 
 	cerr << "Huge task in multi-threading..." <<endl;
 	// huge collisions in multiple thread libcdhit
@@ -424,6 +426,8 @@ void GroupStream::cutEdges(
 		pass_ed_edge_sum += edge_stat[4];
         minhash_edge_sum += (sequences_collisions[i].size() * (sequences_collisions[i].size()-1)) >> 1;
 		mt_seqs += sequences_collisions[i].size();
+		last_round_jump_sum += edge_stat[5];
+		this_round_jump_sum += edge_stat[6];
 	}
 	auto end_huge_time = chrono::high_resolution_clock::now();
 	auto duration_huge = chrono::duration_cast<chrono::seconds>(end_huge_time - start_huge_time).count();
@@ -473,7 +477,7 @@ void GroupStream::cutEdges(
     #pragma omp parallel num_threads(avail_threads) 
 	{
         int tid = omp_get_thread_num();
-		#pragma omp for schedule(dynamic) reduction(+:cross_edge_sum,minhash_edge_sum,validated_edges,high_cj_edge_sum,pass_ed_edge_sum,filter_ed_edge_sum)
+		#pragma omp for schedule(dynamic) reduction(+:cross_edge_sum,minhash_edge_sum,validated_edges,high_cj_edge_sum,pass_ed_edge_sum,filter_ed_edge_sum,last_round_jump_sum,this_round_jump_sum)
     	for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++) {
 				//if(tid == 0)
 				//if (i % 100 == 0 || i == sequences_collisions_cnt - 1) {
@@ -487,6 +491,8 @@ void GroupStream::cutEdges(
 			filter_ed_edge_sum += edge_stat[3];
 			pass_ed_edge_sum += edge_stat[4];
             minhash_edge_sum += (sequences_collisions[i].size() * (sequences_collisions[i].size()-1)) >> 1;
+			last_round_jump_sum += edge_stat[5];
+			this_round_jump_sum += edge_stat[6];
             //auto end1 = chrono::high_resolution_clock::now();
             //auto duration1 = chrono::duration_cast<chrono::seconds>(end1 - start1).count();
             //if(duration1 >= per_thread_max_times[tid])
@@ -543,6 +549,8 @@ void GroupStream::cutEdges(
     cerr << "Number of edges  CJ < 0.6 and no pass EDLIB: " << filter_ed_edge_sum << endl;
     cerr << "Number of edges  CJ < 0.6: " << pass_ed_edge_sum + filter_ed_edge_sum << endl;
     cerr << "Number of total edges in MinHash collisions: " << minhash_edge_sum << endl;
+	cerr << "Number of jumps in last round: " << last_round_jump_sum << endl;
+	cerr << "Number of jumps in this round: " << this_round_jump_sum << endl;
     cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
 }
 
