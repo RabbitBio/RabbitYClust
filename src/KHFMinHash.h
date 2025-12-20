@@ -78,7 +78,7 @@ namespace Sketch{
 			//For the classical KHF implementation l should be 1
 			int m_l = 1; 
             //choose whether using int hash
-            bool inthash = true;
+            bool inthash = false;
 
 			KHFSketch sk;
 

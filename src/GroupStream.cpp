@@ -26,7 +26,8 @@ bool compareByHash(const Data &a, const Data &b) {
 GroupStream::GroupStream(const Config& cfg) : gs_config(cfg), uf(cfg.items){
 	resize(gs_config.items);
 	initOptions();
-    tau = 0.5;
+    tau = gs_config.cwj_thres;
+    ed_thres = gs_config.ed_region;
 }
 
 /*
@@ -887,6 +888,8 @@ void GroupStream::Group(
     const ProteinSketchData& sketchdata,
 	const ProteinData& proteindata
 	) {
+    cerr << "tau in libcdhit: " << tau << endl;
+	cerr << "ed_thres in libcdhit: " << ed_thres << endl;
 	for(int m=0; m < gs_config.M - gs_config.R+1; m++){
 		cerr << "round "<<  m << endl;
 		fillHashVec(sketchdata, hash_vec, m);
@@ -909,6 +912,7 @@ void GroupStream::Group(
 	const ProteinData& proteindata
 	) {
     cerr << "tau in libcdhit: " << tau << endl;
+	cerr << "ed_thres in libcdhit: " << ed_thres << endl;
 	for(int m=0; m < gs_config.M-gs_config.R+1; m++){
 		cerr << "round "<<  m << endl;
 		fillHashVec(sketch_filename, hash_vec, m);
@@ -938,7 +942,7 @@ vector<uint64_t> GroupStream::buildConnectedComponents_st(
 
     vector<uint64_t> edge_stat = {0, 0};
     if(use_wt == 1){
-		edge_stat = cluster_sequences_st(sequences, 5, tau); 
+		edge_stat = cluster_sequences_st(sequences, 5, tau, ed_thres); 
     }else{
 	    cluster_sequences_st_less10(sequences, 5, tau); 
     }
@@ -963,7 +967,7 @@ vector<uint64_t> GroupStream::buildConnectedComponents(
 
 	vector<uint64_t> edge_stat;
 	if(needed_threads > 1) {
-		edge_stat = cluster_sequences(sequences, 5, tau, needed_threads); 
+		edge_stat = cluster_sequences(sequences, 5, tau, ed_thres, needed_threads); 
 	}else {
 		if(group_seqs.size() < 100){
 			cluster_sequences_st_less10(sequences, 5, tau); 

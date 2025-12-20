@@ -43,6 +43,9 @@ int main(int argc, char* argv[])
 	int cnt_seqs = 0;
 	float similarity = 0.9;
 	float cluster_thd = 0.9;
+	float cwj_thres = 0.5;
+	float ed_region = 0.6;
+
 	bool xxhash_flag = false;
 	bool cluster_on = false;
 	bool final_cluster_off = false;
@@ -72,6 +75,8 @@ int main(int argc, char* argv[])
 	subB->add_option("-m, --m-size", m, "set the number of hash functions will be used, default 15");
 	subB->add_option("-r, --r-size", r, "set the number of block");
 	subB->add_option("--c-thd, --cluser-threshold", cluster_thd, "cluster threshold in cdhit");
+	subB->add_option("--cwj-threshold", cwj_thres, "containment weighted jaccard threshold for filtering edges, default 0.5");
+	subB->add_option("--edlib-region", ed_region, "the threshold region of using edlib to filter edges, default 0.6");
 	auto option_sketch = subB->add_option("-S, --skech-file-name", sketch_filename, "Sketch file name")->required();
 	//subB->add_flag("-x", xxhash_flag, "enable this flag to use xxhash in building sketches, default aaHash")->excludes("-S");
 	//subB->add_option("--min-len", min_len, "set the filter minimum length (minLen), protein length less than minLen will be ignore, default 50")->excludes("-S");
@@ -88,7 +93,9 @@ int main(int argc, char* argv[])
 	subC->add_option("-k, --kmer-size", k, "set the kmer size, default 8");
 	subC->add_option("-m, --m-size", m, "set the number of hash functions will be used, default 15");
 	subC->add_option("-r, --r-size", r, "set the number of block");
-	subC->add_option("--c-thd, --cluser-threshold", cluster_thd, "cluster threshold in cdhit");
+	subC->add_flag("-x", xxhash_flag, "enable this flag to use xxhash in building sketches, default aaHash");
+	subC->add_option("--cwj-threshold", cwj_thres, "containment weighted jaccard threshold for filtering edges, default 0.5");
+	subC->add_option("--edlib-region", ed_region, "the threshold region of using edlib to filter edges, default 0.6");
 
 	app.require_subcommand(1);
 	try{
@@ -107,9 +114,18 @@ int main(int argc, char* argv[])
 
 	cerr << "==========Paramters==========" << endl;
 	cerr << "Threads: " << num_threads << endl;
-	cerr << "K: " << k << endl;
+	if(*subB)	{
+		cerr << "K: defined by sketch file" << endl;
+	}else {
+		cerr << "K: " << k << endl;
+	}
 	cerr << "M: " << m << endl;
 	cerr << "Min_len: " << min_len << endl;
+	cerr << "R: " << r << endl;
+	if(*subA || *subC) {
+		cerr << "CWJ: " << cwj_thres << endl;
+		cerr << "ED_REGION: " << ed_region << endl;
+	}
 	cerr << "Input: " << input_filename << endl;
 	cerr << "Output: " << result_filename << endl;
 	cerr << "==========End Paramters==========" << endl;
@@ -195,7 +211,9 @@ int main(int argc, char* argv[])
                 500000,
                 similarity,
                 true,
-                result_filename
+                result_filename,
+				cwj_thres,
+				ed_region
         };
         GroupStream gs(gs_config);
 
@@ -238,7 +256,9 @@ int main(int argc, char* argv[])
                 500000,
                 similarity,
                 true,
-                result_filename
+                result_filename,
+				cwj_thres,
+				ed_region
         };
         GroupStream gs(gs_config);
 

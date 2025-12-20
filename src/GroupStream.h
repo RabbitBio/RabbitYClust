@@ -32,6 +32,8 @@ public:
 		float similarity = 0.9;
 		bool output_on = true;
 		string res_file = "";
+		float cwj_thres = 0.5;
+		float ed_region = 0.6;
 	};
 
 	explicit GroupStream(const Config& cfg);
@@ -66,7 +68,7 @@ private:
 	Config gs_config;
 	UnionFind uf;
 	float tau = 0.05; // TODO 根据用户输入的similarity—threshold计算tau
-	
+	double ed_thres = 0.6;
 	vector<Data> hash_vec;
 
 	// 存储seq-id到root-id的映射
