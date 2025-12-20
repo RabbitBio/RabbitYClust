@@ -100,9 +100,13 @@ void ips2ra_sort_multi_thread(vector<Data>& hash_vec, const int r = 1) {
 void GroupStream::Sort(vector<Data>& dataList){
 	auto start_time = chrono::high_resolution_clock::now();
 //#ifdef USE_PARALLEL
-	if (gs_config.num_threads == 1) ips2ra_sort_single_thread(dataList, dataList.size());
-    else ips2ra_sort_multi_thread(dataList, dataList.size());
-
+    if(dataList[0].value.size() > 1){
+        if (gs_config.num_threads == 1) ips4o_sort_single_thread(dataList, gs_config.R);
+        else ips4o_sort_multi_thread(dataList, gs_config.R);
+    }else{
+        if (gs_config.num_threads == 1) ips2ra_sort_single_thread(dataList, dataList.size());
+        else ips2ra_sort_multi_thread(dataList, dataList.size());
+    }
 //	if (gs_config.num_threads == 1) ips4o_sort_single_thread(dataList);
 //    else ips4o_sort_multi_thread(dataList);
 	// r = 1 用ips2ra
@@ -228,12 +232,14 @@ void GroupStream::fillHashVec(const ProteinSketchData& sketchdata, vector<Data>&
 //		return Data{value, (index++)};
 //		});
 // 2. iteration to construct pair
-    auto& tmp_hashes = sketchdata.hashes[m];
-	for (int i = 0; i < gs_config.items; i++) {
-		hash_vec[i].id = i;
-        hash_vec[i].value[0] = tmp_hashes[i];
-		//copy(vec[i].begin() + m * gs_config.L, vec[i].begin() + m * gs_config.L + gs_config.R * gs_config.L, hash_vec[i].value.begin());
-	}
+    for(int r = 0; r < gs_config.R; r++) {
+        auto& tmp_hashes = sketchdata.hashes[m+r];
+        for (int i = 0; i < gs_config.items; i++) {
+            hash_vec[i].id = i;
+            hash_vec[i].value[r] = tmp_hashes[i];
+            //copy(vec[i].begin() + m * gs_config.L, vec[i].begin() + m * gs_config.L + gs_config.R * gs_config.L, hash_vec[i].value.begin());
+        }
+    }
 	cerr << gs_config.items << " valid items in round " << m << endl;
 }
 
@@ -245,14 +251,16 @@ void GroupStream::fillHashVec(string sketch_filename, vector<Data>& hash_vec, in
 		cerr << "Error opening file!" << endl;
 		return;
 	}
-	ifs.seekg(sizeof(ProteinSketchData::Config)  + m * gs_config.items * sizeof(uint64_t), std::ios::beg);
-	vector<uint64_t> read_hashes(gs_config.items);
-	ifs.read(reinterpret_cast<char*>(read_hashes.data()), gs_config.items * sizeof(uint64_t));
-	cout << read_hashes.size() << endl;
-	for (int i = 0; i < gs_config.items; i++) {
-		hash_vec[i].id = i;
-		hash_vec[i].value[0] = read_hashes[i];
-		valid_items++;
+    for(int r = 0; r < gs_config.R; r++){
+        valid_items = 0;
+        vector<uint64_t> read_hashes(gs_config.items);
+        ifs.seekg(sizeof(ProteinSketchData::Config)  + (m+r) * gs_config.items * sizeof(uint64_t), std::ios::beg);
+        ifs.read(reinterpret_cast<char*>(read_hashes.data()), gs_config.items * sizeof(uint64_t));
+        for (int i = 0; i < gs_config.items; i++) {
+            hash_vec[i].id = i;
+            hash_vec[i].value[r] = read_hashes[i];
+            valid_items++;
+        }
 	}
 	cerr << valid_items << " valid items in round " << m << endl;
 }
@@ -365,15 +373,21 @@ void GroupStream::cutEdges(
     // edge stat
     uint64_t validated_edges = 0;
     uint64_t cross_edge_sum = 0;
+    uint64_t high_cj_edge_sum = 0;
+	uint64_t filter_ed_edge_sum = 0;
+	uint64_t pass_ed_edge_sum = 0;
     uint64_t minhash_edge_sum = 0;
 
 	// huge collisions in multiple thread libcdhit
 	auto start_huge_time = chrono::high_resolution_clock::now();
 	ClusterWS ws_for_hugegroup;
 	for(int i = 0; i < huge_groups_cnt; i++) {
-        pair<uint64_t, uint64_t> edge_stat = buildConnectedComponents(sequences_collisions[i], avail_threads, fa_map, ws_for_hugegroup);
-        cross_edge_sum += edge_stat.first;
-        validated_edges += edge_stat.second;
+        vector<uint64_t> edge_stat = buildConnectedComponents(sequences_collisions[i], avail_threads, fa_map, ws_for_hugegroup);
+        validated_edges += edge_stat[0];
+        cross_edge_sum += edge_stat[1];
+        high_cj_edge_sum += edge_stat[2];
+		filter_ed_edge_sum += edge_stat[3];
+		pass_ed_edge_sum += edge_stat[4];
         minhash_edge_sum += (sequences_collisions[i].size() * (sequences_collisions[i].size()-1)) >> 1;
 		mt_seqs += sequences_collisions[i].size();
 	}
@@ -422,13 +436,16 @@ void GroupStream::cutEdges(
     #pragma omp parallel num_threads(avail_threads) 
 	{
         int tid = omp_get_thread_num();
-		#pragma omp for schedule(dynamic) reduction(+:cross_edge_sum,minhash_edge_sum,validated_edges)
+		#pragma omp for schedule(dynamic) reduction(+:cross_edge_sum,minhash_edge_sum,validated_edges,high_cj_edge_sum,pass_ed_edge_sum,filter_ed_edge_sum)
     	for(int i = huge_groups_cnt; i < sequences_collisions.size(); i++) {
 
 	        //auto start1 = chrono::high_resolution_clock::now();
-			pair<uint64_t, uint64_t>  edge_stat = buildConnectedComponents_st(sequences_collisions[i], fa_map, 1);
-            cross_edge_sum += edge_stat.first;
-            validated_edges += edge_stat.second;
+			vector<uint64_t>  edge_stat = buildConnectedComponents_st(sequences_collisions[i], fa_map, 1);
+			validated_edges += edge_stat[0];
+			cross_edge_sum += edge_stat[1];
+			high_cj_edge_sum += edge_stat[2];
+			filter_ed_edge_sum += edge_stat[3];
+			pass_ed_edge_sum += edge_stat[4];
             minhash_edge_sum += (sequences_collisions[i].size() * (sequences_collisions[i].size()-1)) >> 1;
             //auto end1 = chrono::high_resolution_clock::now();
             //auto duration1 = chrono::duration_cast<chrono::seconds>(end1 - start1).count();
@@ -479,8 +496,12 @@ void GroupStream::cutEdges(
 	cerr << "Seqs number processed in st_libcdhit: " << gs_config.items - mt_seqs << endl;
 
     cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
-    cerr << "Number of edges cross origin group between CC: " << cross_edge_sum << endl;
-    cerr << "Number of validated edges build between CC: " << validated_edges << endl;
+    cerr << "Number of validated edges build among CC: " << validated_edges << endl;
+    cerr << "Number of edges cross origin group among CC: " << cross_edge_sum << endl;
+    cerr << "Number of edges get CJ >=0.6 among CC: " << high_cj_edge_sum << endl;
+    cerr << "Number of edges  CJ < 0.6 and pass EDLIB: " << pass_ed_edge_sum << endl;
+    cerr << "Number of edges  CJ < 0.6 and no pass EDLIB: " << filter_ed_edge_sum << endl;
+    cerr << "Number of edges  CJ < 0.6: " << pass_ed_edge_sum + filter_ed_edge_sum << endl;
     cerr << "Number of total edges in MinHash collisions: " << minhash_edge_sum << endl;
     cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
 }
@@ -857,7 +878,7 @@ void GroupStream::Group(
 }
 // TODO临时声明的
 //void GroupStream::buildConnectedComponents_st(
-pair<uint64_t, uint64_t> GroupStream::buildConnectedComponents_st(
+vector<uint64_t> GroupStream::buildConnectedComponents_st(
 	vector<int>& group_seqs, 
 	const unordered_map<uint64_t, string>& fa_map,
     int use_wt
@@ -867,7 +888,7 @@ pair<uint64_t, uint64_t> GroupStream::buildConnectedComponents_st(
 		sequences.emplace_back(group_seqs[i], uf.find(group_seqs[i]), fa_map.at(group_seqs[i]).c_str());
 	}
 
-    pair<uint64_t, uint64_t> edge_stat = {0, 0};
+    vector<uint64_t> edge_stat = {0, 0};
     if(use_wt == 1){
 		edge_stat = cluster_sequences_st(sequences, 5, tau); 
     }else{
@@ -881,7 +902,7 @@ pair<uint64_t, uint64_t> GroupStream::buildConnectedComponents_st(
     return edge_stat;
 }
 
-pair<uint64_t, uint64_t> GroupStream::buildConnectedComponents(
+vector<uint64_t> GroupStream::buildConnectedComponents(
 	vector<int>& group_seqs, 
 	int needed_threads,
 	const unordered_map<uint64_t, string>& fa_map,
@@ -892,7 +913,7 @@ pair<uint64_t, uint64_t> GroupStream::buildConnectedComponents(
 		sequences.emplace_back(group_seqs[i], uf.find(group_seqs[i]), fa_map.at(group_seqs[i]).c_str());
 	}
 
-    pair<uint64_t, uint64_t> edge_stat = {0, 0};
+	vector<uint64_t> edge_stat;
 	if(needed_threads > 1) {
 		edge_stat = cluster_sequences(sequences, 5, tau, needed_threads); 
 	}else {
