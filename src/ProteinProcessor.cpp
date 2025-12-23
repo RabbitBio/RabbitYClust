@@ -284,6 +284,7 @@ void ProteinProcessor::merge_thread_results(
 	//std::vector<std::vector<uint64_t>>& hashes_
 	) {
 	std::unique_lock lock(result_mtx_);
+	std::cout << "Merge local thread results into a complete struct" << std::endl;
 
 	seq_ids_.clear();
 	ProteinSketchData::Config sketch_config{
@@ -311,24 +312,40 @@ void ProteinProcessor::reorder_hashes(
 	std::vector<uint64_t>& seq_ids_,
 	std::vector<std::vector<uint64_t>>& hashes_
 ) {
+	std::cout << "Reordering hashes..." << std::endl;
 	if (seq_ids_.empty()) return;
-
-	std::vector<size_t> order(seq_ids_.size());
-	std::iota(order.begin(), order.end(), 0);
-	std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
-			return seq_ids_[a] < seq_ids_[b];
-			});
-
-	std::vector<std::vector<uint64_t>> sorted_hashes(config_.m, std::vector<uint64_t>(seq_ids_.size()));
-
+	
 	for (size_t i = 0; i < seq_ids_.size(); ++i) {
-		size_t old_idx = order[i];
-		for (int j = 0; j < config_.m; ++j) {
-			sorted_hashes[j][i] = hashes_[j][old_idx];
+		if(i == seq_ids_[i]) continue;
+		size_t cur_pos = i;
+		size_t next_pos = seq_ids_[i];
+
+		while(next_pos != cur_pos) {
+			for(int j = 0; j < config_.m; ++j) {
+				std::swap(hashes_[j][cur_pos], hashes_[j][next_pos]);
+			}
+			size_t finished_pos = next_pos;
+			next_pos = seq_ids_[next_pos];
+			seq_ids_[finished_pos] = finished_pos;
 		}
+		seq_ids_[i] = i;
 	}
 
-	hashes_ = std::move(sorted_hashes);
+	//std::vector<size_t> order(seq_ids_.size());
+	//std::iota(order.begin(), order.end(), 0);
+	//std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+	//		return seq_ids_[a] < seq_ids_[b];
+	//		});
+
+	//std::vector<std::vector<uint64_t>> sorted_hashes(config_.m, std::vector<uint64_t>(seq_ids_.size()));
+
+	//for (size_t i = 0; i < seq_ids_.size(); ++i) {
+	//	size_t old_idx = order[i];
+	//	for (int j = 0; j < config_.m; ++j) {
+	//		sorted_hashes[j][i] = hashes_[j][old_idx];
+	//	}
+	//}
+	//hashes_ = std::move(sorted_hashes);
 }
 
 void ProteinProcessor::write_binary(

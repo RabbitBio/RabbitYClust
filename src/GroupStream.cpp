@@ -145,7 +145,7 @@ void GroupStream::checkEdges(
 		if(seqs.size() > 1) {
 			first_hit_sequences.emplace_back(seqs);
 		}
-        if(seqs.size() > 10000) {
+        if(seqs.size() > 5000) {
             huge_groups_cnt++;
         }
 	}
@@ -259,6 +259,7 @@ void GroupStream::fillHashVec(const ProteinSketchData& sketchdata, vector<Data>&
 void GroupStream::fillHashVec(string sketch_filename, vector<Data>& hash_vec, int m) {
 	int valid_items = 0;
 	std::ifstream ifs(sketch_filename, ios::binary);
+	std::cout << "start reading hash function from f" << m << " to  f" << (m+gs_config.R) << std::endl;
 	if(!ifs){
 		cerr << "Error opening file!" << endl;
 		return;
@@ -266,8 +267,8 @@ void GroupStream::fillHashVec(string sketch_filename, vector<Data>& hash_vec, in
     for(int r = 0; r < gs_config.R; r++){
         valid_items = 0;
         vector<uint64_t> read_hashes(gs_config.items);
-        ifs.seekg(sizeof(ProteinSketchData::Config)  + (m+r) * gs_config.items * sizeof(uint64_t), std::ios::beg);
-        ifs.read(reinterpret_cast<char*>(read_hashes.data()), gs_config.items * sizeof(uint64_t));
+		ifs.seekg(sizeof(ProteinSketchData::Config)  + static_cast<long long>(m+r) *static_cast<long long>(gs_config.items) * sizeof(uint64_t), std::ios::beg);
+		ifs.read(reinterpret_cast<char*>(read_hashes.data()), static_cast<long long>(gs_config.items) * sizeof(uint64_t));
         for (int i = 0; i < gs_config.items; i++) {
             hash_vec[i].id = i;
             hash_vec[i].value[r] = read_hashes[i];
@@ -879,21 +880,24 @@ void GroupStream::Group(
     const ProteinSketchData& sketchdata,
 	const ProteinData& proteindata
 	) {
-	for(int m=0; m < gs_config.M - gs_config.R+1; m++){
+	//for(int m=0; m < gs_config.M - gs_config.R+1; m++){
+	for(int m=0; m < gs_config.M; m++){
 		cerr << "round "<<  m << endl;
-		fillHashVec(sketchdata, hash_vec, m);
+		fillHashVec(sketchdata, hash_vec, m+gs_config.R);
+		//fillHashVec(sketchdata, hash_vec, m);
 		GroupByCol(hash_vec, proteindata.sequence_map);
 		if(m == gs_config.M - gs_config.R && gs_config.final_cluster_on) {
 			gs_config.cluster_condition = 1;
 		}
+		outputClstr(proteindata.names, proteindata.sequence_map);
 		countGroupSize(m, uf, proteindata.sequence_map);
 		round_cnt++;
 	}
 
 	//getGroupRes(uf, group_map);
-	if(gs_config.output_on) {
-		outputClstr(proteindata.names, proteindata.sequence_map);
-	}
+	//if(gs_config.output_on) {
+	//	outputClstr(proteindata.names, proteindata.sequence_map);
+	//}
 }
 
 void GroupStream::Group(
@@ -901,20 +905,23 @@ void GroupStream::Group(
 	const ProteinData& proteindata
 	) {
     cerr << "tau in libcdhit: " << tau << endl;
-	for(int m=0; m < gs_config.M-gs_config.R+1; m++){
+	//for(int m=0; m < gs_config.M - gs_config.R+1; m++){
+	for(int m=0; m < gs_config.M; m++){
 		cerr << "round "<<  m << endl;
-		fillHashVec(sketch_filename, hash_vec, m);
+		//fillHashVec(sketchdata, hash_vec, m);
+		fillHashVec(sketch_filename, hash_vec, m*gs_config.R);
 		GroupByCol(hash_vec, proteindata.sequence_map);
 		if(m == gs_config.M-gs_config.R && gs_config.final_cluster_on) {
 			gs_config.cluster_condition = 1;
 		}
 		countGroupSize(m, uf, proteindata.sequence_map);
+		outputClstr(proteindata.names, proteindata.sequence_map);
 		round_cnt++;
 	}
 
-	if(gs_config.output_on) {
-		outputClstr(proteindata.names, proteindata.sequence_map);
-	}
+	//if(gs_config.output_on) {
+	//	outputClstr(proteindata.names, proteindata.sequence_map);
+	//}
 }
 // TODO临时声明的
 //void GroupStream::buildConnectedComponents_st(
@@ -1033,13 +1040,23 @@ void GroupStream::outputClstr(
 ) {
 	cerr << "Total Clusters: " << uf.countSetsSize() << endl;
 	cerr << "cluster result stored: " << gs_config.res_file << endl;
-	ofstream seq_id(gs_config.res_file);
-	streambuf* origin_cout = cout.rdbuf();
-	cout.rdbuf(seq_id.rdbuf());
-
+	string out_file_name = "round_" + to_string(round_cnt) + "_" + gs_config.res_file;
+	cerr << "resulf of round " << round_cnt << "write to: " << out_file_name << endl;
+	ofstream ofs(out_file_name);
 	uf.findRoot(id_root_map);
 	for(int i = 0; i < gs_config.items; i++) {
-		cout << ">" << names[i] << " " << ">" << names[id_root_map[i]] << endl;
+		ofs << ">" << names[i] << " " << ">" << names[id_root_map[i]] << endl;
 	}
-	cout.rdbuf(origin_cout);
+	ofs.close();
+	//cerr << "Total Clusters: " << uf.countSetsSize() << endl;
+	//cerr << "cluster result stored: " << gs_config.res_file << endl;
+	//ofstream seq_id(gs_config.res_file);
+	//streambuf* origin_cout = cout.rdbuf();
+	//cout.rdbuf(seq_id.rdbuf());
+
+	//uf.findRoot(id_root_map);
+	//for(int i = 0; i < gs_config.items; i++) {
+	//	cout << ">" << names[i] << " " << ">" << names[id_root_map[i]] << endl;
+	//}
+	//cout.rdbuf(origin_cout);
 }
