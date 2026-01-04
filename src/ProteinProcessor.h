@@ -12,6 +12,8 @@ KSEQ_INIT(gzFile, gzread)
 #include <shared_mutex>
 #include "KHFMinHash.h"
 #include "SharedData.h"
+
+#include "ProteinAAStore.hpp"
 class ProteinProcessor {
 	public:
 		struct Config {
@@ -44,12 +46,19 @@ class ProteinProcessor {
 				ProteinData& proteindata
 				);
 
+		// 从sdsl构建的二进制文件中读取序列内容
+		int loadSequences(
+				const std::string load_path, 
+				ProteinAAStore& store
+				);
+
 	private:
 		// 线程局部数据
 		struct ThreadLocal {
 			std::vector<uint64_t> seq_ids;
 			std::vector<std::string> names;
-			std::unordered_map<uint64_t, std::string> seqs;
+			std::vector<std::string> seqs;
+			//std::unordered_map<uint64_t, std::string> seqs;
 			std::vector<std::vector<uint64_t>> hashes;  // [m][...]
 		};
 

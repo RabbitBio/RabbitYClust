@@ -64,7 +64,8 @@ void ProteinProcessor::worker_thread(
 		for (int i = 0; i < config_.m; ++i) {
 			local.hashes[i].push_back(sketch.hashes[i]);
 		}
-		local.seqs[seq_id] = seq;
+		local.seqs.emplace_back(seq);
+		//local.seqs[seq_id] = seq;
 	}
 }
 
@@ -134,6 +135,7 @@ void ProteinProcessor::merge_thread_results(
 	protein_sketch_data.reserveSketchesSize(sketch_config);
 	auto& hashes_ = protein_sketch_data.hashes;
 
+	seqs_map_.reserve(next_seq_id_);
 	for (const auto& tl : thread_locals_) {
 		seq_ids_.insert(seq_ids_.end(),
 				std::make_move_iterator(tl.seq_ids.begin()),
@@ -141,9 +143,14 @@ void ProteinProcessor::merge_thread_results(
 		names_.insert(names_.end(),
 				std::make_move_iterator(tl.names.begin()),
 				std::make_move_iterator(tl.names.end()));
-		seqs_map_.insert(
-				std::make_move_iterator(tl.seqs.begin()),
-				std::make_move_iterator(tl.seqs.end()));
+		//seqs_map_.insert(
+		//		std::make_move_iterator(tl.seqs.begin()),
+		//		std::make_move_iterator(tl.seqs.end()));
+		//	重新填充seqs_map_ vector版
+		for(int i = 0; i < tl.seq_ids.size(); i++) {
+			seqs_map_[tl.seq_ids[i]] = tl.seqs[i];
+		}
+		//tl.seqs.clear();
 		for (int i = 0; i < config_.m; ++i) {
 			hashes_[i].insert(hashes_[i].end(),
 					std::make_move_iterator(tl.hashes[i].begin()),
@@ -389,7 +396,8 @@ int ProteinProcessor::load_sequences(const std::string input_fa, int min_len, Pr
         int l = ks->seq.l;
 		if (l < min_len) continue;
 
-		seq_map_[cnt] = ks->seq.s;
+		seq_map_.emplace_back(ks->seq.s);
+		//seq_map_[cnt] = ks->seq.s;
 		names_.emplace_back(ks->name.s);
 		++cnt;
 	}
@@ -399,6 +407,27 @@ int ProteinProcessor::load_sequences(const std::string input_fa, int min_len, Pr
 	return cnt;
 }
 
+int ProteinProcessor::loadSequences(
+	const std::string load_path, 
+	ProteinAAStore& store
+	) {
+
+	auto start_load = std::chrono::high_resolution_clock::now();
+	if (!store.load(load_path)) {
+		std::cerr << "Error: failed to load from " << load_path << std::endl;
+		return 1;
+	}
+	auto end_load = std::chrono::high_resolution_clock::now();
+	int num_seqs = store.size();
+	uint64_t total_seq_len = 0;
+
+	total_seq_len = store.total_length();
+	std::cout << "Loaded " << num_seqs << " sequences in "
+		<< std::chrono::duration_cast<std::chrono::milliseconds>(end_load - start_load).count()
+		<< " ms" << std::endl;
+
+	return num_seqs;
+}
 //std::vector<std::string> ProteinProcessor::get_names() const {
 //	std::shared_lock lock(result_mtx_);
 //	return names_;
