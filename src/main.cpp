@@ -17,7 +17,7 @@
 
 #include "GroupStream.h"
 #include "ProteinProcessor.h"
-//#include "util.h"
+#include "ProteinAAStore.hpp"
 
 #define BUFFER_SIZE (1<<20 * sizeof(char))
 
@@ -168,8 +168,10 @@ int main(int argc, char* argv[])
 
         cerr << "Start reading FA files!" << endl;
         auto read_fa_start = chrono::high_resolution_clock::now();
-        ProteinData proteindata;
-        cnt_seqs = processor.load_sequences(input_filename, sketch_data.config.min_len, proteindata);
+		ProteinAAStore store;
+        cnt_seqs = processor.loadSequences(input_filename, store);
+        //ProteinData proteindata;
+        //cnt_seqs = processor.load_sequences(input_filename, sketch_data.config.min_len, proteindata);
         if(cnt_seqs != sketch_data.config.items) {
             std::cerr << "Number of sequences in sketch file: " << sketch_data.config.items << std::endl;
             std::cerr << "Number of sequences in FATSA input: " << cnt_seqs << std::endl;
@@ -200,7 +202,8 @@ int main(int argc, char* argv[])
         GroupStream gs(gs_config);
 
         unordered_map<int, vector<int>> group_map;
-        gs.Group(sketch_filename, proteindata);
+        gs.Group(sketch_filename, store);
+        //gs.Group(sketch_filename, proteindata);
 
         priority_queue<pair<int,int>, std::vector<pair<int, int>>, compare> minHeap;
         int max_group_Size = 0;
