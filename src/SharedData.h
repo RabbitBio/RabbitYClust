@@ -38,7 +38,8 @@ struct ProteinSketchData {
 
 struct ProteinData {
 	std::vector<std::string>  names;
-	std::unordered_map<uint64_t, std::string> sequence_map; //序列id -> 序列内容 
+	//std::vector<std::string>  sequence_map;
+	//std::unordered_map<uint64_t, std::string> sequence_map; //序列id -> 序列内容 
 };
 //class SketchResult {
 //public:
