@@ -413,6 +413,7 @@ void GroupStream::GroupByCol(
 	if(gs_config.cluster_on) {
 		auto start_time = chrono::high_resolution_clock::now();
 		cutEdges(minhash_collisions, store, start_check_idx);
+		//callLib_cdhit(minhash_collisions, store, start_check_idx);
 		auto end_time = chrono::high_resolution_clock::now();
 		auto duration_cc = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
 		cerr << "Break the bad edges time(seconds): " << duration_cc  << endl;
@@ -738,13 +739,17 @@ void GroupStream::cutEdges(
     uint64_t high_cj_edge_sum = 0;
 	uint64_t filter_ed_edge_sum = 0;
 	uint64_t pass_ed_edge_sum = 0;
+	uint64_t last_round_jump_cnt = 0;
+	uint64_t this_round_jump_cnt = 0;
+	uint64_t need_edlib_edge = 0;
 
 	int avail_threads = gs_config.num_threads;
  	omp_set_num_threads(avail_threads);
 
 	if(it_multi != minhash_collisions.end()) {
 		auto start_huge_time = chrono::high_resolution_clock::now();
-		for(int i = start_multi_idx; i < minhash_collisions.size(); i++) {
+		for(int i = minhash_collisions.size() -1 ; i >= start_multi_idx; i--) {
+		//for(int i = start_multi_idx; i < minhash_collisions.size(); i++) {
 			// 显示进度条（每10组更新一次，或最后一个）
 			cerr << "doing task " << i-start_multi_idx << "of " << minhash_collisions.size() - start_multi_idx << endl;
 			//if (i % 10 == 0 || i == minhash_collisions.size() - 1) {
@@ -760,7 +765,9 @@ void GroupStream::cutEdges(
 			high_cj_edge_sum += edge_stat[2];
 			filter_ed_edge_sum += edge_stat[3];
 			pass_ed_edge_sum += edge_stat[4];
-			//mt_seqs += sequences_collisions[i].size();
+			last_round_jump_cnt += edge_stat[5];
+			this_round_jump_cnt += edge_stat[6];
+			need_edlib_edge += edge_stat[7];
 		}
 		auto end_huge_time = chrono::high_resolution_clock::now();
 		auto duration_huge = chrono::duration_cast<chrono::seconds>(end_huge_time - start_huge_time).count();
@@ -773,8 +780,9 @@ void GroupStream::cutEdges(
     #pragma omp parallel num_threads(avail_threads) 
 	{
         int tid = omp_get_thread_num();
-		#pragma omp for schedule(runtime) reduction(+:cross_edge_sum,validated_edges,high_cj_edge_sum,pass_ed_edge_sum,filter_ed_edge_sum)
-    	for(int i = start_check_idx; i < start_multi_idx; i++) {
+		#pragma omp for schedule(dynamic,1) reduction(+:cross_edge_sum,validated_edges,high_cj_edge_sum,pass_ed_edge_sum,filter_ed_edge_sum,last_round_jump_cnt,this_round_jump_cnt,need_edlib_edge)
+    	for(int i = start_multi_idx; i >= start_check_idx; i--) {
+    	//for(int i = start_check_idx; i < start_multi_idx; i++) {
 			vector<uint64_t>  edge_stat = buildConnectedComponents(
 					1, //threads
 					minhash_collisions[i].second, // start_pos
@@ -785,6 +793,9 @@ void GroupStream::cutEdges(
 			high_cj_edge_sum += edge_stat[2];
 			filter_ed_edge_sum += edge_stat[3];
 			pass_ed_edge_sum += edge_stat[4];
+			last_round_jump_cnt += edge_stat[5];
+			this_round_jump_cnt += edge_stat[6];
+			need_edlib_edge += edge_stat[7];
 
 			if (i % one_step == 0 || i == start_multi_idx - 1) {
 				#pragma omp critical
@@ -1007,11 +1018,78 @@ void GroupStream::cutEdges(
     cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
 }
 
+void GroupStream::callLib_cdhit(
+	vector<pair<uint32_t, uint32_t>>& minhash_collisions,
+	ProteinAAStore& store,
+	int cdhit_thres
+	){
+	int collision_cnt = minhash_collisions.size();
+	auto it_rescure = std::upper_bound(
+			minhash_collisions.begin(), minhash_collisions.end(), 500000u,
+			[](uint32_t key, const auto& p) { return key < p.first; }
+			);
+	size_t start_check_idx = it_rescure == minhash_collisions.end() ? collision_cnt : it_rescure - minhash_collisions.begin();
+	// minhash_collisions升序排序 找到第一个size(p.first)>1的位置
+	auto it_multi = std::upper_bound(
+			minhash_collisions.begin(), minhash_collisions.end(), 100000u,
+			[](uint32_t key, const auto& p) { return key < p.first; }
+			);
+	size_t start_multi_idx = it_multi == minhash_collisions.end() ? collision_cnt : it_multi - minhash_collisions.begin();
+	if(start_multi_idx < start_check_idx) start_multi_idx = start_check_idx;
+	cerr << "Number of groups processed in multi-threading cd-hit: " << collision_cnt - start_multi_idx << endl;
+
+	int avail_threads = gs_config.num_threads;
+ 	omp_set_num_threads(avail_threads);
+	if(it_multi != minhash_collisions.end()) {
+		auto start_huge_time = chrono::high_resolution_clock::now();
+		for(int i = start_multi_idx; i < minhash_collisions.size(); i++) {
+			// 显示进度条（每10组更新一次，或最后一个）
+			cerr << "doing task " << i-start_multi_idx << "of " << minhash_collisions.size() - start_multi_idx << endl;
+			//调用cdhit
+			buildConnectedComponentsByLib_cdhit(
+					avail_threads, //threads
+					minhash_collisions[i].second, // start_pos
+					minhash_collisions[i].second + minhash_collisions[i].first, // end_pos
+					store);
+		}
+		auto end_huge_time = chrono::high_resolution_clock::now();
+		auto duration_huge = chrono::duration_cast<chrono::seconds>(end_huge_time - start_huge_time).count();
+		cerr << "Time of multi-thread libcdhit (use all threads once): " << duration_huge << endl;
+	}
+
+	if(start_multi_idx <= start_check_idx) return;
+	cerr << "Number of groups processed in single-threading cd-hit: " << start_multi_idx - start_check_idx << endl;
+	int total_small_tasks = start_multi_idx - start_check_idx;
+	int one_step = total_small_tasks / 100;
+	auto start_small_time = chrono::high_resolution_clock::now();
+    #pragma omp parallel num_threads(avail_threads) 
+	{
+        int tid = omp_get_thread_num();
+		#pragma omp for schedule(runtime) 
+    	for(int i = start_check_idx; i < start_multi_idx; i++) {
+			//调用cdhit
+			buildConnectedComponentsByLib_cdhit(
+					1, //threads
+					minhash_collisions[i].second, // start_pos
+					minhash_collisions[i].second + minhash_collisions[i].first, // end_pos
+					store);
+			if (i % one_step == 0 || i == start_multi_idx - 1) {
+				#pragma omp critical
+				print_progress(i - start_check_idx + 1, total_small_tasks);
+			}
+    	}
+	}
+	auto end_small_time = chrono::high_resolution_clock::now();
+	auto duration_small = chrono::duration_cast<chrono::seconds>(end_small_time - start_small_time).count();
+	cerr << "Time of single-thread libcdhit (use only 1 threads each group): " << duration_small << endl;
+
+}
+	
+
 void GroupStream::Cluster(
 	vector<pair<uint32_t, uint32_t>>& need_to_clutser,
 	ProteinAAStore& store
 	){
-
 	cluster cluster_cdhit;
 	for(auto& pair : need_to_clutser){
 		int start_idx = pair.first;
@@ -1033,7 +1111,7 @@ void GroupStream::Cluster(
 		cluster_cdhit.cdhit_cluster(sequences, gs_config.num_threads);
 		auto end_2 = chrono::high_resolution_clock::now();
 		auto duration_2 = chrono::duration_cast<chrono::seconds>(end_2 - start_2).count();
-		cerr << "Time of cluster " << pair.second << " sequences in cdhit: " << duration_1 << endl;
+		cerr << "Time of cluster " << pair.second << " sequences in cdhit: " << duration_2 << endl;
 
 		for(int i = start_idx, j = 0; i < end_idx; i++, j++) {
 			seq_vec[i].seq_id = sequences[j].seq_id;
@@ -1524,13 +1602,14 @@ vector<uint64_t> GroupStream::buildConnectedComponents(
 		int seq_id = seq_vec[i].seq_id;
 		seqs.emplace_back(store.get(seq_id));
 		sequences.emplace_back(seq_id, uf.find(seq_id), seqs[i-start_idx].c_str());
+		//sequences[i-start_idx].length = seqs[i-start_idx].c_str().size();
 	}
 
 	vector<uint64_t> edge_stat;
 	if(needed_threads == 1) {
-		edge_stat = cluster_sequences_st(sequences, 5, tau); 
+		edge_stat = cluster_sequences_new_st(sequences, 5, tau, ed_thres); 
 	}else {
-		edge_stat = cluster_sequences(sequences, 5, tau, needed_threads); 
+		edge_stat = cluster_sequences_new(sequences, 5, tau, ed_thres, needed_threads); 
 	}
 
 	for(int i = start_idx, j = 0; i < end_idx; i++, j++) {
@@ -1545,6 +1624,29 @@ vector<uint64_t> GroupStream::buildConnectedComponents(
 }
 
 
+void GroupStream::buildConnectedComponentsByLib_cdhit(
+	int needed_threads, 
+	uint32_t start_idx,
+	uint32_t end_idx,
+	ProteinAAStore& store
+	) {
+	vector<Sequence_new> sequences;
+	vector<string> seqs;
+	seqs.reserve(end_idx-start_idx);
+	for(int i = start_idx; i < end_idx; i++) {
+		int seq_id = seq_vec[i].seq_id;
+		seqs.emplace_back(store.get(seq_id));
+		sequences.emplace_back(seq_id, uf.find(seq_id), seqs[i-start_idx].c_str());
+	}
+
+	cluster cluster_cdhit;
+	//cluster_cdhit.cdhit_cluster(sequences, needed_threads);
+
+	for(int i = start_idx, j = 0; i < end_idx; i++, j++) {
+		seq_vec[i].seq_id = sequences[j].seq_id;
+		seq_vec[i].group_id = sequences[j].new_root_id;
+	}
+}
 
 vector<uint64_t> GroupStream::buildConnectedComponents(
 	vector<pair<int,int>>& group_seqs, 
