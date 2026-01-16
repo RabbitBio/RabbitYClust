@@ -431,7 +431,7 @@ void GroupStream::GroupByCol(
 	auto end_count = chrono::high_resolution_clock::now();
 	auto duration_count = chrono::duration_cast<chrono::seconds>(end_count - start_count).count();
 	cerr << "Time of count group size: " << duration_count << endl;
-	if(need_to_clutser.size() > 0) {
+	if(gs_config.cluster_on && need_to_clutser.size() > 0) {
 		Cluster(need_to_clutser, store);
 	}
 }
