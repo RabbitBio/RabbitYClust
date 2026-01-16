@@ -150,6 +150,11 @@ void KHFMinHash::sketchByNoSeedAAHash()
             // 跳过含有 'X' 的 k-mer
             if (xCount > 0) continue;
 
+            // 检查是否在黑名单中
+            std::string kmer_seq = seqStr.substr(pos, m_k);
+            uint64_t int_value = encodeAminoAcidsTo64Bit(kmer_seq);
+            if (isInBlacklist(int_value)) continue;
+
             // 获取当前的哈希值
             const uint64_t* hashes = aahash.hashes();
             // Hashes for position : aahash.get_pos()
@@ -216,6 +221,8 @@ void KHFMinHash::sketch()
 				if (kmerHasX[i]) continue;  // 跳过含有 'X' 的 k-mer
 				std::string kmer_seq = seqStr.substr(i, m_k);	
 				uint64_t int_value = encodeAminoAcidsTo64Bit(kmer_seq);
+				// 检查是否在黑名单中
+				if (isInBlacklist(int_value)) continue;
 				uint64_t hash_value = jenkins_hash_seed(int_value, random_seed);
 				ptr[j] = std::min(ptr[j], hash_value);
 		
@@ -243,6 +250,10 @@ void KHFMinHash::sketch()
 			for(size_t i = 0; i < numKmers; i++)
 			{
 				if (kmerHasX[i]) continue;  // 跳过含有 'X' 的 k-mer
+				// 检查是否在黑名单中
+				std::string kmer_seq = seqStr.substr(i, m_k);
+				uint64_t int_value = encodeAminoAcidsTo64Bit(kmer_seq);
+				if (isInBlacklist(int_value)) continue;
 				hash.reset(random_seed);//TODO: make it more random seed!
 				hash.update(&seqStr.data()[i], m_k);
 				uint64_t hash_value = hash.digest();

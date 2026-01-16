@@ -50,6 +50,7 @@ int main(int argc, char* argv[])
 	string input_filename = "";
 	string result_filename = "";
 	string sketch_filename = "";
+	string blacklist_filename = "";
 
 	auto option_threads = app.add_option("-t, --threads", num_threads,  "set the thread number, default 1 thread");
 
@@ -61,6 +62,7 @@ int main(int argc, char* argv[])
 	subA->add_option("-m, --m-size", m, "set the number of hash functions will be used, default 15");
 	subA->add_option("-i, --input", input_filename, "input file name, fasta or gziped fasta formats")->required();
 	subA->add_option("-o, --skechfile-output", result_filename, "Sketch file name")->required();
+	subA->add_option("-b, --blacklist", blacklist_filename, "high-frequency kmer blacklist file (format: kmer\\tcount per line)");
 
 	auto subB = app.add_subcommand("cluster", "Only clustering by MinHash, input must have existing MinHash sketch file");
 	subB->add_option("-i, --input", input_filename, "input file name, fasta or gziped fasta formats")->required();
@@ -89,6 +91,7 @@ int main(int argc, char* argv[])
 	subC->add_option("-m, --m-size", m, "set the number of hash functions will be used, default 15");
 	subC->add_option("-r, --r-size", r, "set the number of block");
 	subC->add_option("--c-thd, --cluser-threshold", cluster_thd, "cluster threshold in cdhit");
+	subC->add_option("-b, --blacklist", blacklist_filename, "high-frequency kmer blacklist file (format: kmer\\tcount per line)");
 
 	app.require_subcommand(1);
 	try{
@@ -112,6 +115,9 @@ int main(int argc, char* argv[])
 	cerr << "Min_len: " << min_len << endl;
 	cerr << "Input: " << input_filename << endl;
 	cerr << "Output: " << result_filename << endl;
+	if (!blacklist_filename.empty()) {
+		cerr << "Blacklist: " << blacklist_filename << endl;
+	}
 	cerr << "==========End Paramters==========" << endl;
 
 	ProteinProcessor::Config cfg_1{
@@ -120,7 +126,8 @@ int main(int argc, char* argv[])
 		min_len,
 		xxhash_flag,
 		num_threads,
-		true
+		true,
+		blacklist_filename
 	};
 	ProteinProcessor processor(cfg_1);
 

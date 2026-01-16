@@ -1,13 +1,17 @@
 #include "ProteinProcessor.h"
+#include "AminoEncode.h"
 //#include "KHFMinHash.h"
 //#include "kseq.h"
 //#include <zlib.h>
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <thread>
 #include <algorithm>
 #include <numeric>
+#include <chrono>
+#include <atomic>
 
 ProteinProcessor::ProteinProcessor(const Config& cfg) : config_(cfg) {
 	if (config_.num_threads <= 0) {
@@ -17,6 +21,60 @@ ProteinProcessor::ProteinProcessor(const Config& cfg) : config_(cfg) {
 	for (auto& tl : thread_locals_) {
 		tl.hashes.assign(config_.m, {});
 	}
+
+	// Load blacklist if specified
+	if (!config_.blacklist_file.empty()) {
+		loadBlacklist(config_.blacklist_file);
+	}
+}
+
+void ProteinProcessor::loadBlacklist(const std::string& filename)
+{
+	shared_blacklist_.clear();
+	std::ifstream file(filename);
+	if (!file.is_open()) {
+		std::cerr << "WARNING: cannot open blacklist file: " << filename << std::endl;
+		return;
+	}
+
+	std::vector<uint64_t> temp_list;
+	std::string line;
+	// Skip header line if it starts with '#'
+	if (std::getline(file, line)) {
+		if (line.empty() || line[0] != '#') {
+			// Not a header, process as data
+			std::istringstream iss(line);
+			std::string kmer;
+			if (iss >> kmer) {
+				// Check kmer length, should not exceed 12 for uint64_t encoding
+				if (kmer.size() <= 12) {
+					uint64_t encoded = encodeAminoAcidsTo64Bit(kmer);
+					temp_list.push_back(encoded);
+				}
+			}
+		}
+	}
+
+	// Read remaining lines
+	while (std::getline(file, line)) {
+		if (line.empty() || line[0] == '#') continue;
+		std::istringstream iss(line);
+		std::string kmer;
+		if (iss >> kmer) {
+			// Check kmer length, should not exceed 12 for uint64_t encoding
+			if (kmer.size() <= 12) {
+				uint64_t encoded = encodeAminoAcidsTo64Bit(kmer);
+				temp_list.push_back(encoded);
+			}
+		}
+	}
+
+	file.close();
+
+	// Build flat hash set for O(1) lookup
+	shared_blacklist_.build(temp_list);
+
+	std::cerr << "Loaded " << shared_blacklist_.size() << " kmers to blacklist" << std::endl;
 }
 
 void ProteinProcessor::worker_thread(
@@ -52,6 +110,10 @@ void ProteinProcessor::worker_thread(
 		Sketch::KHFMinHash mh;
 		mh.setK(config_.k);
 		mh.setM(config_.m);
+		// Use shared blacklist if available
+		if (!shared_blacklist_.empty()) {
+			mh.setExternalBlacklist(&shared_blacklist_);
+		}
 		if (config_.use_xxhash) {
 			mh.buildSketch(seq.c_str());
 		} else {
@@ -98,12 +160,31 @@ int ProteinProcessor::build_sketches(
 		threads.emplace_back(&ProteinProcessor::worker_thread, this, i, fp, ks, std::ref(done));
 	}
 
+	// Progress bar
+	std::atomic<uint64_t> last_progress{0};
+	std::thread progress_thread([&]() {
+		while (!done) {
+			uint64_t current = next_seq_id_.load();
+			if (current > last_progress + 1000) {  // Update every 1000 sequences
+				std::cout << "\rProcessed " << current << " sequences..." << std::flush;
+				last_progress = current;
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+		// Final update
+		uint64_t final_count = next_seq_id_.load();
+		std::cout << "\rProcessed " << final_count << " sequences." << std::endl;
+	});
+
 	for (auto& t : threads) t.join();
+
+	done = true;  // Signal progress thread to stop
+	progress_thread.join();
 
 	kseq_destroy(ks);
 	gzclose(fp);
 
-	std::cout << "Finish building sketch! Total: " << next_seq_id_ << " sequences.\n";
+	std::cout << "Sketch building completed! Total: " << next_seq_id_ << " sequences.\n";
 
 	merge_thread_results(seq_ids_, protein_sketch_data, proteindata);
 
@@ -219,6 +300,10 @@ void ProteinProcessor::worker_thread_only_sketch(
 		Sketch::KHFMinHash mh;
 		mh.setK(config_.k);
 		mh.setM(config_.m);
+		// Use shared blacklist if available
+		if (!shared_blacklist_.empty()) {
+			mh.setExternalBlacklist(&shared_blacklist_);
+		}
 		if (config_.use_xxhash) {
 			mh.buildSketch(seq.c_str());
 		} else {
@@ -266,12 +351,31 @@ int ProteinProcessor::build_sketches(
 		threads.emplace_back(&ProteinProcessor::worker_thread_only_sketch, this, i, fp, ks, std::ref(done));
 	}
 
+	// Progress bar
+	std::atomic<uint64_t> last_progress{0};
+	std::thread progress_thread([&]() {
+		while (!done) {
+			uint64_t current = next_seq_id_.load();
+			if (current > last_progress + 1000) {  // Update every 1000 sequences
+				std::cout << "\rProcessed " << current << " sequences..." << std::flush;
+				last_progress = current;
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+		// Final update
+		uint64_t final_count = next_seq_id_.load();
+		std::cout << "\rProcessed " << final_count << " sequences." << std::endl;
+	});
+
 	for (auto& t : threads) t.join();
+
+	done = true;  // Signal progress thread to stop
+	progress_thread.join();
 
 	kseq_destroy(ks);
 	gzclose(fp);
 
-	std::cout << "Finish building sketch! Total: " << next_seq_id_ << " sequences.\n";
+	std::cout << "Sketch building completed! Total: " << next_seq_id_ << " sequences.\n";
 
 	merge_thread_results(seq_ids_, protein_sketch_data);
 	if (config_.num_threads > 1) {

@@ -51,7 +51,7 @@ private:
 	Config gs_config;
 	UnionFind uf;
 	double tau = 0.5; // TODO 根据用户输入的similarity—threshold计算tau
-	double ed_thres = 0.5;
+	double ed_thres = 0.6;
 	
 	vector<Data> hash_vec;
 	vector<sharedData> seq_vec;

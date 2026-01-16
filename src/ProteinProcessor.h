@@ -23,6 +23,7 @@ class ProteinProcessor {
 			bool use_xxhash = true;
 			int num_threads = 1;
 			bool output_binary = true;
+			std::string blacklist_file = "";  // high-frequency kmer blacklist file
 		};
 
 		// 构造函数
@@ -92,6 +93,9 @@ class ProteinProcessor {
 		// 写二进制文件
 		void write_binary(const std::string path, ProteinSketchData& protein_sketch_data) const;
 
+		// 加载kmer黑名单文件
+		void loadBlacklist(const std::string& filename);
+
 		// 重新排序（多线程乱序 → 按 seq_id 排序）
 		void reorder_hashes(
 			std::vector<uint64_t>& seq_ids_,
@@ -106,6 +110,9 @@ class ProteinProcessor {
 
 		// 配置
 		Config config_;
+
+		// Shared kmer blacklist (loaded once, used by all threads)
+		Sketch::FlatHashSet64 shared_blacklist_;
 
 		// 线程局部结果
 		std::vector<ThreadLocal> thread_locals_;

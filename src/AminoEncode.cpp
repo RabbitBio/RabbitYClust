@@ -43,7 +43,7 @@ uint64_t encodeAminoAcidsTo64Bit(const std::string& sequence) {
 
 	for (size_t i = 0; i < sequence.length(); ++i) {
 		char aminoAcid = sequence[i];
-		if (aminoAcid < 'A' || aminoAcid > 'Z' || aminoAcidTable[aminoAcid - 'A'] == 0b11111) {
+		if (aminoAcid < 'A' || aminoAcid > 'Z' ) {
 				std::cerr << "Invalid amino acid: " << aminoAcid << std::endl;
 				return 0;
 		}
