@@ -87,13 +87,14 @@ private:
 	void uniteByEdges(vector<int>& id_root_map);
 
 	void countGroupSize(int m, UnionFind& uf, const vector<string>& fa_map, vector<int>& id_root_map);
-	void countGroupSizeBySort(vector<pair<uint32_t, uint32_t>>& need_to_clutser);
+	void countGroupSizeBySort(vector<pair<uint32_t, uint32_t>>& need_to_clutser, int cluster_condition);
 	
 	void getGroupRes(UnionFind& uf,unordered_map<int, vector<int>>& group_map, vector<int>& id_root_map);
 
 	void clusterEachGroup(vector<int>& group_seqs, int needed_threads, const vector<string>& fa_map);
 	//void clusterEachGroup(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map);
 
+	void ClusterFinally( vector<pair<uint32_t, uint32_t>> need_to_cluster, ProteinAAStore& store);
 	void Cluster(vector<pair<uint32_t, uint32_t>>& need_to_clutser, ProteinAAStore& store);
 	void Cluster(vector<vector<int>>& cluster_sequences, const vector<string>& fa_map);
 	//void Cluster(vector<vector<int>>& cluster_sequences, const unordered_map<uint64_t, string>& fa_map);
