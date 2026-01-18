@@ -124,8 +124,7 @@ public:
 	}
 
 	void updateOneParent(int id, int new_parent_id) {
-		int root_id = find(id);
-		parent[id] = find(new_parent_id);
+        parent[id] = new_parent_id;
 	}
 
 };
