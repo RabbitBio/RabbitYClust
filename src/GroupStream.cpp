@@ -290,6 +290,7 @@ void GroupStream::countGroupSizeBySort(
 	){
 	int groups_size = uf.countSetsSize();
 	cout << "Group Size after merging:" << groups_size << endl;
+	cerr << "Group Size after merging:" << groups_size << endl;
 
 	// output top10 group
 	// collect group-id
@@ -299,12 +300,16 @@ void GroupStream::countGroupSizeBySort(
 	}
 
 	ips2ra::parallel::sort(seq_vec.begin(), seq_vec.end(), [](const sharedData& r){return r.group_id;}, gs_config.num_threads);
-	
+
 	priority_queue<int, vector<int>, greater<int>> minHeap;
 	int last_group_id = seq_vec[0].group_id;
 	int last_idx = 0;
+    int total_groups = 0;
+    int only_one = 0;
 	for(int i = 0; i < gs_config.items; i++) {
 		if(seq_vec[i].group_id != last_group_id){
+            total_groups++;
+            if(last_idx == i - 1) only_one++;
 			if(i - last_idx > cluster_condition) need_to_clutser.emplace_back(last_idx, i - last_idx);
 			minHeap.push(i - last_idx);
 			if (minHeap.size() > 10){
@@ -316,9 +321,13 @@ void GroupStream::countGroupSizeBySort(
 		}
 	}
 	if(gs_config.items - last_idx > cluster_condition) need_to_clutser.emplace_back(last_idx, gs_config.items - last_idx);
+    total_groups++;
+    if(last_idx == gs_config.items - 1) only_one++;
+    cerr << "Number of total_groups: " << total_groups << endl;
+    cerr << "Number of groups only having 1 sequence: " << only_one << endl;
 
 	//对need_to_cluster按照group大小排序
-	ips2ra::parallel::sort(need_to_clutser.begin(), need_to_clutser.end(), [](const pair<uint32_t, uint32_t>& r){return r.second;}, gs_config.num_threads);
+	//ips2ra::parallel::sort(need_to_clutser.begin(), need_to_clutser.end(), [](const pair<uint32_t, uint32_t>& r){return r.second;}, gs_config.num_threads);
 
 	minHeap.push(gs_config.items - last_idx);
 	if (minHeap.size() > 10){
@@ -432,7 +441,7 @@ void GroupStream::GroupByCol(
 
 	vector<pair<uint32_t, uint32_t>> need_to_clutser;
 	auto start_count = chrono::high_resolution_clock::now();
-	if(round_cnt == gs_config.M - 1) countGroupSizeBySort(need_to_clutser, 1);
+	if(round_cnt == gs_config.M - 1) countGroupSizeBySort(need_to_clutser, 0);
     else countGroupSizeBySort(need_to_clutser, gs_config.cluster_condition);
 	auto end_count = chrono::high_resolution_clock::now();
 	auto duration_count = chrono::duration_cast<chrono::seconds>(end_count - start_count).count();
@@ -788,7 +797,7 @@ void GroupStream::cutEdges(
 	{
         int tid = omp_get_thread_num();
 		#pragma omp for schedule(dynamic,1) reduction(+:cross_edge_sum,validated_edges,high_cj_edge_sum,pass_ed_edge_sum,filter_ed_edge_sum,last_round_jump_cnt,this_round_jump_cnt,need_edlib_edge)
-    	for(int i = start_multi_idx; i >= start_check_idx; i--) {
+    	for(int i = start_multi_idx-1; i >= start_check_idx; i--) {
     	//for(int i = start_check_idx; i < start_multi_idx; i++) {
 			vector<uint64_t>  edge_stat = buildConnectedComponents(
 					1, //threads
@@ -1115,6 +1124,7 @@ void GroupStream::Cluster(
 	vector<pair<uint32_t, uint32_t>>& need_to_clutser,
 	ProteinAAStore& store
 	){
+	ips2ra::parallel::sort(need_to_clutser.begin(), need_to_clutser.end(), [](const pair<uint32_t, uint32_t>& r){return r.second;}, gs_config.num_threads);
 	cluster cluster_cdhit;
 	for(auto& pair : need_to_clutser){
 		int start_idx = pair.first;
@@ -1181,9 +1191,15 @@ void GroupStream::Cluster(
 
 }
 void GroupStream::ClusterFinally(
-		vector<pair<uint32_t, uint32_t>> need_to_cluster,
+		vector<pair<uint32_t, uint32_t>>& need_to_cluster,
 		ProteinAAStore& store
 	) {
+    // check need_to_cluster is continue
+    int not_continue_num = 0;
+	for(int i = 1; i < need_to_cluster.size(); i++) {
+        if(need_to_cluster[i].first != need_to_cluster[i-1].first + need_to_cluster[i-1].second) not_continue_num++;
+    }
+    if(not_continue_num > 0) cerr << "not continue number in need_to_cluster" << endl;
 	vector<pair<uint32_t, uint32_t>> cluster_tasks;
 	for(int i = 0; i < need_to_cluster.size(); i++) {
 		uint32_t start_idx = need_to_cluster[i].first;
@@ -1205,6 +1221,7 @@ void GroupStream::ClusterFinally(
  	omp_set_num_threads(TOTAL_THREADS);
  	omp_set_nested(1);
 
+	ips2ra::parallel::sort(cluster_tasks.begin(), cluster_tasks.end(), [](const pair<uint32_t, uint32_t>& r){return r.second;}, gs_config.num_threads);
 	auto timestart = chrono::high_resolution_clock::now();
 #pragma omp parallel
 {
@@ -1249,7 +1266,7 @@ void GroupStream::ClusterFinally(
 	// 更新并查集
 	for(auto& task : cluster_tasks) {
 		int start_idx = task.first;
-		int end_idx = task.second;
+		int end_idx = task.second + start_idx;
 		for(int i = start_idx; i < end_idx; i++){
 			uf.updateOneParent(seq_vec[i].seq_id, seq_vec[i].group_id);
 		}
@@ -1257,13 +1274,18 @@ void GroupStream::ClusterFinally(
 
 	//count group size after cd-hit
 	int groups_size = uf.countSetsSize();
-	cout << "Group Size after using cd-hit to cluster:" << groups_size << endl;
+	cerr << "Number of clusters after using cd-hit to cluster:" << groups_size << endl;
+    int total_clusters = 0;
 	
+    ips2ra::parallel::sort(seq_vec.begin(), seq_vec.end(), [](const sharedData& r) { return r.group_id; }, gs_config.num_threads);
 	priority_queue<int, vector<int>, greater<int>> minHeap;
 	int last_group_id = seq_vec[0].group_id;
 	int last_idx = 0;
+    int only_one = 0;
 	for(int i = 0; i < gs_config.items; i++) {
 		if(seq_vec[i].group_id != last_group_id){
+            total_clusters++;
+            if(last_idx == i - 1) only_one++;
 			minHeap.push(i - last_idx);
 			if (minHeap.size() > 10){
 				minHeap.pop();
@@ -1273,6 +1295,43 @@ void GroupStream::ClusterFinally(
 			
 		}
 	}
+    total_clusters++;
+    if(last_idx == gs_config.items - 1) only_one++;
+	minHeap.push(gs_config.items - last_idx);
+	if (minHeap.size() > 10){
+		minHeap.pop();
+	}
+    cerr << "Number of Total Clusters: " << total_clusters << endl;
+    cerr << "Number of clusters only having 1 sequence: " << only_one << endl;
+	cerr << "Top 10 largest clusters size in this round is: ";
+	while(!minHeap.empty()){
+		cerr << minHeap.top() << " ";
+		minHeap.pop();
+	}
+	cerr << endl;
+
+    cerr << "Using uf to check the results " << endl;
+	for(int i = 0; i < gs_config.items; i++) {
+		seq_vec[i].seq_id = i;
+		seq_vec[i].group_id = uf.find(i);
+    }
+    cout << "finish collect!!!" << endl;
+
+    ips2ra::sort(seq_vec.begin(), seq_vec.end(), [](const sharedData& r) { return r.group_id; });
+    cout << " finiash sort !!!" << endl;
+	last_group_id = seq_vec[0].group_id;
+	last_idx = 0;
+	for(int i = 0; i < gs_config.items; i++) {
+		if(seq_vec[i].group_id != last_group_id){
+			minHeap.push(i - last_idx);
+			if (minHeap.size() > 10){
+				minHeap.pop();
+			}
+			last_group_id = seq_vec[i].group_id;
+			last_idx = i;		
+		}
+	}
+    cout << "finiash update!!!!" << endl;
 	minHeap.push(gs_config.items - last_idx);
 	if (minHeap.size() > 10){
 		minHeap.pop();
@@ -1283,6 +1342,8 @@ void GroupStream::ClusterFinally(
 		minHeap.pop();
 	}
 	cerr << endl;
+
+
 }
 	
 void GroupStream::Cluster(
@@ -1652,6 +1713,7 @@ void GroupStream::Group(
 	ofstream ofs(gs_config.res_file);
 	for(int i = 0; i < gs_config.items; i++) {
 		ofs << seq_vec[i].seq_id << " " << seq_vec[i].group_id << "\n";
+		//ofs << seq_vec[i].seq_id << " " << seq_vec[i].group_id << "\n";
 	}
 	ofs.close();
 }

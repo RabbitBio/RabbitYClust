@@ -94,7 +94,7 @@ private:
 	void clusterEachGroup(vector<int>& group_seqs, int needed_threads, const vector<string>& fa_map);
 	//void clusterEachGroup(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map);
 
-	void ClusterFinally( vector<pair<uint32_t, uint32_t>> need_to_cluster, ProteinAAStore& store);
+	void ClusterFinally(vector<pair<uint32_t, uint32_t>>& need_to_cluster, ProteinAAStore& store);
 	void Cluster(vector<pair<uint32_t, uint32_t>>& need_to_clutser, ProteinAAStore& store);
 	void Cluster(vector<vector<int>>& cluster_sequences, const vector<string>& fa_map);
 	//void Cluster(vector<vector<int>>& cluster_sequences, const unordered_map<uint64_t, string>& fa_map);
