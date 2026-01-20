@@ -6,6 +6,7 @@
 #include "AminoEncode.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <queue>
 #include <iostream>
 #include <random>
@@ -122,20 +123,23 @@ void KHFMinHash::sketchByNoSeedAAHash()
 	for(int i = 0; i < sk.l * sk.m; i++) sk.hashes[i] = ULONG_MAX;
 	uint64_t *ptr = sk.hashes.data();
 
-	// 预计算每个 k-mer 位置是否含有 'X'
+	// 预计算每个 k-mer 位置是否含有 'X' 或其他不确定氨基酸
 	size_t numKmers = (seqStr.size() >= m_k) ? (seqStr.size() - m_k + 1) : 0;
 	std::vector<bool> kmerHasX(numKmers, false);
 	if (numKmers > 0) {
 		int xCount = 0;
 		// 初始化第一个窗口
 		for (size_t i = 0; i < m_k; i++) {
-			if (seqStr[i] == 'X') xCount++;
+			char c = seqStr[i];
+			if (c == 'X' || c == 'B' || c == 'Z' || c == 'J' || c == 'U' || c == 'O') xCount++;
 		}
 		kmerHasX[0] = (xCount > 0);
 		// 滑动窗口计算后续位置
 		for (size_t i = 1; i < numKmers; i++) {
-			if (seqStr[i - 1] == 'X') xCount--;        // 离开窗口的字符
-			if (seqStr[i + m_k - 1] == 'X') xCount++;  // 进入窗口的字符
+			char c_out = seqStr[i - 1];
+			if (c_out == 'X' || c_out == 'B' || c_out == 'Z' || c_out == 'J' || c_out == 'U' || c_out == 'O') xCount--;        // 离开窗口的字符
+			char c_in = seqStr[i + m_k - 1];
+			if (c_in == 'X' || c_in == 'B' || c_in == 'Z' || c_in == 'J' || c_in == 'U' || c_in == 'O') xCount++;  // 进入窗口的字符
 			kmerHasX[i] = (xCount > 0);
 		}
 	}
@@ -159,7 +163,10 @@ void KHFMinHash::sketchByNoSeedAAHash()
 			// 获取当前的哈希值
 			const uint64_t* hashes = aahash.hashes();
 			for(unsigned i = 0; i < m_m; i++){
-				ptr[i] = std::min(ptr[i], hashes[i]);
+				//using second round hash function to avoid the shortcoming of AAHash
+				uint64_t hash_value = murmur3_fmix(hashes[i], (uint64_t)i);
+				ptr[i] = std::min(ptr[i], hash_value);
+				//ptr[i] = std::min(ptr[i], hashes[i]);
 			}
 		}
 	}
@@ -180,20 +187,23 @@ void KHFMinHash::sketch()
 	rng.seed(mtSeed);
 	uint64_t random_seed;
 
-	// 预计算每个 k-mer 位置是否含有 'X'（滑动窗口优化）
+	// 预计算每个 k-mer 位置是否含有 'X' 或其他不确定氨基酸（滑动窗口优化）
 	size_t numKmers = (seqStr.size() >= m_k) ? (seqStr.size() - m_k + 1) : 0;
 	std::vector<bool> kmerHasX(numKmers, false);
 	if (numKmers > 0) {
 		int xCount = 0;
 		// 初始化第一个窗口
 		for (size_t i = 0; i < m_k; i++) {
-			if (seqStr[i] == 'X') xCount++;
+			char c = seqStr[i];
+			if (c == 'X' || c == 'B' || c == 'Z' || c == 'J' || c == 'U' || c == 'O') xCount++;
 		}
 		kmerHasX[0] = (xCount > 0);
 		// 滑动窗口计算后续位置
 		for (size_t i = 1; i < numKmers; i++) {
-			if (seqStr[i - 1] == 'X') xCount--;
-			if (seqStr[i + m_k - 1] == 'X') xCount++;
+			char c_out = seqStr[i - 1];
+			if (c_out == 'X' || c_out == 'B' || c_out == 'Z' || c_out == 'J' || c_out == 'U' || c_out == 'O') xCount--;
+			char c_in = seqStr[i + m_k - 1];
+			if (c_in == 'X' || c_in == 'B' || c_in == 'Z' || c_in == 'J' || c_in == 'U' || c_in == 'O') xCount++;
 			kmerHasX[i] = (xCount > 0);
 		}
 	}
