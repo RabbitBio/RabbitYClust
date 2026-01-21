@@ -33,6 +33,7 @@ public:
 		float similarity = 0.9;
 		bool output_on = true;
 		string res_file = "";
+        string names_path = "";
 	};
 
 	explicit GroupStream(const Config& cfg);
@@ -136,6 +137,7 @@ private:
 	//void cutEdges(vector<vector<int>>& sequences_collisions, int huge_groups_cnt, const unordered_map<uint64_t, string>& fa_map);
 
 	void outputClstr(const vector<string>& names);
+    void outputClstr(ProteinAAStore& store);
 
 
 

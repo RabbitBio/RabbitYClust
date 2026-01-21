@@ -1662,10 +1662,10 @@ void GroupStream::Group(
 			gs_config.cluster_condition = 1;
 		}
 		//countGroupSize(m, uf, proteindata.sequence_map);
-		outputClstr(proteindata.names);
 		round_cnt++;
 	}
 
+    outputClstr(proteindata.names);
 }
 
 void GroupStream::Group(
@@ -1683,7 +1683,6 @@ void GroupStream::Group(
 			gs_config.cluster_condition = 1;
 		}
 		//countGroupSize(m, uf, proteindata.sequence_map);
-		outputClstr(proteindata.names);
 		round_cnt++;
 	}
 
@@ -1706,17 +1705,10 @@ void GroupStream::Group(
 		if(m == gs_config.M-gs_config.R && gs_config.final_cluster_on) {
 			gs_config.cluster_condition = 1;
 		}
-		//outputClstr(proteindata.name);
 		round_cnt++;
 	}
-	//输出seq-id
-	cerr << "Total Clusters: " << uf.countSetsSize() << endl;
-	ofstream ofs(gs_config.res_file);
-	for(int i = 0; i < gs_config.items; i++) {
-		ofs << seq_vec[i].seq_id << " " << seq_vec[i].group_id << "\n";
-		//ofs << seq_vec[i].seq_id << " " << seq_vec[i].group_id << "\n";
-	}
-	ofs.close();
+
+    outputClstr(store);
 }
 
 vector<uint64_t> GroupStream::buildConnectedComponents_st(
@@ -1924,4 +1916,42 @@ void GroupStream::outputClstr(
 	//	cout << ">" << names[i] << " " << ">" << names[id_root_map[i]] << endl;
 	//}
 	//cout.rdbuf(origin_cout);
+}
+void GroupStream::outputClstr(
+    ProteinAAStore& store
+) {
+	cerr << "Total Clusters: " << uf.countSetsSize() << endl;
+//  test single rounds results
+//	string out_file_name = "round_" + to_string(round_cnt) + "_" + gs_config.res_file;
+//	cerr << "resulf of round " << round_cnt << "write to: " << out_file_name << endl;
+//	ofstream ofs(out_file_name);
+//    if(gs_config.names_path != "") {
+//        store.load_names(gs_config.names_path);
+//        for(int i = 0; i < gs_config.items; i++) {
+//            ofs << ">" << store.name(i) << " " << ">" << store.name(uf.find(i)) << endl;
+//        }
+//    }else{
+//        cerr << "The name_path is not provided!" << endl;
+//        //输出seq-id
+//        for(int i = 0; i < gs_config.items; i++) {
+//            ofs << i << " " << uf.find(i) << "\n";
+//        }
+//    }
+//	ofs.close();
+
+	cerr << "cluster result stored: " << gs_config.res_file << endl;
+	ofstream ofs(gs_config.res_file);
+    if(gs_config.names_path != "") {
+        store.load_names(gs_config.names_path);
+        for(int i = 0; i < gs_config.items; i++) {
+            ofs << ">" << store.name(i) << " " << ">" << store.name(uf.find(i)) << endl;
+        }
+    }else{
+        cerr << "The name_path is not provided!" << endl;
+        //输出seq-id
+        for(int i = 0; i < gs_config.items; i++) {
+            ofs << i << " " << uf.find(i) << "\n";
+        }
+    }
+    ofs.close();
 }

@@ -51,6 +51,7 @@ int main(int argc, char* argv[])
 	string result_filename = "";
 	string sketch_filename = "";
 	string blacklist_filename = "";
+    string names_path = "";
 
 	auto option_threads = app.add_option("-t, --threads", num_threads,  "set the thread number, default 1 thread");
 
@@ -75,6 +76,7 @@ int main(int argc, char* argv[])
 	subB->add_option("-r, --r-size", r, "set the number of block");
 	subB->add_option("--c-thd, --cluser-threshold", cluster_thd, "cluster threshold in cdhit");
 	auto option_sketch = subB->add_option("-S, --skech-file-name", sketch_filename, "Sketch file name")->required();
+    subB->add_option("-n, --names-path", names_path, "name path of input data");
 	//subB->add_flag("-x", xxhash_flag, "enable this flag to use xxhash in building sketches, default aaHash")->excludes("-S");
 	//subB->add_option("--min-len", min_len, "set the filter minimum length (minLen), protein length less than minLen will be ignore, default 50")->excludes("-S");
 	//subB->add_option("-k, --kmer-size", k, "set the kmer size, default 8")->excludes("-S");
@@ -204,7 +206,8 @@ int main(int argc, char* argv[])
                 500000,
                 similarity,
                 true,
-                result_filename
+                result_filename,
+                names_path
         };
         GroupStream gs(gs_config);
 
