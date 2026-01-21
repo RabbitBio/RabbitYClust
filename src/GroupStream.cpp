@@ -446,7 +446,7 @@ void GroupStream::GroupByCol(
 	auto end_count = chrono::high_resolution_clock::now();
 	auto duration_count = chrono::duration_cast<chrono::seconds>(end_count - start_count).count();
 	cerr << "Time of count group size: " << duration_count << endl;
-	if(gs_config.cluster_on && need_to_clutser.size() > 0) {
+	if(gs_config.final_cluster_on && need_to_clutser.size() > 0) {
 		if(round_cnt == gs_config.M - 1) ClusterFinally(need_to_clutser, store);
 		else Cluster(need_to_clutser, store); // 进rescue-mode
 	}
@@ -1126,6 +1126,7 @@ void GroupStream::Cluster(
 	){
 	ips2ra::parallel::sort(need_to_clutser.begin(), need_to_clutser.end(), [](const pair<uint32_t, uint32_t>& r){return r.second;}, gs_config.num_threads);
 	cluster cluster_cdhit;
+	setOptionsSkipAlign(true);
 	for(auto& pair : need_to_clutser){
 		int start_idx = pair.first;
 		int end_idx = pair.second + start_idx;
@@ -1833,6 +1834,7 @@ void GroupStream::buildConnectedComponentsByLib_cdhit(
 	}
 
 	cluster cluster_cdhit;
+	setOptionsSkipAlign(true);
 	cluster_cdhit.cdhit_cluster(sequences, needed_threads);
 
 	for(int i = start_idx, j = 0; i < end_idx; i++, j++) {

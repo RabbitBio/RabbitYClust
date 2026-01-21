@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
 	subB->add_option("-i, --input", input_filename, "input file name, fasta or gziped fasta formats")->required();
 	subB->add_option("-o", result_filename, "output clusters, seq_id : rep_seq_id")->required();
 	subB->add_flag("-c", cluster_on, "enable clustering to avoid super-huge group");
-	subB->add_flag("-f", final_cluster_off, "turn off the final clustering")->needs("-c");
+	subB->add_flag("-f", final_cluster_off, "turn off the final clustering");
 	subB->add_option("-t, --threads", num_threads,  "set the thread number, default 1 thread");
 	subB->add_option("-s, --min-similarity", similarity, "set the minimum similarity for clustering, default 0.9");
 	subB->add_option("-m, --m-size", m, "set the number of hash functions will be used, default 15");
@@ -85,7 +85,7 @@ int main(int argc, char* argv[])
 	subC->add_option("-t, --threads", num_threads,  "set the thread number, default 1 thread");
 	subC->add_option("--min-len", min_len, "set the filter minimum length (minLen), protein length less than minLen will be ignore, default 50");
 	subC->add_flag("-c", cluster_on, "enable clustering to avoid super-huge group");
-	subC->add_flag("-f", final_cluster_off, "turn off the final clustering")->needs("-c");
+	subC->add_flag("-f", final_cluster_off, "turn off the final clustering");
 	subC->add_option("-s, --min-similarity", similarity, "set the minimum similarity for clustering, default 0.9");
 	subC->add_option("-k, --kmer-size", k, "set the kmer size, default 8");
 	subC->add_option("-m, --m-size", m, "set the number of hash functions will be used, default 15");
