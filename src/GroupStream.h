@@ -52,7 +52,7 @@ private:
 	Config gs_config;
 	UnionFind uf;
 	double tau = 0.5; // TODO 根据用户输入的similarity—threshold计算tau
-	double ed_thres = 0.6;
+	double ed_thres = 0.5;
 	
 	vector<Data> hash_vec;
 	vector<sharedData> seq_vec;
@@ -95,7 +95,7 @@ private:
 	void clusterEachGroup(vector<int>& group_seqs, int needed_threads, const vector<string>& fa_map);
 	//void clusterEachGroup(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map);
 
-	void ClusterFinally(vector<pair<uint32_t, uint32_t>>& need_to_cluster, ProteinAAStore& store);
+	void ClusterFinally(vector<pair<uint32_t, uint32_t>>& need_to_cluster, ProteinAAStore& store, bool is_cluster);
 	void Cluster(vector<pair<uint32_t, uint32_t>>& need_to_clutser, ProteinAAStore& store);
 	void Cluster(vector<vector<int>>& cluster_sequences, const vector<string>& fa_map);
 	//void Cluster(vector<vector<int>>& cluster_sequences, const unordered_map<uint64_t, string>& fa_map);
@@ -105,6 +105,12 @@ private:
 			ProteinAAStore& store,
 			int cdhit_thres// 从哪个下标开始做断边
 			);
+	void buildConnectedComponentsByLib_cdhit(
+			int needed_threads, 
+			vector<pair<uint32_t, uint32_t>>& task,
+			ProteinAAStore& store
+			);
+	
     void buildConnectedComponentsByLib_cdhit(
 		int needed_threads, 
 		uint32_t start_idx,

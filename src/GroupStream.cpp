@@ -327,7 +327,7 @@ void GroupStream::countGroupSizeBySort(
     cerr << "Number of groups only having 1 sequence: " << only_one << endl;
 
 	//对need_to_cluster按照group大小排序
-	//ips2ra::parallel::sort(need_to_clutser.begin(), need_to_clutser.end(), [](const pair<uint32_t, uint32_t>& r){return r.second;}, gs_config.num_threads);
+	ips2ra::parallel::sort(need_to_clutser.begin(), need_to_clutser.end(), [](const pair<uint32_t, uint32_t>& r){return r.second;}, gs_config.num_threads);
 
 	minHeap.push(gs_config.items - last_idx);
 	if (minHeap.size() > 10){
@@ -341,18 +341,20 @@ void GroupStream::countGroupSizeBySort(
 	cerr << endl;
 }
 
+//可以直接改成unite seq_id and group_id
 void GroupStream::uniteByEdges(
 	vector<pair<uint32_t, uint32_t>>& minhash_collisions,
 	int start_update_idx
 	){
 	priority_queue<int, vector<int>, greater<int>> minHeap;
 
+
 	auto time_start = chrono::high_resolution_clock::now();
 	if(gs_config.cluster_on){
 		int cc_cnt = 0;
 		for(int ptr = start_update_idx; ptr < minhash_collisions.size(); ptr++) {
-			int size = minhash_collisions[ptr].first;
-			int start_idx = minhash_collisions[ptr].second;
+			int size = minhash_collisions[ptr].second;
+			int start_idx = minhash_collisions[ptr].first;
 			int end_idx = start_idx + size;
 
 			int last_group_id = seq_vec[start_idx].group_id;
@@ -389,8 +391,8 @@ void GroupStream::uniteByEdges(
 		cerr << endl;
 	}else{
 		for(int ptr = start_update_idx; ptr < minhash_collisions.size(); ptr++) {
-			int size = minhash_collisions[ptr].first;
-			int start_idx = minhash_collisions[ptr].second;
+			int size = minhash_collisions[ptr].second;
+			int start_idx = minhash_collisions[ptr].first;
 			int end_idx = start_idx + size;
 			int head_seq_id = seq_vec[start_idx].seq_id;
 			for(int i = start_idx; i < end_idx; i++) {
@@ -411,44 +413,54 @@ void GroupStream::GroupByCol(
 	cerr << "Number of different MinHash collisions : " << minhash_collisions.size() << endl;
 	cerr << "    Top 10 largest collisions: " ;
 	for(int i = 0; i < 10; i++) {
-		cerr << minhash_collisions[collision_cnt - 1 - i].first << " ";
+		cerr << minhash_collisions[collision_cnt - 1 - i].second << " ";
 	}
 	cerr << endl;
 
 	// minhash_collisions升序排序 找到第一个size(p.first)>1的位置
 	int start_check_idx = 0;
-	auto it_large1 = std::upper_bound(
-			minhash_collisions.begin(), minhash_collisions.end(), 1u,
-			[](uint32_t key, const auto& p) { return key < p.first; }
-			);
-	if(it_large1 != minhash_collisions.end()) start_check_idx = it_large1 - minhash_collisions.begin();
-	cerr << "Number of MinHash collision containing more than 1 sequence: " << collision_cnt - start_check_idx << endl;
+//	auto it_large1 = std::upper_bound(
+//			minhash_collisions.begin(), minhash_collisions.end(), 1u,
+//			[](uint32_t key, const auto& p) { return key < p.second; }
+//			);
+//	if(it_large1 != minhash_collisions.end()) start_check_idx = it_large1 - minhash_collisions.begin();
+//	cerr << "Number of MinHash collision containing more than 1 sequence: " << collision_cnt - start_check_idx << endl;
 
 	if(gs_config.cluster_on) {
+		cerr << "Already in breaking bad edges" << endl;
 		auto start_time = chrono::high_resolution_clock::now();
-		cutEdges(minhash_collisions, store, start_check_idx);
+		setOptionsSkipAlign(true);
+		ClusterFinally(minhash_collisions, store, false);
+		//cutEdges(minhash_collisions, store, start_check_idx);
 		//callLib_cdhit(minhash_collisions, store, start_check_idx);
 		auto end_time = chrono::high_resolution_clock::now();
 		auto duration_cc = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
 		cerr << "Break the bad edges time(seconds): " << duration_cc  << endl;
 	}
 
+	// temp check! make sure the size of minhash_collisions is 1; must be 1!!! in test greedy no-sw libcdhit
+	cerr << "check! size of minhash_collisions(must be 1): " << minhash_collisions.size() << endl; 
 	auto start_unite_time = chrono::high_resolution_clock::now();
 	uniteByEdges(minhash_collisions, start_check_idx);
 	auto end_unite_time = chrono::high_resolution_clock::now();
 	auto duration_unite = chrono::duration_cast<chrono::seconds>(end_unite_time - start_unite_time).count();
 	cerr << "Time of update unionfind: " << duration_unite << endl;
 
+	// 从这里开始挪出GroupByCol
 	vector<pair<uint32_t, uint32_t>> need_to_clutser;
 	auto start_count = chrono::high_resolution_clock::now();
-	if(round_cnt == gs_config.M - 1) countGroupSizeBySort(need_to_clutser, 0);
+	if(round_cnt == gs_config.M - 1) countGroupSizeBySort(need_to_clutser, 1);
     else countGroupSizeBySort(need_to_clutser, gs_config.cluster_condition);
 	auto end_count = chrono::high_resolution_clock::now();
 	auto duration_count = chrono::duration_cast<chrono::seconds>(end_count - start_count).count();
 	cerr << "Time of count group size: " << duration_count << endl;
 	if(gs_config.final_cluster_on && need_to_clutser.size() > 0) {
-		if(round_cnt == gs_config.M - 1) ClusterFinally(need_to_clutser, store);
-		else Cluster(need_to_clutser, store); // 进rescue-mode
+		if(round_cnt == gs_config.M-1) {
+			cerr << "Already in final clustering" << endl;
+			setOptionsSkipAlign(false);
+			ClusterFinally(need_to_clutser, store, true);
+		}
+		//else Cluster(need_to_clutser, store); // 进rescue-mode
 	}
 }
 
@@ -586,7 +598,7 @@ void GroupStream::fillHashVecAndDetectMinHash(
 
 		// update group_id
 		if(r == gs_config.R - 1) {
-			int update_group_id = 0;
+			int update_group_id = seq_hash_vec[0].seq_id;
 			int this_gid = seq_hash_vec[0].group_id;
 			uint64_t this_value = seq_hash_vec[0].value;
 
@@ -594,28 +606,28 @@ void GroupStream::fillHashVecAndDetectMinHash(
 			for(int i = 0; i < gs_config.items; i++) {
 				if(seq_hash_vec[i].group_id != this_gid 
 						|| seq_hash_vec[i].value != this_value) {
-					update_group_id++;
 					this_gid = seq_hash_vec[i].group_id;
 					this_value = seq_hash_vec[i].value;
-					minhash_collisions.emplace_back(i - last_i, last_i); // first是size second是偏移
+					minhash_collisions.emplace_back(last_i, i - last_i); // first是size second是偏移
 					last_i = i;
+					update_group_id = seq_hash_vec[i].seq_id;
 				}
 				seq_hash_vec[i].group_id = update_group_id;
 			}
-			minhash_collisions.emplace_back(gs_config.items - last_i, last_i); // 最后一组的信息
+			minhash_collisions.emplace_back(last_i, gs_config.items - last_i); // 最后一组的信息
 			cout << "successfully collect MinHash collisions info!" <<endl;
-			ips2ra::parallel::sort(minhash_collisions.begin(), minhash_collisions.end(), [](const pair<uint32_t, uint32_t>& c) {return c.first; }, gs_config.num_threads);
+			ips2ra::parallel::sort(minhash_collisions.begin(), minhash_collisions.end(), [](const pair<uint32_t, uint32_t>& c) {return c.second; }, gs_config.num_threads);
 			cout << "successfully sort MinHash collisions by size!" <<endl;
 		}else {
-			int update_group_id = 0;
+			int update_group_id = seq_hash_vec[0].seq_id;
 			int this_gid = seq_hash_vec[0].group_id;
 			uint64_t this_value = seq_hash_vec[0].value;
 			for(int i = 0; i < gs_config.items; i++) {
 				if(seq_hash_vec[i].group_id != this_gid 
 						|| seq_hash_vec[i].value != this_value) {
-					update_group_id++;
 					this_gid = seq_hash_vec[i].group_id;
 					this_value = seq_hash_vec[i].value;
+					update_group_id = seq_hash_vec[i].seq_id;
 				}
 				seq_hash_vec[i].group_id = update_group_id;
 			}
@@ -744,7 +756,7 @@ void GroupStream::cutEdges(
 	// minhash_collisions升序排序 找到第一个size(p.first)>1的位置
 	auto it_multi = std::upper_bound(
 			minhash_collisions.begin(), minhash_collisions.end(), 5000u,
-			[](uint32_t key, const auto& p) { return key < p.first; }
+			[](uint32_t key, const auto& p) { return key < p.second; }
 			);
 	size_t start_multi_idx = 0;
 	start_multi_idx = it_multi == minhash_collisions.end() ? collision_cnt : it_multi - minhash_collisions.begin();
@@ -773,7 +785,7 @@ void GroupStream::cutEdges(
 			//}
 			vector<uint64_t>  edge_stat = buildConnectedComponents(
 					avail_threads, //threads
-					minhash_collisions[i].second, // start_pos
+					minhash_collisions[i].first, // start_pos
 					minhash_collisions[i].second + minhash_collisions[i].first, // end_pos
 					store);
 			validated_edges += edge_stat[0];
@@ -801,7 +813,7 @@ void GroupStream::cutEdges(
     	//for(int i = start_check_idx; i < start_multi_idx; i++) {
 			vector<uint64_t>  edge_stat = buildConnectedComponents(
 					1, //threads
-					minhash_collisions[i].second, // start_pos
+					minhash_collisions[i].first, // start_pos
 					minhash_collisions[i].second + minhash_collisions[i].first, // end_pos
 					store);
 			validated_edges += edge_stat[0];
@@ -1042,8 +1054,8 @@ void GroupStream::callLib_cdhit(
 	bool output_max_group = false;
 	if(output_max_group) {
 	for(int i = 0; i < 3; i++) {
-		int start_pos = minhash_collisions[minhash_collisions.size()-1-i].second;
-		int end_pos = minhash_collisions[minhash_collisions.size()-1-i].first + start_pos;
+		int start_pos = minhash_collisions[minhash_collisions.size()-1-i].first;
+		int end_pos = minhash_collisions[minhash_collisions.size()-1-i].second + start_pos;
 		string filename = "file_" + to_string(i);
 		ofstream ofs(filename);
 		int end = minhash_collisions[i].second + minhash_collisions[i].first;
@@ -1060,13 +1072,13 @@ void GroupStream::callLib_cdhit(
 	int collision_cnt = minhash_collisions.size();
 	auto it_rescure = std::upper_bound(
 			minhash_collisions.begin(), minhash_collisions.end(), 500000u,
-			[](uint32_t key, const auto& p) { return key < p.first; }
+			[](uint32_t key, const auto& p) { return key < p.second; }
 			);
 	size_t start_check_idx = it_rescure == minhash_collisions.end() ? collision_cnt : it_rescure - minhash_collisions.begin();
 	// minhash_collisions升序排序 找到第一个size(p.first)>1的位置
 	auto it_multi = std::upper_bound(
 			minhash_collisions.begin(), minhash_collisions.end(), 100000u,
-			[](uint32_t key, const auto& p) { return key < p.first; }
+			[](uint32_t key, const auto& p) { return key < p.second; }
 			);
 	size_t start_multi_idx = it_multi == minhash_collisions.end() ? collision_cnt : it_multi - minhash_collisions.begin();
 	if(start_multi_idx < start_check_idx) start_multi_idx = start_check_idx;
@@ -1082,7 +1094,7 @@ void GroupStream::callLib_cdhit(
 			//调用cdhit
 			buildConnectedComponentsByLib_cdhit(
 					avail_threads, //threads
-					minhash_collisions[i].second, // start_pos
+					minhash_collisions[i].first, // start_pos
 					minhash_collisions[i].second + minhash_collisions[i].first, // end_pos
 					store);
 		}
@@ -1104,7 +1116,7 @@ void GroupStream::callLib_cdhit(
 			//调用cdhit
 			buildConnectedComponentsByLib_cdhit(
 					1, //threads
-					minhash_collisions[i].second, // start_pos
+					minhash_collisions[i].first, // start_pos
 					minhash_collisions[i].second + minhash_collisions[i].first, // end_pos
 					store);
 			if (i % one_step == 0 || i == start_multi_idx - 1) {
@@ -1193,27 +1205,38 @@ void GroupStream::Cluster(
 }
 void GroupStream::ClusterFinally(
 		vector<pair<uint32_t, uint32_t>>& need_to_cluster,
-		ProteinAAStore& store
+		ProteinAAStore& store,
+		bool is_cluster
 	) {
-    // check need_to_cluster is continue
-    int not_continue_num = 0;
-	for(int i = 1; i < need_to_cluster.size(); i++) {
-        if(need_to_cluster[i].first != need_to_cluster[i-1].first + need_to_cluster[i-1].second) not_continue_num++;
-    }
-    if(not_continue_num > 0) cerr << "not continue number in need_to_cluster" << endl;
-	vector<pair<uint32_t, uint32_t>> cluster_tasks;
-	for(int i = 0; i < need_to_cluster.size(); i++) {
+
+	vector<vector<pair<uint32_t, uint32_t>>> tasks;
+	// 遍历minhash_collisions 去掉group_size < 1的组
+	int group_size_gt1 = 0;
+	for(int i = need_to_cluster.size() - 1; i >= 0 && need_to_cluster[i].second > 1; i--){
 		uint32_t start_idx = need_to_cluster[i].first;
 		uint32_t continue_size = need_to_cluster[i].second;
-		while(continue_size < 10000u && i < need_to_cluster.size() - 1) {
-			i++;
+		vector<pair<uint32_t, uint32_t>> one_task;
+		// 第一个pair是序列条数 和线程数 先预设再修改
+		one_task.emplace_back(continue_size, 1);
+		one_task.emplace_back(start_idx, start_idx + continue_size);
+		while(continue_size < 10000u && i > 0 && need_to_cluster[i-1].second > 1)
+		{
+			i--;
 			continue_size += need_to_cluster[i].second;
+			one_task.emplace_back(need_to_cluster[i].first, need_to_cluster[i].first + need_to_cluster[i].second);
 		}
-		 cluster_tasks.emplace_back(start_idx, continue_size);
+		//根据最终序列条数修改
+		one_task[0].first = continue_size;
+		if(continue_size >= 500000u) one_task[0].second = gs_config.num_threads;
+		else if(continue_size >= 100000u) one_task[0].second = 8;
+        else if(continue_size >= 50000u) one_task[0].second = 4;
+        else if(continue_size >= 20000u) one_task[0].second = 2;
+		tasks.emplace_back(one_task);
+		group_size_gt1 = i;
 	}
-	// 对任务按照从大到小排序
-	ips2ra::parallel::sort(cluster_tasks.begin(), cluster_tasks.end(), [](const pair<uint32_t, uint32_t>& r){return r.second;}, gs_config.num_threads);
-	cerr << "Number of groups need to cluster in cdhit: " << cluster_tasks.size() << endl;
+	cerr << "Number of groups larger than 1: " << need_to_cluster.size() - group_size_gt1 << endl;
+	ips2ra::parallel::sort(tasks.begin(), tasks.end(), [](const vector<pair<uint32_t, uint32_t>>& r){return r[0].first;}, gs_config.num_threads);
+	cerr << "Number of groups need to cluster in cdhit(after collection small groups into groups>10,000): " << tasks.size() << endl;
 
 	std::atomic<int> thread_pool;
  	int TOTAL_THREADS;
@@ -1222,24 +1245,18 @@ void GroupStream::ClusterFinally(
  	omp_set_num_threads(TOTAL_THREADS);
  	omp_set_nested(1);
 
-	ips2ra::parallel::sort(cluster_tasks.begin(), cluster_tasks.end(), [](const pair<uint32_t, uint32_t>& r){return r.second;}, gs_config.num_threads);
 	auto timestart = chrono::high_resolution_clock::now();
 #pragma omp parallel
 {
 #pragma omp single
 {
-	for (int i = 0; i < cluster_tasks.size(); i++) {
-        if (i % 100 == 0 || i == cluster_tasks.size() - 1) {
-				print_progress(i + 1, cluster_tasks.size());
+	for (int i = tasks.size()-1; i >= 0; i--) {
+	//for (int i = 0; i < cluster_tasks.size(); i++) {
+        if (i % 100 == 0 || i == 0) {
+			print_progress(tasks.size()-i, tasks.size());
         }
-        auto& task = cluster_tasks[i];
-		int required_threads;
-		if(task.second >= 500000u) required_threads = gs_config.num_threads;
-		else if(task.second >= 100000u) required_threads = 8;
-        else if(task.second >= 50000u) required_threads = 4;
-        else if(task.second >= 20000u) required_threads = 2;
-		else required_threads = 1;
-
+        auto& task = tasks[i];
+		int required_threads = task[0].second;
 #pragma omp task firstprivate(task)
 {
 		// // 等待足够的线程资源
@@ -1252,33 +1269,41 @@ void GroupStream::ClusterFinally(
 			}
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}
-		buildConnectedComponentsByLib_cdhit(required_threads, task.first, task.second + task.first, store);
+		buildConnectedComponentsByLib_cdhit(required_threads, task, store);
 		// 释放线程资源
 		thread_pool.fetch_add(required_threads, std::memory_order_release);
 }
 	}
-	
 #pragma omp taskwait
 }
 }
+
 	auto timeend = chrono::high_resolution_clock::now();
 	auto duration = chrono::duration_cast<chrono::seconds>(timeend - timestart).count();
 	cerr << "Time of cdhit clustering finally: " << duration << endl;
-	// 更新并查集
-	for(auto& task : cluster_tasks) {
-		int start_idx = task.first;
-		int end_idx = task.second + start_idx;
-		for(int i = start_idx; i < end_idx; i++){
-			uf.updateOneParent(seq_vec[i].seq_id, seq_vec[i].group_id);
-		}
+
+
+	if(!is_cluster) {
+		ips2ra::parallel::sort(seq_vec.begin(), seq_vec.end(), [](const sharedData& r) { return r.group_id; }, gs_config.num_threads);
+		//重新整合minhash_collisions
+		need_to_cluster.clear();
+		need_to_cluster.emplace_back(0, seq_vec.size());
+		return;
 	}
 
+	//最后一轮聚类可以直接写覆盖掉uf
+	// 只在finally clustering更新并查集
+	// 这么写是为了不去更新那些group_size=1的
+	for(auto& task : tasks) {
+		for(int i = 1; i < task.size(); i++) {
+			for(int j = task[i].first; j < task[i].second; j++) {
+				uf.updateOneParent(seq_vec[j].seq_id, seq_vec[j].group_id);
+			}
+		}
+	}
 	//count group size after cd-hit
-	int groups_size = uf.countSetsSize();
-	cerr << "Number of clusters after using cd-hit to cluster:" << groups_size << endl;
+	ips2ra::parallel::sort(seq_vec.begin(), seq_vec.end(), [](const sharedData& r) { return r.group_id; }, gs_config.num_threads);
     int total_clusters = 0;
-	
-    ips2ra::parallel::sort(seq_vec.begin(), seq_vec.end(), [](const sharedData& r) { return r.group_id; }, gs_config.num_threads);
 	priority_queue<int, vector<int>, greater<int>> minHeap;
 	int last_group_id = seq_vec[0].group_id;
 	int last_idx = 0;
@@ -1312,6 +1337,8 @@ void GroupStream::ClusterFinally(
 	cerr << endl;
 
     cerr << "Using uf to check the results " << endl;
+	int groups_size = uf.countSetsSize();
+	cerr << "Number of clusters after using cd-hit to cluster:" << groups_size << endl;
 	for(int i = 0; i < gs_config.items; i++) {
 		seq_vec[i].seq_id = i;
 		seq_vec[i].group_id = uf.find(i);
@@ -1809,6 +1836,45 @@ vector<uint64_t> GroupStream::buildConnectedComponents(
 	return edge_stat;
 }
 
+void GroupStream::buildConnectedComponentsByLib_cdhit(
+	int needed_threads, 
+	vector<pair<uint32_t, uint32_t>>& task, //每个pair first的起始位置 second是结束位置
+	ProteinAAStore& store
+	) {
+	vector<Sequence_new> sequences;
+	vector<string> seqs;
+	seqs.reserve(task[0].first);
+	int cnt = 0;
+
+	//更新结果到seq_vec
+	for(int i = 1; i < task.size(); i++) {
+		// j是序列在seq_vec的偏移
+		// 记录这个是为了方便把cdhit的结果写回去
+		for(int j = task[i].first; j < task[i].second; j++) {
+			int seq_id = seq_vec[j].seq_id;
+			seqs.emplace_back(store.get(seq_id));
+			sequences.emplace_back(seq_id, uf.find(seq_id), seqs[cnt].c_str());
+			cnt++;
+		}
+	}
+	
+	cluster cluster_cdhit;
+	cluster_cdhit.cdhit_cluster(sequences, needed_threads);
+
+	cnt = 0;
+	for(int i = 1; i < task.size(); i++) {
+		for(int j = task[i].first; j < task[i].second; j++) {
+			seq_vec[j].seq_id = sequences[cnt].seq_id;
+			seq_vec[j].group_id = sequences[cnt].new_root_id;
+			cnt++;
+		}
+	}
+	//for(int i = 0; i < sequences.size(); i++) {
+	//	int id_in_seq_vec = sequences[i].seq_id;
+	//	seq_vec[id_in_seq_vec].group_id = sequences[i].new_root_id;
+	//}
+}
+
 
 void GroupStream::buildConnectedComponentsByLib_cdhit(
 	int needed_threads, 
@@ -1826,13 +1892,13 @@ void GroupStream::buildConnectedComponentsByLib_cdhit(
 	}
 
 	cluster cluster_cdhit;
-	setOptionsSkipAlign(true);
 	cluster_cdhit.cdhit_cluster(sequences, needed_threads);
 
 	for(int i = start_idx, j = 0; i < end_idx; i++, j++) {
 		seq_vec[i].seq_id = sequences[j].seq_id;
 		seq_vec[i].group_id = sequences[j].new_root_id;
 	}
+    ips2ra::parallel::sort(seq_vec.begin() + start_idx, seq_vec.begin() + end_idx, [](const sharedData& r) { return r.group_id; }, needed_threads);
 }
 
 vector<uint64_t> GroupStream::buildConnectedComponents(
@@ -1921,6 +1987,7 @@ void GroupStream::outputClstr(
     ProteinAAStore& store
 ) {
 	cerr << "Total Clusters: " << uf.countSetsSize() << endl;
+	auto start_time = chrono::high_resolution_clock::now();
 //  test single rounds results
 //	string out_file_name = "round_" + to_string(round_cnt) + "_" + gs_config.res_file;
 //	cerr << "resulf of round " << round_cnt << "write to: " << out_file_name << endl;
@@ -1942,6 +2009,7 @@ void GroupStream::outputClstr(
 	cerr << "cluster result stored: " << gs_config.res_file << endl;
 	ofstream ofs(gs_config.res_file);
     if(gs_config.names_path != "") {
+		cerr << "load name from " << gs_config.names_path << endl;
         store.load_names(gs_config.names_path);
         for(int i = 0; i < gs_config.items; i++) {
             ofs << ">" << store.name(i) << " " << ">" << store.name(uf.find(i)) << endl;
@@ -1953,5 +2021,8 @@ void GroupStream::outputClstr(
             ofs << i << " " << uf.find(i) << "\n";
         }
     }
+	auto end_time = chrono::high_resolution_clock::now();
+	auto duration = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
+	cerr << "output time (seconds): " << duration  << endl;
     ofs.close();
 }
