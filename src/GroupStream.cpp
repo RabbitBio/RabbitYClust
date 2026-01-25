@@ -418,21 +418,31 @@ void GroupStream::GroupByCol(
 	cerr << endl;
 
 	// minhash_collisions升序排序 找到第一个size(p.first)>1的位置
-	int start_check_idx = 0;
-//	auto it_large1 = std::upper_bound(
-//			minhash_collisions.begin(), minhash_collisions.end(), 1u,
-//			[](uint32_t key, const auto& p) { return key < p.second; }
-//			);
-//	if(it_large1 != minhash_collisions.end()) start_check_idx = it_large1 - minhash_collisions.begin();
-//	cerr << "Number of MinHash collision containing more than 1 sequence: " << collision_cnt - start_check_idx << endl;
+	int start_libcc_idx = minhash_collisions.size();
+	int start_greedy_idx = minhash_collisions.size();
+	auto it_large1 = std::upper_bound(
+			minhash_collisions.begin(), minhash_collisions.end(), 1u,
+			[](uint32_t key, const auto& p) { return key < p.second; }
+			);
+	auto it_large_greedy_condition = std::upper_bound(
+			minhash_collisions.begin(), minhash_collisions.end(), greedy_condition,
+			[](uint32_t key, const auto& p) { return key < p.second; }
+			);
+	start_libcc_idx = it_large1 - minhash_collisions.begin();
+	start_greedy_idx = it_large_greedy_condition - minhash_collisions.begin();
+	cerr << "Number of MinHash collisions containing more than 1 sequence: " << collision_cnt - start_libcc_idx << endl;
+	cerr << "Number of MinHash collisions processed in libcc: " << start_greedy_idx - start_libcc_idx << endl;
+	cerr << "Number of MinHash collisions processed in greedy (groups size large than ";
+	cerr << greedy_condition << " ): " << collision_cnt - start_greedy_idx << endl;
 
-	if(gs_config.cluster_on) {
+	if(gs_config.cluster_on && (start_greedy_idx < collision_cnt || start_libcc_idx < collision_cnt)) {
 		cerr << "Already in breaking bad edges" << endl;
 		auto start_time = chrono::high_resolution_clock::now();
 		setOptionsSkipAlign(true);
-		ClusterFinally(minhash_collisions, store, false);
-		//cutEdges(minhash_collisions, store, start_check_idx);
-		//callLib_cdhit(minhash_collisions, store, start_check_idx);
+		if(start_greedy_idx < collision_cnt)
+			ClusterFinally(minhash_collisions, store, false, start_greedy_idx, collision_cnt);
+		if(start_libcc_idx < start_greedy_idx)
+			cutEdges(minhash_collisions, store, start_libcc_idx, start_greedy_idx);
 		auto end_time = chrono::high_resolution_clock::now();
 		auto duration_cc = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
 		cerr << "Break the bad edges time(seconds): " << duration_cc  << endl;
@@ -441,27 +451,10 @@ void GroupStream::GroupByCol(
 	// temp check! make sure the size of minhash_collisions is 1; must be 1!!! in test greedy no-sw libcdhit
 	cerr << "check! size of minhash_collisions(must be 1): " << minhash_collisions.size() << endl; 
 	auto start_unite_time = chrono::high_resolution_clock::now();
-	uniteByEdges(minhash_collisions, start_check_idx);
+	uniteByEdges(minhash_collisions, start_libcc_idx);
 	auto end_unite_time = chrono::high_resolution_clock::now();
 	auto duration_unite = chrono::duration_cast<chrono::seconds>(end_unite_time - start_unite_time).count();
 	cerr << "Time of update unionfind: " << duration_unite << endl;
-
-	// 从这里开始挪出GroupByCol
-	vector<pair<uint32_t, uint32_t>> need_to_clutser;
-	auto start_count = chrono::high_resolution_clock::now();
-	if(round_cnt == gs_config.M - 1) countGroupSizeBySort(need_to_clutser, 1);
-    else countGroupSizeBySort(need_to_clutser, gs_config.cluster_condition);
-	auto end_count = chrono::high_resolution_clock::now();
-	auto duration_count = chrono::duration_cast<chrono::seconds>(end_count - start_count).count();
-	cerr << "Time of count group size: " << duration_count << endl;
-	if(gs_config.final_cluster_on && need_to_clutser.size() > 0) {
-		if(round_cnt == gs_config.M-1) {
-			cerr << "Already in final clustering" << endl;
-			setOptionsSkipAlign(false);
-			ClusterFinally(need_to_clutser, store, true);
-		}
-		//else Cluster(need_to_clutser, store); // 进rescue-mode
-	}
 }
 
 void GroupStream::GroupByCol(
@@ -750,18 +743,18 @@ void print_progress(int current, int total, int bar_width = 50) {
 void GroupStream::cutEdges(
 	vector<pair<uint32_t, uint32_t>>& minhash_collisions,
 	ProteinAAStore& store,
-	int start_check_idx // 从哪个下标开始做断边
+	int start_idx, // 从哪个下标开始做断边
+	int end_idx // start_idx < end_idx, minhash_collisions升序排序
 	){
-	int collision_cnt = minhash_collisions.size();
 	// minhash_collisions升序排序 找到第一个size(p.first)>1的位置
 	auto it_multi = std::upper_bound(
-			minhash_collisions.begin(), minhash_collisions.end(), 5000u,
+			minhash_collisions.begin() + start_idx, minhash_collisions.begin() + end_idx, 5000u,
 			[](uint32_t key, const auto& p) { return key < p.second; }
 			);
-	size_t start_multi_idx = 0;
-	start_multi_idx = it_multi == minhash_collisions.end() ? collision_cnt : it_multi - minhash_collisions.begin();
-	cerr << "Number of MinHash collision processed in multi-threading: " << collision_cnt - start_multi_idx << endl;
-	cerr << "Number of MinHash collision processed in single-threading: " << start_multi_idx - start_check_idx << endl;
+	size_t start_multi_idx = it_multi == minhash_collisions.begin() + end_idx ? end_idx : it_multi - minhash_collisions.begin();
+	//start_multi_idx = it_multi == minhash_collisions.end() ? collision_cnt : it_multi - minhash_collisions.begin();
+	cerr << "Number of MinHash collision processed in multi-threading: " << end_idx - start_multi_idx << endl;
+	cerr << "Number of MinHash collision processed in single-threading: " << start_multi_idx - start_idx << endl;
     uint64_t validated_edges = 0;
     uint64_t cross_edge_sum = 0;
     uint64_t high_cj_edge_sum = 0;
@@ -774,14 +767,14 @@ void GroupStream::cutEdges(
 	int avail_threads = gs_config.num_threads;
  	omp_set_num_threads(avail_threads);
 
-	if(it_multi != minhash_collisions.end()) {
+	if(start_multi_idx < end_idx) {
 		auto start_huge_time = chrono::high_resolution_clock::now();
-		for(int i = minhash_collisions.size() -1 ; i >= start_multi_idx; i--) {
+		for(int i = end_idx - 1 ; i >= start_multi_idx; i--) {
 		//for(int i = start_multi_idx; i < minhash_collisions.size(); i++) {
 			// 显示进度条（每10组更新一次，或最后一个）
-			cerr << "doing task " << i-start_multi_idx << "of " << minhash_collisions.size() - start_multi_idx << endl;
-			//if (i % 10 == 0 || i == minhash_collisions.size() - 1) {
-			//	print_progress(i + 1, minhash_collisions.size());
+			cerr << "doing task " << i-start_multi_idx << "of " << end_idx - start_multi_idx << endl;
+			//if (i % 10 == 0 || i == end_idx - 1) {
+			//	print_progress(i + 1, end_idx - start_idx);
 			//}
 			vector<uint64_t>  edge_stat = buildConnectedComponents(
 					avail_threads, //threads
@@ -802,14 +795,14 @@ void GroupStream::cutEdges(
 		cerr << "Time of multi-thread libcdhit (use all threads once): " << duration_huge << endl;
 	}
 
-	int total_small_tasks = start_multi_idx - start_check_idx;
+	int total_small_tasks = start_multi_idx - start_idx;
 	int one_step = total_small_tasks / 100;
 	auto start_small_time = chrono::high_resolution_clock::now();
     #pragma omp parallel num_threads(avail_threads) 
 	{
         int tid = omp_get_thread_num();
 		#pragma omp for schedule(dynamic,1) reduction(+:cross_edge_sum,validated_edges,high_cj_edge_sum,pass_ed_edge_sum,filter_ed_edge_sum,last_round_jump_cnt,this_round_jump_cnt,need_edlib_edge)
-    	for(int i = start_multi_idx-1; i >= start_check_idx; i--) {
+    	for(int i = start_multi_idx-1; i >= start_idx; i--) {
     	//for(int i = start_check_idx; i < start_multi_idx; i++) {
 			vector<uint64_t>  edge_stat = buildConnectedComponents(
 					1, //threads
@@ -827,7 +820,7 @@ void GroupStream::cutEdges(
 
 			if (i % one_step == 0 || i == start_multi_idx - 1) {
 				#pragma omp critical
-				print_progress(i - start_check_idx + 1, total_small_tasks);
+				print_progress(i - start_idx + 1, total_small_tasks);
 			}
     	}
 	}
@@ -1206,13 +1199,17 @@ void GroupStream::Cluster(
 void GroupStream::ClusterFinally(
 		vector<pair<uint32_t, uint32_t>>& need_to_cluster,
 		ProteinAAStore& store,
-		bool is_cluster
+		bool is_cluster,
+		int start_idx,
+		int end_idx
 	) {
 
 	vector<vector<pair<uint32_t, uint32_t>>> tasks;
-	// 遍历minhash_collisions 去掉group_size < 1的组
+	int group_size_ge_condition = 0;
 	int group_size_gt1 = 0;
-	for(int i = need_to_cluster.size() - 1; i >= 0 && need_to_cluster[i].second > 1; i--){
+	//for(int i = need_to_cluster.size() - 1; i >= 0 && need_to_cluster[i].second > 1; i--){
+	// 遍历minhash_collisions 去掉group_size < 1的组
+	for(int i = end_idx - 1; i >= start_idx && need_to_cluster[i].second > 1; i--){
 		uint32_t start_idx = need_to_cluster[i].first;
 		uint32_t continue_size = need_to_cluster[i].second;
 		vector<pair<uint32_t, uint32_t>> one_task;
@@ -1370,8 +1367,6 @@ void GroupStream::ClusterFinally(
 		minHeap.pop();
 	}
 	cerr << endl;
-
-
 }
 	
 void GroupStream::Cluster(
@@ -1729,9 +1724,25 @@ void GroupStream::Group(
 		if(m > 0) minhash_collisions.clear();
 		fillHashVecAndDetectMinHash(sketch_filename, seq_vec,  m*gs_config.R, minhash_collisions);
 		GroupByCol(minhash_collisions, store);
-		if(m == gs_config.M-gs_config.R && gs_config.final_cluster_on) {
-			gs_config.cluster_condition = 1;
+
+		// 从这里开始挪出GroupByCol
+		vector<pair<uint32_t, uint32_t>> need_to_clutser;
+		auto start_count = chrono::high_resolution_clock::now();
+		if(round_cnt == gs_config.M - 1 && gs_config.final_cluster_on) countGroupSizeBySort(need_to_clutser, 1);
+		else if(gs_config.cluster_condition != -1) countGroupSizeBySort(need_to_clutser, gs_config.cluster_condition);
+		auto end_count = chrono::high_resolution_clock::now();
+		auto duration_count = chrono::duration_cast<chrono::seconds>(end_count - start_count).count();
+		cerr << "Time of count group size: " << duration_count << endl;
+		if(need_to_clutser.size() > 0) {
+			if(round_cnt == gs_config.M-1) {
+				cerr << "Already in final clustering" << endl;
+				setOptionsSkipAlign(false);
+				ClusterFinally(need_to_clutser, store, true, 0, need_to_clutser.size());
+			} else {
+				Cluster(need_to_clutser, store); // 进rescue-mode
+			}
 		}
+
 		round_cnt++;
 	}
 

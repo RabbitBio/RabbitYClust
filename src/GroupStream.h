@@ -29,7 +29,7 @@ public:
 		int num_threads = 10;
 		bool cluster_on = false;
 		bool final_cluster_on = false;
-		int cluster_condition = 500000;
+		int cluster_condition = -1;
 		float similarity = 0.9;
 		bool output_on = true;
 		string res_file = "";
@@ -49,6 +49,7 @@ public:
 	void Group(string sketch_filename, ProteinAAStore& store);
 
 private:
+	int greedy_condition = 1;
 	Config gs_config;
 	UnionFind uf;
 	double tau = 0.5; // TODO 根据用户输入的similarity—threshold计算tau
@@ -95,7 +96,13 @@ private:
 	void clusterEachGroup(vector<int>& group_seqs, int needed_threads, const vector<string>& fa_map);
 	//void clusterEachGroup(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map);
 
-	void ClusterFinally(vector<pair<uint32_t, uint32_t>>& need_to_cluster, ProteinAAStore& store, bool is_cluster);
+	void ClusterFinally(
+		vector<pair<uint32_t, uint32_t>>& need_to_cluster, 
+		ProteinAAStore& store, 
+		bool is_cluster, 
+		int start_idx,
+		int end_idx
+		);
 	void Cluster(vector<pair<uint32_t, uint32_t>>& need_to_clutser, ProteinAAStore& store);
 	void Cluster(vector<vector<int>>& cluster_sequences, const vector<string>& fa_map);
 	//void Cluster(vector<vector<int>>& cluster_sequences, const unordered_map<uint64_t, string>& fa_map);
@@ -135,7 +142,8 @@ private:
 	void cutEdges(
 		vector<pair<uint32_t, uint32_t>>& minhash_collisions, 
 		ProteinAAStore& store,
-		int start_check_idx
+		int start_idx,
+		int end_idx
 		);
 	void cutEdges(vector<vector<pair<int, int>>>& sequences_collisions, ProteinAAStore& store);
 	void cutEdges(vector<vector<pair<int, int>>>& sequences_collisions, int huge_groups_cnt, const vector<string>& fa_map);

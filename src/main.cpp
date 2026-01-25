@@ -41,6 +41,7 @@ int main(int argc, char* argv[])
 	int m = 15;
 	int r = 1;
 	int cnt_seqs = 0;
+	int cluster_condition = -1;
 	float similarity = 0.9;
 	float cluster_thd = 0.9;
 	bool xxhash_flag = false;
@@ -70,6 +71,7 @@ int main(int argc, char* argv[])
 	subB->add_option("-o", result_filename, "output clusters, seq_id : rep_seq_id")->required();
 	subB->add_flag("-c", cluster_on, "enable clustering to avoid super-huge group");
 	subB->add_flag("-f", final_cluster_off, "turn off the final clustering");
+	subB->add_option("-C, --cluster-condition", cluster_condition, "Set the condition of groups size for rescue after merging");
 	subB->add_option("-t, --threads", num_threads,  "set the thread number, default 1 thread");
 	subB->add_option("-s, --min-similarity", similarity, "set the minimum similarity for clustering, default 0.9");
 	subB->add_option("-m, --m-size", m, "set the number of hash functions will be used, default 15");
@@ -203,7 +205,7 @@ int main(int argc, char* argv[])
                 num_threads,
                 cluster_on,
                 !final_cluster_off,
-                500000,
+				cluster_condition,
                 similarity,
                 true,
                 result_filename,
@@ -248,7 +250,7 @@ int main(int argc, char* argv[])
                 num_threads,
                 cluster_on,
                 !final_cluster_off,
-                500000,
+				cluster_condition,
                 similarity,
                 true,
                 result_filename
