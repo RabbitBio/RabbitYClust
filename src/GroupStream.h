@@ -29,7 +29,7 @@ public:
 		int num_threads = 10;
 		bool cluster_on = false;
 		bool final_cluster_on = false;
-		int cluster_condition = -1;
+		int cluster_condition = 500000;
 		float similarity = 0.9;
 		bool output_on = true;
 		string res_file = "";
@@ -96,7 +96,7 @@ private:
 	void clusterEachGroup(vector<int>& group_seqs, int needed_threads, const vector<string>& fa_map);
 	//void clusterEachGroup(vector<int>& group_seqs, int needed_threads, const unordered_map<uint64_t, string>& fa_map);
 
-	void ClusterFinally(
+	void ClusterLargeThanRescueCondition(
 		vector<pair<uint32_t, uint32_t>>& need_to_cluster, 
 		ProteinAAStore& store, 
 		bool is_cluster, 

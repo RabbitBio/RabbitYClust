@@ -346,7 +346,7 @@ void GroupStream::uniteByEdges(
 	vector<pair<uint32_t, uint32_t>>& minhash_collisions,
 	int start_update_idx
 	){
-	priority_queue<int, vector<int>, greater<int>> minHeap;
+	//priority_queue<int, vector<int>, greater<int>> minHeap;
 
 
 	auto time_start = chrono::high_resolution_clock::now();
@@ -365,30 +365,30 @@ void GroupStream::uniteByEdges(
 				int seq_id = seq_vec[i].seq_id;
 				int this_group_id = seq_vec[i].group_id;
 				// TODO 统计cc个数还有top10都可以挪到libcc里面
-				if(this_group_id != last_group_id){ // 为了统计Top10 connected_components
-					minHeap.push(i - last_idx);
-					if (minHeap.size() > 10){
-						minHeap.pop();
-					}
-					last_idx = i;
-					last_group_id = this_group_id;
-					cc_cnt++;
-				}
+				//if(this_group_id != last_group_id){ // 为了统计Top10 connected_components
+				//	minHeap.push(i - last_idx);
+				//	if (minHeap.size() > 10){
+				//		minHeap.pop();
+				//	}
+				//	last_idx = i;
+				//	last_group_id = this_group_id;
+				//	cc_cnt++;
+				//}
 				uf.unite(seq_id, this_group_id);
 			}
-			minHeap.push(end_idx - last_idx);
-			if (minHeap.size() > 10){
-				minHeap.pop();
-			}
+			//minHeap.push(end_idx - last_idx);
+			//if (minHeap.size() > 10){
+			//	minHeap.pop();
+			//}
 		}
-		cerr << "Number of connected components created in libcc: " << cc_cnt << endl;
-		cerr << "Sum of connected components (including one node): " << cc_cnt + start_update_idx << endl;
-		cerr << "Top 10 largest connected components size in this round is: ";
-		while(!minHeap.empty()){
-		cerr << minHeap.top() << " ";
-		minHeap.pop();
-		}
-		cerr << endl;
+		//cerr << "Number of connected components created in libcc: " << cc_cnt << endl;
+		//cerr << "Sum of connected components (including one node): " << cc_cnt + start_update_idx << endl;
+		//cerr << "Top 10 largest connected components size in this round is: ";
+		//while(!minHeap.empty()){
+		//cerr << minHeap.top() << " ";
+		//minHeap.pop();
+		//}
+		//cerr << endl;
 	}else{
 		for(int ptr = start_update_idx; ptr < minhash_collisions.size(); ptr++) {
 			int size = minhash_collisions[ptr].second;
@@ -435,12 +435,12 @@ void GroupStream::GroupByCol(
 	cerr << "Number of MinHash collisions processed in greedy (groups size large than ";
 	cerr << greedy_condition << " ): " << collision_cnt - start_greedy_idx << endl;
 
-	if(gs_config.cluster_on && (start_greedy_idx < collision_cnt || start_libcc_idx < collision_cnt)) {
+	if(gs_config.M > 1 && gs_config.cluster_on && (start_greedy_idx < collision_cnt || start_libcc_idx < collision_cnt)) {
 		cerr << "Already in breaking bad edges" << endl;
 		auto start_time = chrono::high_resolution_clock::now();
 		setOptionsSkipAlign(true);
 		if(start_greedy_idx < collision_cnt)
-			ClusterFinally(minhash_collisions, store, false, start_greedy_idx, collision_cnt);
+			ClusterLargeThanRescueCondition(minhash_collisions, store, false, start_greedy_idx, collision_cnt);
 		if(start_libcc_idx < start_greedy_idx)
 			cutEdges(minhash_collisions, store, start_libcc_idx, start_greedy_idx);
 		auto end_time = chrono::high_resolution_clock::now();
@@ -1196,7 +1196,7 @@ void GroupStream::Cluster(
 	cerr << "Time of calculate top groups: " << duration_1 << endl;
 
 }
-void GroupStream::ClusterFinally(
+void GroupStream::ClusterLargeThanRescueCondition(
 		vector<pair<uint32_t, uint32_t>>& need_to_cluster,
 		ProteinAAStore& store,
 		bool is_cluster,
@@ -1224,10 +1224,16 @@ void GroupStream::ClusterFinally(
 		}
 		//根据最终序列条数修改
 		one_task[0].first = continue_size;
-		if(continue_size >= 500000u) one_task[0].second = gs_config.num_threads;
-		else if(continue_size >= 100000u) one_task[0].second = 8;
-        else if(continue_size >= 50000u) one_task[0].second = 4;
-        else if(continue_size >= 20000u) one_task[0].second = 2;
+		if(is_cluster){
+			if(continue_size >= 500000u) one_task[0].second = gs_config.num_threads;
+        	else if(continue_size >= 20000u) one_task[0].second = 16;
+        	else if(continue_size >= 10000u) one_task[0].second = 8;
+		}else{
+			if(continue_size >= 500000u) one_task[0].second = 24;
+        	else if(continue_size >= 100000u) one_task[0].second = 8;
+        	else if(continue_size >= 50000u) one_task[0].second = 4;
+        	else if(continue_size >= 20000u) one_task[0].second = 2;
+		}
 		tasks.emplace_back(one_task);
 		group_size_gt1 = i;
 	}
@@ -1242,33 +1248,68 @@ void GroupStream::ClusterFinally(
  	omp_set_num_threads(TOTAL_THREADS);
  	omp_set_nested(1);
 
+	struct ResourceManager {
+		int available_threads;
+		std::mutex mtx;
+		std::condition_variable cv;
+
+		ResourceManager(int total) : available_threads(total) {std::cerr << "Total threads in thread pool: " << available_threads << std::endl;}
+	} rm(TOTAL_THREADS);
+
 	auto timestart = chrono::high_resolution_clock::now();
 #pragma omp parallel
 {
 #pragma omp single
 {
-	for (int i = tasks.size()-1; i >= 0; i--) {
-	//for (int i = 0; i < cluster_tasks.size(); i++) {
-        if (i % 100 == 0 || i == 0) {
-			print_progress(tasks.size()-i, tasks.size());
-        }
+	for (int i = tasks.size()-1; i >= 0; i--) 
+	//for (int i = 0; i < cluster_tasks.size(); i++) 
+	{
+		//std::cerr << "Current i: " << i << std::endl;
+        //if (i % 100 == 0 || i == 0) {
+		//	std::cerr << "Before print progress. i: " << i << std::endl;
+		//	print_progress(tasks.size()-i, tasks.size());
+        //}
         auto& task = tasks[i];
 		int required_threads = task[0].second;
-#pragma omp task firstprivate(task)
+#pragma omp task firstprivate(task, required_threads, i)
 {
-		// // 等待足够的线程资源
-		while (true) {
-			int available = thread_pool.load(std::memory_order_relaxed);
-			if (available >= required_threads) {
-				int prev = thread_pool.fetch_sub(required_threads, std::memory_order_acquire);
-				if (prev >= required_threads) break;
-				thread_pool.fetch_add(required_threads, std::memory_order_release);
-			}
-			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		// 1
+		//while (true) {
+		//	int available = thread_pool.load(std::memory_order_relaxed);
+		//	if (available >= required_threads) {
+		//		int prev = thread_pool.fetch_sub(required_threads, std::memory_order_acquire);
+		//		if (prev >= required_threads) break;
+		//		thread_pool.fetch_add(required_threads, std::memory_order_release);
+		//	}
+		//	std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		//	std::cerr << "task: " << i << " is waitting for resources" << std::endl;
+		//}
+		
+		{
+			std::unique_lock<std::mutex> lock(rm.mtx);
+			rm.cv.wait(lock, [&] { return rm.available_threads >= required_threads; });
+			rm.available_threads -= required_threads;
 		}
+		
+		std::cerr << "launching task: " << i;
+		std::cerr << " with " << required_threads;
+		std::cerr << " threads, containing " << task[0].first << "sequences." << endl;
+
+		if((tasks.size() - i - 1) % 100 == 0)
+			print_progress(tasks.size()-i, tasks.size());
+
 		buildConnectedComponentsByLib_cdhit(required_threads, task, store);
-		// 释放线程资源
-		thread_pool.fetch_add(required_threads, std::memory_order_release);
+		// 1 
+		//thread_pool.fetch_add(required_threads, std::memory_order_release);
+		//std::cerr << "finishing task " << i << " finished." << std::endl;
+
+		// 2
+		{
+			std::lock_guard<std::mutex> lock(rm.mtx);
+			rm.available_threads += required_threads;
+		}
+		rm.cv.notify_all();
+		std::cerr << "finishing task " << i << " finished." << std::endl;
 }
 	}
 #pragma omp taskwait
@@ -1281,10 +1322,11 @@ void GroupStream::ClusterFinally(
 
 
 	if(!is_cluster) {
-		ips2ra::parallel::sort(seq_vec.begin(), seq_vec.end(), [](const sharedData& r) { return r.group_id; }, gs_config.num_threads);
+		//按照vector<vector<pair<>>的形式来组合后不需要全局更新了
+		//ips2ra::parallel::sort(seq_vec.begin(), seq_vec.end(), [](const sharedData& r) { return r.group_id; }, gs_config.num_threads);
 		//重新整合minhash_collisions
-		need_to_cluster.clear();
-		need_to_cluster.emplace_back(0, seq_vec.size());
+		//need_to_cluster.clear();
+		//need_to_cluster.emplace_back(0, seq_vec.size());
 		return;
 	}
 
@@ -1737,7 +1779,7 @@ void GroupStream::Group(
 			if(round_cnt == gs_config.M-1) {
 				cerr << "Already in final clustering" << endl;
 				setOptionsSkipAlign(false);
-				ClusterFinally(need_to_clutser, store, true, 0, need_to_clutser.size());
+				ClusterLargeThanRescueCondition(need_to_clutser, store, true, 0, need_to_clutser.size());
 			} else {
 				Cluster(need_to_clutser, store); // 进rescue-mode
 			}

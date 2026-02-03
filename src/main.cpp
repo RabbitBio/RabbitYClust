@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
 	int m = 15;
 	int r = 1;
 	int cnt_seqs = 0;
-	int cluster_condition = -1;
+	int cluster_condition = 500000;
 	float similarity = 0.9;
 	float cluster_thd = 0.9;
 	bool xxhash_flag = false;
@@ -114,9 +114,9 @@ int main(int argc, char* argv[])
 
 	cerr << "==========Paramters==========" << endl;
 	cerr << "Threads: " << num_threads << endl;
-	cerr << "K: " << k << endl;
+	//cerr << "K: " << k << endl;
 	cerr << "M: " << m << endl;
-	cerr << "Min_len: " << min_len << endl;
+	//cerr << "Min_len: " << min_len << endl;
 	cerr << "Input: " << input_filename << endl;
 	cerr << "Output: " << result_filename << endl;
 	if (!blacklist_filename.empty()) {
