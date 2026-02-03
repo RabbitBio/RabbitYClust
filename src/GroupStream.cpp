@@ -2065,13 +2065,13 @@ void GroupStream::outputClstr(
 		cerr << "load name from " << gs_config.names_path << endl;
         store.load_names(gs_config.names_path);
         for(int i = 0; i < gs_config.items; i++) {
-            ofs << ">" << store.name(i) << " " << ">" << store.name(uf.find(i)) << endl;
+            ofs  << store.name(uf.find(i)) << " " << store.name(i) << endl;
         }
     }else{
         cerr << "The name_path is not provided!" << endl;
         //输出seq-id
         for(int i = 0; i < gs_config.items; i++) {
-            ofs << i << " " << uf.find(i) << "\n";
+            ofs << uf.find(i) << " " << i << "\n";
         }
     }
 	auto end_time = chrono::high_resolution_clock::now();
