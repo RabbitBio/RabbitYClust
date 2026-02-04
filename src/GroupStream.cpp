@@ -2079,99 +2079,126 @@ void GroupStream::saveCurrentRoots(vector<int>& roots) {
 	}
 }
 
-// 验证合并后的uf结果是否正确来源于：上一轮uf + 当前轮seq_vec哈希分组
+// 逆向验证：从已合并的uf结果出发，检查每个合并关系是否能追溯到上一轮或当前轮哈希
 bool GroupStream::validateUnionFind(int round_num, const vector<int>& prev_roots) {
-	cerr << "========== 验证 Round " << round_num << " 合并结果 ==========" << endl;
+	cerr << "========== 逆向验证 Round " << round_num << " 合并结果 ==========" << endl;
 	
 	bool is_valid = true;
 	int error_count = 0;
 	const int MAX_ERRORS_TO_SHOW = 10;
 
-	// 构建一个临时并查集，模拟正确的合并过程：上一轮uf ∪ 当前轮seq_vec哈希分组
-	vector<int> expected_parent(gs_config.items);
-	iota(expected_parent.begin(), expected_parent.end(), 0);
+	// 构建"合法边"的并查集：只包含上一轮和当前轮哈希分组产生的连通关系
+	vector<int> valid_parent(gs_config.items);
+	iota(valid_parent.begin(), valid_parent.end(), 0);
 	
-	// lambda: 临时并查集的find
-	std::function<int(int)> temp_find = [&](int x) -> int {
-		if(expected_parent[x] != x) {
-			expected_parent[x] = temp_find(expected_parent[x]);
+	std::function<int(int)> valid_find = [&](int x) -> int {
+		if(valid_parent[x] != x) {
+			valid_parent[x] = valid_find(valid_parent[x]);
 		}
-		return expected_parent[x];
+		return valid_parent[x];
 	};
 	
-	// lambda: 临时并查集的unite
-	auto temp_unite = [&](int x, int y) {
-		int rx = temp_find(x);
-		int ry = temp_find(y);
+	auto valid_unite = [&](int x, int y) {
+		int rx = valid_find(x);
+		int ry = valid_find(y);
 		if(rx != ry) {
-			expected_parent[ry] = rx;
+			valid_parent[ry] = rx;
 		}
 	};
 	
-	// 1) 合并上一轮的分组（如果有的话）
+	// 1) 添加上一轮的合法连通关系
+	int prev_edges = 0;
 	if(!prev_roots.empty() && prev_roots.size() == gs_config.items) {
-		unordered_map<int, int> prev_group_first; // prev_root -> 第一个节点
+		unordered_map<int, vector<int>> prev_groups; // prev_root -> [节点列表]
 		for(int i = 0; i < gs_config.items; i++) {
-			int prev_root = prev_roots[i];
-			if(prev_group_first.find(prev_root) == prev_group_first.end()) {
-				prev_group_first[prev_root] = i;
-			} else {
-				temp_unite(i, prev_group_first[prev_root]);
+			prev_groups[prev_roots[i]].push_back(i);
+		}
+		for(auto& [root, nodes] : prev_groups) {
+			for(int k = 1; k < nodes.size(); k++) {
+				valid_unite(nodes[0], nodes[k]);
+				prev_edges++;
 			}
 		}
-		cerr << "  上一轮分组数: " << prev_group_first.size() << endl;
+		cerr << "  上一轮合法连通边数: " << prev_edges << " (来自 " << prev_groups.size() << " 个组)" << endl;
 	}
 	
-	// 2) 合并当前轮seq_vec中的哈希分组
-	unordered_map<int, int> cur_group_first; // group_id -> 第一个seq_id
+	// 2) 添加当前轮seq_vec哈希分组的合法连通关系
+	int cur_edges = 0;
+	unordered_map<int, vector<int>> cur_hash_groups; // group_id -> [seq_id列表]
 	for(int i = 0; i < gs_config.items; i++) {
-		int group_id = seq_vec[i].group_id;
-		int seq_id = seq_vec[i].seq_id;
-		if(cur_group_first.find(group_id) == cur_group_first.end()) {
-			cur_group_first[group_id] = seq_id;
-		} else {
-			temp_unite(seq_id, cur_group_first[group_id]);
+		cur_hash_groups[seq_vec[i].group_id].push_back(seq_vec[i].seq_id);
+	}
+	for(auto& [group_id, seq_ids] : cur_hash_groups) {
+		for(int k = 1; k < seq_ids.size(); k++) {
+			valid_unite(seq_ids[0], seq_ids[k]);
+			cur_edges++;
 		}
 	}
-	cerr << "  当前轮seq_vec哈希分组数: " << cur_group_first.size() << endl;
+	cerr << "  当前轮哈希合法连通边数: " << cur_edges << " (来自 " << cur_hash_groups.size() << " 个哈希组)" << endl;
 	
-	// 3) 统计期望组数和实际组数
-	unordered_set<int> expected_groups, actual_groups;
+	// 3) 逆向验证：对于实际uf中同组的节点，检查它们是否在合法并查集中也同组
+	//    如果uf中同组但合法并查集中不同组，说明有"非法合并"
+	cerr << "  开始逆向验证..." << endl;
+	
+	// 按照uf的分组来检查
+	unordered_map<int, vector<int>> uf_groups; // uf_root -> [节点列表]
 	for(int i = 0; i < gs_config.items; i++) {
-		expected_groups.insert(temp_find(i));
-		actual_groups.insert(uf.find(i));
+		uf_groups[uf.find(i)].push_back(i);
 	}
 	
-	cerr << "  期望组数(上一轮∪当前哈希): " << expected_groups.size() << endl;
-	cerr << "  实际uf组数: " << actual_groups.size() << endl;
-	
-	// 4) 验证：如果两个节点在expected中同组，在actual的uf中也应该同组
-	for(int i = 0; i < gs_config.items && error_count < MAX_ERRORS_TO_SHOW; i++) {
-		for(int j = i + 1; j < gs_config.items && error_count < MAX_ERRORS_TO_SHOW; j++) {
-			bool expected_same = (temp_find(i) == temp_find(j));
-			bool actual_same = (uf.find(i) == uf.find(j));
-			
-			if(expected_same && !actual_same) {
-				cerr << "  错误: 节点 " << i << " 和 " << j << " 应该同组但实际uf中不同组" << endl;
+	int invalid_merges = 0;
+	for(auto& [uf_root, nodes] : uf_groups) {
+		if(nodes.size() <= 1) continue;
+		
+		// 检查这个组内的节点是否都能通过合法边连通
+		int first_valid_root = valid_find(nodes[0]);
+		for(int k = 1; k < nodes.size(); k++) {
+			int cur_valid_root = valid_find(nodes[k]);
+			if(cur_valid_root != first_valid_root) {
+				// 找到了非法合并：uf中同组，但上一轮和当前轮哈希都无法解释
+				if(error_count < MAX_ERRORS_TO_SHOW) {
+					cerr << "  非法合并: 节点 " << nodes[0] << " 和 " << nodes[k] 
+						 << " 在uf中同组(root=" << uf_root << ")，但无法通过上一轮或当前轮哈希追溯" << endl;
+					// 输出更多调试信息
+					if(!prev_roots.empty()) {
+						cerr << "    上一轮: prev_root[" << nodes[0] << "]=" << prev_roots[nodes[0]] 
+							 << ", prev_root[" << nodes[k] << "]=" << prev_roots[nodes[k]] << endl;
+					}
+					cerr << "    当前轮: seq_vec中 " << nodes[0] << " 的group_id=";
+					for(int i = 0; i < gs_config.items; i++) {
+						if(seq_vec[i].seq_id == nodes[0]) { cerr << seq_vec[i].group_id; break; }
+					}
+					cerr << ", " << nodes[k] << " 的group_id=";
+					for(int i = 0; i < gs_config.items; i++) {
+						if(seq_vec[i].seq_id == nodes[k]) { cerr << seq_vec[i].group_id; break; }
+					}
+					cerr << endl;
+				}
 				error_count++;
+				invalid_merges++;
 				is_valid = false;
 			}
 		}
 	}
+	
+	// 4) 统计结果
+	unordered_set<int> valid_groups, actual_groups;
+	for(int i = 0; i < gs_config.items; i++) {
+		valid_groups.insert(valid_find(i));
+		actual_groups.insert(uf.find(i));
+	}
+	
+	cerr << "  合法连通后组数: " << valid_groups.size() << endl;
+	cerr << "  实际uf组数: " << actual_groups.size() << endl;
+	
 	if(error_count >= MAX_ERRORS_TO_SHOW) {
-		cerr << "  ... 错误过多，停止检查" << endl;
+		cerr << "  ... 共发现 " << invalid_merges << " 个非法合并，只显示前 " << MAX_ERRORS_TO_SHOW << " 个" << endl;
 	}
 	
-	// 5) 输出结论
-	if(actual_groups.size() > expected_groups.size()) {
-		cerr << "  警告: 实际组数多于期望，存在未合并的情况！" << endl;
-		is_valid = false;
-	} else if(actual_groups.size() < expected_groups.size()) {
-		cerr << "  信息: 实际组数少于期望，说明有额外合并（可能来自cluster/cutEdges操作）" << endl;
-	}
-	
-	if(is_valid && error_count == 0) {
-		cerr << "  通过: 合并结果正确来源于上一轮uf和当前轮seq_vec哈希分组的并集" << endl;
+	if(is_valid) {
+		cerr << "  通过: 所有uf中的合并都可追溯到上一轮或当前轮哈希分组" << endl;
+	} else {
+		cerr << "  失败: 存在 " << invalid_merges << " 个无法追溯的非法合并" << endl;
 	}
 	
 	cerr << "========== 验证完成，结果: " << (is_valid ? "通过" : "存在错误") << " ==========" << endl;
