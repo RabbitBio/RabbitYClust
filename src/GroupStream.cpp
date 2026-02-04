@@ -6,6 +6,8 @@
 #include <atomic>
 #include <unordered_set>
 #include <fstream>
+#include <functional>
+#include <numeric>
 
 #include "ips2ra.hpp"
 #include "ips4o.hpp"
@@ -1716,6 +1718,10 @@ void GroupStream::Group(
     const ProteinSketchData& sketchdata,
 	const ProteinData& proteindata
 	) {
+	// 用于验证的变量：保存上一轮的roots
+	vector<int> prev_round_roots;
+	vector<int> cur_round_roots;
+	
 	//for(int m=0; m < gs_config.M - gs_config.R+1; m++){
 	for(int m=0; m < gs_config.M; m++){
 		cerr << "round "<<  m << endl;
@@ -1726,6 +1732,12 @@ void GroupStream::Group(
 			gs_config.cluster_condition = 1;
 		}
 		//countGroupSize(m, uf, proteindata.sequence_map);
+		
+		// 验证并查集合并结果的正确性
+		saveCurrentRoots(cur_round_roots);
+		validateUnionFind(round_cnt, prev_round_roots);
+		prev_round_roots = cur_round_roots;
+		
 		round_cnt++;
 	}
 
@@ -1737,6 +1749,11 @@ void GroupStream::Group(
 	const ProteinData& proteindata
 	) {
     cerr << "tau in libcdhit: " << tau << endl;
+	
+	// 用于验证的变量：保存上一轮的roots
+	vector<int> prev_round_roots;
+	vector<int> cur_round_roots;
+	
 	//for(int m=0; m < gs_config.M - gs_config.R+1; m++){
 	for(int m=0; m < gs_config.M; m++){
 		cerr << "round "<<  m << endl;
@@ -1747,6 +1764,12 @@ void GroupStream::Group(
 			gs_config.cluster_condition = 1;
 		}
 		//countGroupSize(m, uf, proteindata.sequence_map);
+		
+		// 验证并查集合并结果的正确性
+		saveCurrentRoots(cur_round_roots);
+		validateUnionFind(round_cnt, prev_round_roots);
+		prev_round_roots = cur_round_roots;
+		
 		round_cnt++;
 	}
 
@@ -1761,6 +1784,11 @@ void GroupStream::Group(
 	) {
     cerr << "tau in libcdhit: " << tau << endl;
 	vector<pair<uint32_t, uint32_t>> minhash_collisions;
+	
+	// 用于验证的变量：保存上一轮的roots
+	vector<int> prev_round_roots;
+	vector<int> cur_round_roots;
+	
 	for(int m=0; m < gs_config.M; m++){
 		cerr << "round "<<  m << endl;
 		if(m > 0) minhash_collisions.clear();
@@ -1784,6 +1812,13 @@ void GroupStream::Group(
 				Cluster(need_to_clutser, store); // 进rescue-mode
 			}
 		}
+
+		// 验证并查集合并结果的正确性
+		saveCurrentRoots(cur_round_roots);
+		validateUnionFind(round_cnt, prev_round_roots);
+		
+		// 保存当前轮的roots作为下一轮的prev_roots
+		prev_round_roots = cur_round_roots;
 
 		round_cnt++;
 	}
@@ -2036,6 +2071,113 @@ void GroupStream::outputClstr(
 	//}
 	//cout.rdbuf(origin_cout);
 }
+// 保存当前round的所有节点的根节点
+void GroupStream::saveCurrentRoots(vector<int>& roots) {
+	roots.resize(gs_config.items);
+	for(int i = 0; i < gs_config.items; i++) {
+		roots[i] = uf.find(i);
+	}
+}
+
+// 验证合并后的uf结果是否正确来源于：上一轮uf + 当前轮seq_vec哈希分组
+bool GroupStream::validateUnionFind(int round_num, const vector<int>& prev_roots) {
+	cerr << "========== 验证 Round " << round_num << " 合并结果 ==========" << endl;
+	
+	bool is_valid = true;
+	int error_count = 0;
+	const int MAX_ERRORS_TO_SHOW = 10;
+
+	// 构建一个临时并查集，模拟正确的合并过程：上一轮uf ∪ 当前轮seq_vec哈希分组
+	vector<int> expected_parent(gs_config.items);
+	iota(expected_parent.begin(), expected_parent.end(), 0);
+	
+	// lambda: 临时并查集的find
+	std::function<int(int)> temp_find = [&](int x) -> int {
+		if(expected_parent[x] != x) {
+			expected_parent[x] = temp_find(expected_parent[x]);
+		}
+		return expected_parent[x];
+	};
+	
+	// lambda: 临时并查集的unite
+	auto temp_unite = [&](int x, int y) {
+		int rx = temp_find(x);
+		int ry = temp_find(y);
+		if(rx != ry) {
+			expected_parent[ry] = rx;
+		}
+	};
+	
+	// 1) 合并上一轮的分组（如果有的话）
+	if(!prev_roots.empty() && prev_roots.size() == gs_config.items) {
+		unordered_map<int, int> prev_group_first; // prev_root -> 第一个节点
+		for(int i = 0; i < gs_config.items; i++) {
+			int prev_root = prev_roots[i];
+			if(prev_group_first.find(prev_root) == prev_group_first.end()) {
+				prev_group_first[prev_root] = i;
+			} else {
+				temp_unite(i, prev_group_first[prev_root]);
+			}
+		}
+		cerr << "  上一轮分组数: " << prev_group_first.size() << endl;
+	}
+	
+	// 2) 合并当前轮seq_vec中的哈希分组
+	unordered_map<int, int> cur_group_first; // group_id -> 第一个seq_id
+	for(int i = 0; i < gs_config.items; i++) {
+		int group_id = seq_vec[i].group_id;
+		int seq_id = seq_vec[i].seq_id;
+		if(cur_group_first.find(group_id) == cur_group_first.end()) {
+			cur_group_first[group_id] = seq_id;
+		} else {
+			temp_unite(seq_id, cur_group_first[group_id]);
+		}
+	}
+	cerr << "  当前轮seq_vec哈希分组数: " << cur_group_first.size() << endl;
+	
+	// 3) 统计期望组数和实际组数
+	unordered_set<int> expected_groups, actual_groups;
+	for(int i = 0; i < gs_config.items; i++) {
+		expected_groups.insert(temp_find(i));
+		actual_groups.insert(uf.find(i));
+	}
+	
+	cerr << "  期望组数(上一轮∪当前哈希): " << expected_groups.size() << endl;
+	cerr << "  实际uf组数: " << actual_groups.size() << endl;
+	
+	// 4) 验证：如果两个节点在expected中同组，在actual的uf中也应该同组
+	for(int i = 0; i < gs_config.items && error_count < MAX_ERRORS_TO_SHOW; i++) {
+		for(int j = i + 1; j < gs_config.items && error_count < MAX_ERRORS_TO_SHOW; j++) {
+			bool expected_same = (temp_find(i) == temp_find(j));
+			bool actual_same = (uf.find(i) == uf.find(j));
+			
+			if(expected_same && !actual_same) {
+				cerr << "  错误: 节点 " << i << " 和 " << j << " 应该同组但实际uf中不同组" << endl;
+				error_count++;
+				is_valid = false;
+			}
+		}
+	}
+	if(error_count >= MAX_ERRORS_TO_SHOW) {
+		cerr << "  ... 错误过多，停止检查" << endl;
+	}
+	
+	// 5) 输出结论
+	if(actual_groups.size() > expected_groups.size()) {
+		cerr << "  警告: 实际组数多于期望，存在未合并的情况！" << endl;
+		is_valid = false;
+	} else if(actual_groups.size() < expected_groups.size()) {
+		cerr << "  信息: 实际组数少于期望，说明有额外合并（可能来自cluster/cutEdges操作）" << endl;
+	}
+	
+	if(is_valid && error_count == 0) {
+		cerr << "  通过: 合并结果正确来源于上一轮uf和当前轮seq_vec哈希分组的并集" << endl;
+	}
+	
+	cerr << "========== 验证完成，结果: " << (is_valid ? "通过" : "存在错误") << " ==========" << endl;
+	return is_valid;
+}
+
 void GroupStream::outputClstr(
     ProteinAAStore& store
 ) {

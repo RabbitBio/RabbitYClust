@@ -153,6 +153,10 @@ private:
 	void outputClstr(const vector<string>& names);
     void outputClstr(ProteinAAStore& store);
 
+	// 验证并查集合并结果的正确性
+	bool validateUnionFind(int round_num, const vector<int>& prev_roots);
+	void saveCurrentRoots(vector<int>& roots);
+
 
 
 	// count time
