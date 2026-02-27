@@ -347,9 +347,6 @@ void GroupStream::uniteByEdges(
 	int start_update_idx
 	){
 	//priority_queue<int, vector<int>, greater<int>> minHeap;
-
-
-	auto time_start = chrono::high_resolution_clock::now();
 	if(gs_config.cluster_on){
 		int cc_cnt = 0;
 		for(int ptr = start_update_idx; ptr < minhash_collisions.size(); ptr++) {
@@ -420,10 +417,13 @@ void GroupStream::GroupByCol(
 	// minhash_collisions升序排序 找到第一个size(p.first)>1的位置
 	int start_libcc_idx = minhash_collisions.size();
 	int start_greedy_idx = minhash_collisions.size();
+	// minhash 分组中 规模大于1的
 	auto it_large1 = std::upper_bound(
 			minhash_collisions.begin(), minhash_collisions.end(), 1u,
 			[](uint32_t key, const auto& p) { return key < p.second; }
 			);
+
+	// minhash 分组中 规模大于greedy_condition的
 	auto it_large_greedy_condition = std::upper_bound(
 			minhash_collisions.begin(), minhash_collisions.end(), greedy_condition,
 			[](uint32_t key, const auto& p) { return key < p.second; }
@@ -552,7 +552,7 @@ void GroupStream::fillHashVecAndDetectMinHash(
 	}
 	// 后面几轮 把seq_vec minhash_collisions清空
 	if(m > 0) {
-		reset(minhash_collisions, seq_vec);
+		reset(minhash_collisions, seq_hash_vec);
 	}
 
     for(int r = 0; r < gs_config.R; r++){
@@ -748,11 +748,10 @@ void GroupStream::cutEdges(
 	){
 	// minhash_collisions升序排序 找到第一个size(p.first)>1的位置
 	auto it_multi = std::upper_bound(
-			minhash_collisions.begin() + start_idx, minhash_collisions.begin() + end_idx, 5000u,
+			minhash_collisions.begin() + start_idx, minhash_collisions.begin() + end_idx, 1000u,
 			[](uint32_t key, const auto& p) { return key < p.second; }
 			);
 	size_t start_multi_idx = it_multi == minhash_collisions.begin() + end_idx ? end_idx : it_multi - minhash_collisions.begin();
-	//start_multi_idx = it_multi == minhash_collisions.end() ? collision_cnt : it_multi - minhash_collisions.begin();
 	cerr << "Number of MinHash collision processed in multi-threading: " << end_idx - start_multi_idx << endl;
 	cerr << "Number of MinHash collision processed in single-threading: " << start_multi_idx - start_idx << endl;
     uint64_t validated_edges = 0;
@@ -776,19 +775,19 @@ void GroupStream::cutEdges(
 			//if (i % 10 == 0 || i == end_idx - 1) {
 			//	print_progress(i + 1, end_idx - start_idx);
 			//}
-			vector<uint64_t>  edge_stat = buildConnectedComponents(
+			buildConnectedComponents(
 					avail_threads, //threads
 					minhash_collisions[i].first, // start_pos
 					minhash_collisions[i].second + minhash_collisions[i].first, // end_pos
 					store);
-			validated_edges += edge_stat[0];
-			cross_edge_sum += edge_stat[1];
-			high_cj_edge_sum += edge_stat[2];
-			filter_ed_edge_sum += edge_stat[3];
-			pass_ed_edge_sum += edge_stat[4];
-			last_round_jump_cnt += edge_stat[5];
-			this_round_jump_cnt += edge_stat[6];
-			need_edlib_edge += edge_stat[7];
+			//validated_edges += edge_stat[0];
+			//cross_edge_sum += edge_stat[1];
+			//high_cj_edge_sum += edge_stat[2];
+			//filter_ed_edge_sum += edge_stat[3];
+			//pass_ed_edge_sum += edge_stat[4];
+			//last_round_jump_cnt += edge_stat[5];
+			//this_round_jump_cnt += edge_stat[6];
+			//need_edlib_edge += edge_stat[7];
 		}
 		auto end_huge_time = chrono::high_resolution_clock::now();
 		auto duration_huge = chrono::duration_cast<chrono::seconds>(end_huge_time - start_huge_time).count();
@@ -804,19 +803,19 @@ void GroupStream::cutEdges(
 		#pragma omp for schedule(dynamic,1) reduction(+:cross_edge_sum,validated_edges,high_cj_edge_sum,pass_ed_edge_sum,filter_ed_edge_sum,last_round_jump_cnt,this_round_jump_cnt,need_edlib_edge)
     	for(int i = start_multi_idx-1; i >= start_idx; i--) {
     	//for(int i = start_check_idx; i < start_multi_idx; i++) {
-			vector<uint64_t>  edge_stat = buildConnectedComponents(
+			buildConnectedComponents(
 					1, //threads
 					minhash_collisions[i].first, // start_pos
 					minhash_collisions[i].second + minhash_collisions[i].first, // end_pos
 					store);
-			validated_edges += edge_stat[0];
-			cross_edge_sum += edge_stat[1];
-			high_cj_edge_sum += edge_stat[2];
-			filter_ed_edge_sum += edge_stat[3];
-			pass_ed_edge_sum += edge_stat[4];
-			last_round_jump_cnt += edge_stat[5];
-			this_round_jump_cnt += edge_stat[6];
-			need_edlib_edge += edge_stat[7];
+			//validated_edges += edge_stat[0];
+			//cross_edge_sum += edge_stat[1];
+			//high_cj_edge_sum += edge_stat[2];
+			//filter_ed_edge_sum += edge_stat[3];
+			//pass_ed_edge_sum += edge_stat[4];
+			//last_round_jump_cnt += edge_stat[5];
+			//this_round_jump_cnt += edge_stat[6];
+			//need_edlib_edge += edge_stat[7];
 
 			if (i % one_step == 0 || i == start_multi_idx - 1) {
 				#pragma omp critical
@@ -828,14 +827,14 @@ void GroupStream::cutEdges(
 	auto duration_small = chrono::duration_cast<chrono::seconds>(end_small_time - start_small_time).count();
 	cerr << "Time of single-thread libcdhit (use only 1 threads each group): " << duration_small << endl;
 
-    cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
-    cerr << "Number of validated edges build among CC: " << validated_edges << endl;
-    cerr << "Number of edges cross origin group among CC: " << cross_edge_sum << endl;
-    cerr << "Number of edges get CJ >=0.6 among CC: " << high_cj_edge_sum << endl;
-    cerr << "Number of edges  CJ < 0.6 and pass EDLIB: " << pass_ed_edge_sum << endl;
-    cerr << "Number of edges  CJ < 0.6 and no pass EDLIB: " << filter_ed_edge_sum << endl;
-    cerr << "Number of edges  CJ < 0.6: " << pass_ed_edge_sum + filter_ed_edge_sum << endl;
-    cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+//    cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+//    cerr << "Number of validated edges build among CC: " << validated_edges << endl;
+//    cerr << "Number of edges cross origin group among CC: " << cross_edge_sum << endl;
+//    cerr << "Number of edges get CJ >=0.6 among CC: " << high_cj_edge_sum << endl;
+//    cerr << "Number of edges  CJ < 0.6 and pass EDLIB: " << pass_ed_edge_sum << endl;
+//    cerr << "Number of edges  CJ < 0.6 and no pass EDLIB: " << filter_ed_edge_sum << endl;
+//    cerr << "Number of edges  CJ < 0.6: " << pass_ed_edge_sum + filter_ed_edge_sum << endl;
+//    cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
 
 }
 void GroupStream::cutEdges(
@@ -1205,9 +1204,8 @@ void GroupStream::ClusterLargeThanRescueCondition(
 	) {
 
 	vector<vector<pair<uint32_t, uint32_t>>> tasks;
-	int group_size_ge_condition = 0;
 	int group_size_gt1 = 0;
-	//for(int i = need_to_cluster.size() - 1; i >= 0 && need_to_cluster[i].second > 1; i--){
+	
 	// 遍历minhash_collisions 去掉group_size < 1的组
 	for(int i = end_idx - 1; i >= start_idx && need_to_cluster[i].second > 1; i--){
 		uint32_t start_idx = need_to_cluster[i].first;
@@ -1237,7 +1235,7 @@ void GroupStream::ClusterLargeThanRescueCondition(
 		tasks.emplace_back(one_task);
 		group_size_gt1 = i;
 	}
-	cerr << "Number of groups larger than 1: " << need_to_cluster.size() - group_size_gt1 << endl;
+	cerr << "Number of groups processed: " << need_to_cluster.size() - group_size_gt1 << endl;
 	ips2ra::parallel::sort(tasks.begin(), tasks.end(), [](const vector<pair<uint32_t, uint32_t>>& r){return r[0].first;}, gs_config.num_threads);
 	cerr << "Number of groups need to cluster in cdhit(after collection small groups into groups>10,000): " << tasks.size() << endl;
 
@@ -1291,9 +1289,9 @@ void GroupStream::ClusterLargeThanRescueCondition(
 			rm.available_threads -= required_threads;
 		}
 		
-		std::cerr << "launching task: " << i;
-		std::cerr << " with " << required_threads;
-		std::cerr << " threads, containing " << task[0].first << "sequences." << endl;
+		//std::cerr << "launching task: " << i;
+		//std::cerr << " with " << required_threads;
+		//std::cerr << " threads, containing " << task[0].first << "sequences." << endl;
 
 		if((tasks.size() - i - 1) % 100 == 0)
 			print_progress(tasks.size()-i, tasks.size());
@@ -1309,7 +1307,7 @@ void GroupStream::ClusterLargeThanRescueCondition(
 			rm.available_threads += required_threads;
 		}
 		rm.cv.notify_all();
-		std::cerr << "finishing task " << i << " finished." << std::endl;
+		//std::cerr << "finishing task " << i << " finished." << std::endl;
 }
 	}
 #pragma omp taskwait
@@ -1759,31 +1757,42 @@ void GroupStream::Group(
 	string sketch_filename,
 	ProteinAAStore& store
 	) {
+	bool early_stop = false;
     cerr << "tau in libcdhit: " << tau << endl;
 	vector<pair<uint32_t, uint32_t>> minhash_collisions;
-	for(int m=0; m < gs_config.M; m++){
+	for(int m=0; m < gs_config.M && !early_stop; m++){
+		int group_cnt_last_round = uf.countSetsSize();
 		cerr << "round "<<  m << endl;
 		if(m > 0) minhash_collisions.clear();
 		fillHashVecAndDetectMinHash(sketch_filename, seq_vec,  m*gs_config.R, minhash_collisions);
 		GroupByCol(minhash_collisions, store);
 
+		int group_cnt_this_round = uf.countSetsSize();
+		int new_connected_groups = group_cnt_last_round - group_cnt_this_round;
+		if(new_connected_groups * 10000LL <= group_cnt_last_round) early_stop = true;
+
 		// 从这里开始挪出GroupByCol
 		vector<pair<uint32_t, uint32_t>> need_to_clutser;
 		auto start_count = chrono::high_resolution_clock::now();
-		if(round_cnt == gs_config.M - 1 && gs_config.final_cluster_on) countGroupSizeBySort(need_to_clutser, 1);
-		else if(gs_config.cluster_condition != -1) countGroupSizeBySort(need_to_clutser, gs_config.cluster_condition);
-		auto end_count = chrono::high_resolution_clock::now();
-		auto duration_count = chrono::duration_cast<chrono::seconds>(end_count - start_count).count();
-		cerr << "Time of count group size: " << duration_count << endl;
-		if(need_to_clutser.size() > 0) {
-			if(round_cnt == gs_config.M-1) {
-				cerr << "Already in final clustering" << endl;
-				setOptionsSkipAlign(false);
-				ClusterLargeThanRescueCondition(need_to_clutser, store, true, 0, need_to_clutser.size());
-			} else {
+
+		if(early_stop || (round_cnt == gs_config.M - 1 && gs_config.final_cluster_on)) {
+			countGroupSizeBySort(need_to_clutser, 1);
+			cerr << "Already in final clustering" << endl;
+			setOptionsSkipAlign(false);
+			ClusterLargeThanRescueCondition(need_to_clutser, store, true, 0, need_to_clutser.size());
+
+		} else if(gs_config.rescue_on && gs_config.cluster_condition != -1){
+			countGroupSizeBySort(need_to_clutser, gs_config.cluster_condition);
+			if(need_to_clutser.size() > 0) {
+				cout << "In rescue mode, clustering groups size large than " << gs_config.cluster_condition << endl;
 				Cluster(need_to_clutser, store); // 进rescue-mode
 			}
 		}
+
+		auto end_count = chrono::high_resolution_clock::now();
+		auto duration_count = chrono::duration_cast<chrono::seconds>(end_count - start_count).count();
+		cerr << "Time of count group size and clustering: " << duration_count << endl;
+
 
 		round_cnt++;
 	}
@@ -1854,7 +1863,8 @@ vector<uint64_t> GroupStream::buildConnectedComponents_st(
     return edge_stat;
 }
 
-vector<uint64_t> GroupStream::buildConnectedComponents(
+//vector<uint64_t> GroupStream::buildConnectedComponents(
+void GroupStream::buildConnectedComponents(
 	int needed_threads, 
 	uint32_t start_idx,
 	uint32_t end_idx,
@@ -1871,11 +1881,10 @@ vector<uint64_t> GroupStream::buildConnectedComponents(
 		//sequences[i-start_idx].length = seqs[i-start_idx].c_str().size();
 	}
 
-	vector<uint64_t> edge_stat;
 	if(needed_threads == 1) {
-		edge_stat = cluster_sequences_new_st(sequences, 5, tau, ed_thres); 
+		cluster_sequences_new_st(sequences, 5, tau, ed_thres); 
 	}else {
-		edge_stat = cluster_sequences_new(sequences, 5, tau, ed_thres, needed_threads); 
+		cluster_sequences_new(sequences, 5, tau, ed_thres, needed_threads); 
 	}
 
 	for(int i = start_idx, j = 0; i < end_idx; i++, j++) {
@@ -1886,7 +1895,7 @@ vector<uint64_t> GroupStream::buildConnectedComponents(
 	// TODO 可以挪到libcc中直接对sequences排序
 	// 对做了libcc的结果按照group_id排序
     ips2ra::sort(seq_vec.begin() + start_idx, seq_vec.begin() + end_idx, [](const sharedData& r) { return r.group_id; });
-	return edge_stat;
+	//return edge_stat;
 }
 
 void GroupStream::buildConnectedComponentsByLib_cdhit(
@@ -2060,22 +2069,60 @@ void GroupStream::outputClstr(
 //	ofs.close();
 
 	cerr << "cluster result stored: " << gs_config.res_file << endl;
-	ofstream ofs(gs_config.res_file);
-    if(gs_config.names_path != "") {
+	if (gs_config.names_path != "") {
 		cerr << "load name from " << gs_config.names_path << endl;
-        store.load_names(gs_config.names_path);
-        for(int i = 0; i < gs_config.items; i++) {
-            ofs  << store.name(uf.find(i)) << " " << store.name(i) << endl;
-        }
-    }else{
-        cerr << "The name_path is not provided!" << endl;
-        //输出seq-id
-        for(int i = 0; i < gs_config.items; i++) {
-            ofs << uf.find(i) << " " << i << "\n";
-        }
-    }
+		store.load_names(gs_config.names_path);
+	}
+
+	FILE* fp = fopen(gs_config.res_file.c_str(), "w");
+	if (!fp) {
+		cerr << "Failed to open " << gs_config.res_file << " for writing!" << endl;
+		return;
+	}
+
+	if (gs_config.names_path != "") {
+		int num_threads = gs_config.num_threads;
+		vector<string> thread_buffers(num_threads);
+		
+		#pragma omp parallel num_threads(num_threads)
+		{
+			int tid = omp_get_thread_num();
+			string& local_buf = thread_buffers[tid];
+			local_buf.reserve(1024 * 1024); // 1MB initial reserve
+
+			#pragma omp for schedule(dynamic, 1000)
+			for (int i = 0; i < gs_config.items; i++) {
+				local_buf += ">";
+				local_buf += store.name(i);
+				local_buf += " >";
+				local_buf += store.name(uf.find(i));
+				local_buf += "\n";
+
+				if (local_buf.size() > 8 * 1024 * 1024) { // 8MB chunk
+					#pragma omp critical
+					{
+						fwrite(local_buf.data(), 1, local_buf.size(), fp);
+					}
+					local_buf.clear();
+				}
+			}
+		}
+
+		for (int i = 0; i < num_threads; ++i) {
+			if (!thread_buffers[i].empty()) {
+				fwrite(thread_buffers[i].data(), 1, thread_buffers[i].size(), fp);
+			}
+		}
+	} else {
+		cerr << "The name_path is not provided!" << endl;
+		// 输出 seq-id
+		for (int i = 0; i < gs_config.items; i++) {
+			fprintf(fp, "%d %d\n", i, uf.find(i));
+		}
+	}
+	fclose(fp);
+
 	auto end_time = chrono::high_resolution_clock::now();
 	auto duration = chrono::duration_cast<chrono::seconds>(end_time - start_time).count();
 	cerr << "output time (seconds): " << duration  << endl;
-    ofs.close();
 }

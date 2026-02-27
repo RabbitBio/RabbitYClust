@@ -28,6 +28,7 @@ public:
 		int L = 1;
 		int num_threads = 10;
 		bool cluster_on = false;
+		bool rescue_on = false;
 		bool final_cluster_on = false;
 		int cluster_condition = 500000;
 		float similarity = 0.9;
@@ -49,11 +50,11 @@ public:
 	void Group(string sketch_filename, ProteinAAStore& store);
 
 private:
-	int greedy_condition = 1;
+	int greedy_condition = 1000;
 	Config gs_config;
 	UnionFind uf;
 	double tau = 0.5; // TODO 根据用户输入的similarity—threshold计算tau
-	double ed_thres = 0.5;
+	double ed_thres = 0.8;
 	
 	vector<Data> hash_vec;
 	vector<sharedData> seq_vec;
@@ -124,7 +125,8 @@ private:
 		uint32_t end_idx,
 		ProteinAAStore& store
 		);
-    vector<uint64_t> buildConnectedComponents(
+    //vector<uint64_t> buildConnectedComponents(
+    void buildConnectedComponents(
 		int needed_threads, 
 		uint32_t start_idx,
 		uint32_t end_idx,

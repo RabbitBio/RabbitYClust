@@ -46,6 +46,7 @@ int main(int argc, char* argv[])
 	float cluster_thd = 0.9;
 	bool xxhash_flag = false;
 	bool cluster_on = false;
+	bool rescue_on = false;
 	bool final_cluster_off = false;
 	bool threadPool_off = false;
 	string input_filename = "";
@@ -70,6 +71,7 @@ int main(int argc, char* argv[])
 	subB->add_option("-i, --input", input_filename, "input file name, fasta or gziped fasta formats")->required();
 	subB->add_option("-o", result_filename, "output clusters, seq_id : rep_seq_id")->required();
 	subB->add_flag("-c", cluster_on, "enable clustering to avoid super-huge group");
+	subB->add_flag("-R, --rescue-on", rescue_on, "enable clustering giant-connected components in grouping");
 	subB->add_flag("-f", final_cluster_off, "turn off the final clustering");
 	subB->add_option("-C, --cluster-condition", cluster_condition, "Set the condition of groups size for rescue after merging");
 	subB->add_option("-t, --threads", num_threads,  "set the thread number, default 1 thread");
@@ -204,6 +206,7 @@ int main(int argc, char* argv[])
                 1,
                 num_threads,
                 cluster_on,
+				rescue_on,
                 !final_cluster_off,
 				cluster_condition,
                 similarity,
@@ -249,6 +252,7 @@ int main(int argc, char* argv[])
                 1,
                 num_threads,
                 cluster_on,
+				rescue_on,
                 !final_cluster_off,
 				cluster_condition,
                 similarity,
