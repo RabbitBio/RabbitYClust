@@ -1224,13 +1224,13 @@ void GroupStream::ClusterLargeThanRescueCondition(
 		one_task[0].first = continue_size;
 		if(is_cluster){
 			if(continue_size >= 500000u) one_task[0].second = gs_config.num_threads;
-        	else if(continue_size >= 20000u) one_task[0].second = 16;
-        	else if(continue_size >= 10000u) one_task[0].second = 8;
+        	else if(continue_size >= 20000u) one_task[0].second = 16 < gs_config.num_threads ? 16 : gs_config.num_threads;
+        	else if(continue_size >= 10000u) one_task[0].second = 8 < gs_config.num_threads ? 8 : gs_config.num_threads;
 		}else{
-			if(continue_size >= 500000u) one_task[0].second = 24;
-        	else if(continue_size >= 100000u) one_task[0].second = 8;
-        	else if(continue_size >= 50000u) one_task[0].second = 4;
-        	else if(continue_size >= 20000u) one_task[0].second = 2;
+			if(continue_size >= 500000u) one_task[0].second = 24 < gs_config.num_threads ? 24 : gs_config.num_threads;
+        	else if(continue_size >= 100000u) one_task[0].second = 8 < gs_config.num_threads ? 8 : gs_config.num_threads;
+        	else if(continue_size >= 50000u) one_task[0].second = 4 < gs_config.num_threads ? 4 : gs_config.num_threads;
+        	else if(continue_size >= 20000u) one_task[0].second = 2 < gs_config.num_threads ? 2 : gs_config.num_threads;
 		}
 		tasks.emplace_back(one_task);
 		group_size_gt1 = i;
@@ -1775,7 +1775,7 @@ void GroupStream::Group(
 		vector<pair<uint32_t, uint32_t>> need_to_clutser;
 		auto start_count = chrono::high_resolution_clock::now();
 
-		if(early_stop || (round_cnt == gs_config.M - 1 && gs_config.final_cluster_on)) {
+		if((early_stop && gs_config.final_cluster_on) || (round_cnt == gs_config.M - 1 && gs_config.final_cluster_on)) {
 			countGroupSizeBySort(need_to_clutser, 1);
 			cerr << "Already in final clustering" << endl;
 			setOptionsSkipAlign(false);
@@ -2092,9 +2092,9 @@ void GroupStream::outputClstr(
 
 			#pragma omp for schedule(dynamic, 1000)
 			for (int i = 0; i < gs_config.items; i++) {
-				local_buf += ">";
+				//local_buf += ">";
 				local_buf += store.name(i);
-				local_buf += " >";
+				local_buf += " ";//>";
 				local_buf += store.name(uf.find(i));
 				local_buf += "\n";
 
